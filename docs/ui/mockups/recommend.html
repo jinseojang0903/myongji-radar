@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>명지레이더 · 맞춤 추천 (화면 설계 목업)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="home.html">명지레이더</a>
+    <nav aria-label="주요 화면">
+      <a href="home.html">홈</a>
+      <a href="recommend.html" aria-current="page">맞춤 추천</a>
+      <a href="log.html">제작 기록</a>
+    </nav>
+    <span class="cond">내 조건: <b>자연캠 · 2학년 · 재학 · 개인 지원</b></span>
+  </div>
+</header>
+<p class="demo">화면 설계 목업입니다. 대회 정보는 2026-10-15 기준 실제 교내 공지에서 가져온 예시이며, 버튼은 동작하지 않습니다.</p>
+
+<main>
+  <section class="panel" aria-labelledby="h-ask">
+    <h1 id="h-ask">내 조건으로 찾기</h1>
+    <div class="ask">
+      <label for="q" class="small" style="position:absolute;left:-9999px">조건을 문장으로 입력</label>
+      <input id="q" value="자연캠 2학년, 혼자 낼 수 있는 대회 있어?">
+      <button class="btn primary">조건으로 바꾸기</button>
+    </div>
+    <p class="small">문장은 이 기기 안에서 정해진 표현 사전으로 해석합니다. AI나 서버로 보내지 않습니다.</p>
+    <div class="row"><span class="small">인식한 조건</span><span class="badge s-auto">자연캠</span><span class="badge s-auto">2학년</span><span class="badge s-auto">개인 지원</span><span class="small">· 이해하지 못한 표현: 없음</span></div>
+
+    <div class="row"><span class="small" style="width:52px">캠퍼스</span><div class="chips"><button class="chip" aria-pressed="false">인문</button><button class="chip" aria-pressed="true">자연</button></div></div>
+    <div class="row"><span class="small" style="width:52px">학년</span><div class="chips"><button class="chip" aria-pressed="false">1</button><button class="chip" aria-pressed="true">2</button><button class="chip" aria-pressed="false">3</button><button class="chip" aria-pressed="false">4</button><button class="chip" aria-pressed="false">편입생</button></div></div>
+    <div class="row"><span class="small" style="width:52px">학적</span><div class="chips"><button class="chip" aria-pressed="true">재학</button><button class="chip" aria-pressed="false">휴학</button><button class="chip" aria-pressed="false">초과학기</button><button class="chip" aria-pressed="false">졸업유예</button></div></div>
+    <div class="row"><span class="small" style="width:52px">참가</span><div class="chips"><button class="chip" aria-pressed="true">개인</button><button class="chip" aria-pressed="false">팀</button></div></div>
+    <p class="small">고른 조건은 이 브라우저에만 저장되고 서버로 보내지 않습니다.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-result">
+    <div class="row"><h2 id="h-result">마감 전 대회 4건</h2><span class="small spacer">기준일 2026-10-15</span></div>
+
+    <div class="item">
+      <div class="row"><span class="badge j-ok">● 신청 가능</span><span class="title">2026학년도 AI 리터러시 경진대회</span><span class="dday spacer">D-6</span></div>
+      <span class="reason">대상 정규학기 학부 재학생 ✓ · 3인 이내, 개인 지원 가능 ✓ · 휴학·수료·초과학기·졸업유예 제외 (해당 없음)</span>
+      <div class="row"><span class="tag">제안서 3장</span><span class="badge s-human">✓ 검수 완료</span><a class="btn spacer" href="card.html">카드 보기</a></div>
+    </div>
+
+    <div class="item">
+      <div class="row"><span class="badge j-team">◆ 팀 구성 시 가능</span><span class="title">제5회 역사 영상 콘텐츠 제작 프로젝트 공모전</span><span class="dday spacer">D-8</span></div>
+      <span class="reason">2~5인 팀만 참가 가능 (개인 지원 불가) · 대상 학부 재학생 ✓</span>
+      <p class="notice">⚠ 마감 변경: 9/30 → 10/23 <span>· 제외 대상이 본문과 포스터에서 달라 원문 확인 필요</span></p>
+      <div class="row"><span class="tag">영상 3분 + 콘티</span><a class="btn spacer" href="card.html">카드 보기</a></div>
+    </div>
+
+    <div class="item">
+      <div class="row"><span class="badge j-check">? 확인 필요</span><span class="title">제13회 English Video Contest (자연캠)</span><span class="dday spacer">D-1</span></div>
+      <span class="reason">개인 참가 가능 여부가 공지에 없음 · 학년·학적 조건이 공지에 없음 (제한이 없다는 뜻은 아님)</span>
+      <div class="row"><span class="tag">영상 3~5분 + 대본</span><button class="btn spacer">✉ 문의 초안 복사</button><a class="btn" href="card.html">카드 보기</a></div>
+    </div>
+
+    <div class="item">
+      <div class="row"><span class="badge j-no">✕ 불가</span><span class="title">2026학년도 AI 창의적 아이디어 해커톤</span><span class="dday far spacer">D-13</span></div>
+      <span class="reason">인문캠퍼스 재학생만 참가 가능 (내 조건: 자연캠) · 근거: "참가자격: 명지대학교 소속 인문캠퍼스 재학생"</span>
+      <div class="row"><span class="badge s-before">자격 확인 전</span><span class="small">팀이 원문과 대조하기 전 정보입니다</span><a class="btn spacer" href="card.html">카드 보기</a></div>
+    </div>
+
+    <p class="small">판정은 AI가 아니라 규칙 코드가 합니다. 공지에 없거나 확인 전인 조건이 걸리면 "신청 가능" 대신 "확인 필요"로 보여 줍니다.</p>
+  </section>
+</main>
+</body>
+</html>
