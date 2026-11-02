@@ -1,0 +1,24 @@
+# 공지 원문·첨부·캐시: 전문 복제 금지 원칙에 따라 저장소에 올리지 않는다
+data/
+
+# 비밀값
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# 편집기·OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 로그
+*.log

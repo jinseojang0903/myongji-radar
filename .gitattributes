@@ -1,0 +1,6 @@
+# Windows와 GitHub Actions(리눅스)에서 줄바꿈을 같게 유지한다
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.pdf binary
