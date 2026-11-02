@@ -1,0 +1,86 @@
+# 같은 게시판 계열은 설정만 추가. 다른 구조는 adapters에 구현하고 등록한다.
+[[sources]]
+id = "mju_general"
+priority = 90
+name = "명지대학교 일반공지"
+adapter = "k2web"
+rss_url = "https://www.mju.ac.kr/bbs/mjukr/141/rssList.do?row=50"
+allowed_hosts = ["www.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+[[sources]]
+id = "mju_ctl"
+priority = 91
+name = "명지대학교 교수학습센터"
+adapter = "k2web"
+rss_url = "https://ctl.mju.ac.kr/bbs/ctl/792/rssList.do?row=50"
+allowed_hosts = ["ctl.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+# 추가 출처는 우선순위대로 실행한다. 기존 두 출처는 그 뒤에 확인한다.
+[[sources]]
+id = "mju_startup"
+repair_rss_ampersands = true
+name = "명지대학교 창업교육센터"
+priority = 1
+adapter = "k2web"
+list_url = "https://startup.mju.ac.kr/startup/3240/subview.do"
+rss_url = "https://startup.mju.ac.kr/bbs/startup/565/rssList.do?row=50"
+allowed_hosts = ["startup.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+[[sources]]
+id = "mju_abix"
+repair_rss_ampersands = true
+name = "명지대학교 ABI-X 사업단"
+priority = 2
+adapter = "k2web"
+list_url = "https://aict.mju.ac.kr/aict/9557/subview.do"
+rss_url = "https://aict.mju.ac.kr/bbs/aict/1394/rssList.do?row=50"
+allowed_hosts = ["aict.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+[[sources]]
+id = "mju_innovation"
+discovery = "html"
+name = "명지대학교 대학혁신지원사업"
+priority = 3
+adapter = "k2web"
+list_url = "https://innov.mju.ac.kr/innovation/1090/subview.do"
+rss_url = "https://innov.mju.ac.kr/bbs/innovation/56/rssList.do?row=50"
+allowed_hosts = ["innov.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+[[sources]]
+id = "mju_ecc"
+name = "명지대학교 공학교육혁신센터"
+priority = 4
+adapter = "k2web"
+list_url = "https://www.mju.ac.kr/eng/12125/subview.do"
+rss_url = "https://www.mju.ac.kr/bbs/eng/1736/rssList.do?row=50"
+allowed_hosts = ["www.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
+
+[[sources]]
+id = "mju_scict"
+name = "명지대학교 반도체·ICT대학"
+priority = 5
+adapter = "k2web"
+list_url = "https://www.mju.ac.kr/scict/10494/subview.do"
+rss_url = "https://www.mju.ac.kr/bbs/scict/1491/rssList.do?row=50"
+allowed_hosts = ["www.mju.ac.kr"]
+title_selector = ".artclViewTitle"
+body_selector = ".artclView"
+attachment_selector = ".attfile a[href]"
