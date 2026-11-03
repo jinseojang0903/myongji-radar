@@ -37,7 +37,7 @@
 {
   "value": <항목별 형식, 정보가 없으면 null>,
   "status": "ai | auto_verified | needs_check | human_verified | missing",
-  "evidence": [ { "quote": "원문 그대로 짧게", "location": "본문 | 이미지 | 첨부", "file": "첨부 파일명(선택)", "source": url } ],
+  "evidence": [ { "quote": "원문 그대로 짧게", "location": "제목 | 본문 | 이미지 | 첨부", "file": "이미지·첨부 파일명(선택)", "source": url } ],
   "note": "애매하거나 충돌한 이유 (선택)"
 }
 ```
@@ -58,14 +58,14 @@
 |---|---|---|
 | `apply` | `{ "start": "YYYY-MM-DD HH:MM" \| null, "end": ..., "time_given": bool }` | 시각이 없으면 `time_given: false`, 시각을 임의로 채우지 않는다 |
 | `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용) |
-| `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 공지에 "제한 없음"이 명시된 경우만 |
-| `grades` | `[1, 2, 3, 4]` 또는 `"any"` | |
-| `enrollment` | `{ "allowed": ["재학"], "excluded": ["휴학", "수료", "초과학기", "졸업유예"] }` | |
-| `team` | `{ "min": 1, "max": 3, "individual_ok": true }` | |
-| `deliverables` | `{ "tags": ["기획서", "영상", "에세이", "코드", "발표", "기타"], "text": "영상 3~5분 + 대본" }` | 제출물 배지 |
+| `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 대상 문장이 있는데 캠퍼스로 나누지 않거나 "제한 없음"이 명시된 경우 (11/3 보완, 근거는 그 대상 문장). 대상 문장 자체가 없으면 `missing` |
+| `grades` | `[1, 2, 3, 4]` 또는 `"any"` | `campus`와 같은 규칙. 예: "정규학기 학부 재학생" → `"any"` |
+| `enrollment` | `{ "allowed": ["재학"], "excluded": ["휴학", "수료", "초과학기", "졸업유예"] }` | 대상 문장은 있는데 학적 언급이 없으면 두 목록 모두 빈 배열 (= 제한 문구 없음). 대상 문장이 없으면 `missing` |
+| `team` | `{ "min": null, "max": 3, "individual_ok": true }` | 공지에 없는 숫자는 null ("3인 이내" → min null) |
+| `deliverables` | `{ "tags": ["기획서·제안서", "영상", "에세이·수기", "코드·개발", "발표", "디자인", "현장 참가", "기타"], "text": "영상 3~5분 + 대본" }` | 제출물 배지. 태그 목록은 추출 프롬프트 v0.2와 같다 |
 | `benefits` | string | 상금·상장 |
-| `mileage` | string | 마일리지 |
-| `how_to_apply` | string | 신청 방법 |
+| `mileage` | `{ "text": "예선 참가자 전원 창의 10점", "area": "창의" \| null, "points": 10 \| null }` | `points`는 참가자 기준. 수상자 추가 점수는 `text`에만 |
+| `how_to_apply` | `{ "text": "신청 방법 요약", "url": "https://..." \| null }` | 링크는 http·https만 |
 | `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만 |
 
 ## 2. 조건 (자연어 해석기 출력, 버튼 입력과 같은 형식)
