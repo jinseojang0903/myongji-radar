@@ -1,0 +1,12 @@
+{
+  "name": "myongji-radar",
+  "private": true,
+  "type": "module",
+  "description": "사이트 JS(site/js) 테스트용. 외부 패키지 없이 Node 내장 테스트만 쓴다.",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

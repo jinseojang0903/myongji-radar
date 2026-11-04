@@ -56,7 +56,7 @@
 
 | 키 | value 형식 | 예 |
 |---|---|---|
-| `apply` | `{ "start": "YYYY-MM-DD HH:MM" \| null, "end": ..., "time_given": bool }` | 시각이 없으면 `time_given: false`, 시각을 임의로 채우지 않는다 |
+| `apply` | `{ "start": "YYYY-MM-DD HH:MM" \| null, "end": ..., "time_given": bool }` | 시각이 없으면 `time_given: false`이고 값은 `"YYYY-MM-DD"`만. 시각을 임의로 채우지 않는다. `time_given`은 `end`의 시각 기준 |
 | `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용) |
 | `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 대상 문장이 있는데 캠퍼스로 나누지 않거나 "제한 없음"이 명시된 경우 (11/3 보완, 근거는 그 대상 문장). 대상 문장 자체가 없으면 `missing` |
 | `grades` | `[1, 2, 3, 4]` 또는 `"any"` | `campus`와 같은 규칙. 예: "정규학기 학부 재학생" → `"any"` |
@@ -89,19 +89,42 @@
 
 ## 3. 판정 결과 (`site/js/rules.js`)
 
+`judgeCard(card, conditions, { now })` → 아래 형식. `now`는 판정 기준 시각(기본은 지금, 테스트·목업은 고정 날짜). 날짜는 한국 시간으로 본다.
+
 ```json
 { "card_id": "...", "result": "eligible | team_needed | check | ineligible",
-  "reasons": [ { "field": "campus", "message": "인문캠퍼스 재학생만 참가 가능", "quote": "근거 문장" } ] }
+  "reasons": [ { "field": "campus", "outcome": "fail", "message": "인문캠퍼스 재학생만 참가 가능 (내 조건: 자연캠)",
+                 "quote": "근거 문장 | null", "unverified": true } ] }
 ```
 
-| result | 화면 | 판정 순서 |
+| result | 화면 | 판정 순서 (위에서부터 하나라도 해당하면 그 결과) |
 |---|---|---|
-| `ineligible` | 불가 | 1. 근거가 있는 자격 조건에 학생 조건이 맞지 않음 |
-| `check` | 확인 필요 | 2. 판정에 필요한 항목이 `missing`·`needs_check`·확인 전이거나, 학생 조건이 `null`이거나, 개인 참가 학생인데 `team.individual_ok`가 `null` |
-| `team_needed` | 팀 구성 시 가능 | 3. 개인 지원인데 `team.individual_ok`가 false |
+| `ineligible` | 불가 | 1. 근거가 있는 핵심 항목에 학생 조건이 맞지 않음, 또는 신청 마감이 지남 |
+| `check` | 확인 필요 | 2. 판정에 필요한 핵심 항목이 `missing`·`needs_check`·확인 전이거나, 대회가 제한하는 조건을 학생이 입력하지 않음(`null`), 또는 개인 참가 학생인데 `team.individual_ok`가 `null` |
+| `team_needed` | 팀 구성 시 가능 | 3. 개인 참가(또는 참가 방식 미입력) 학생인데 `team.individual_ok`가 `false` |
 | `eligible` | 신청 가능 | 4. 위에 해당하지 않음 |
 
-**안전 원칙:** 확실하지 않으면 `eligible`을 내지 않는다. "불가인데 가능으로 판정"(위험 오판)을 가장 나쁜 오류로 보고 따로 센다.
+**핵심 항목:** `apply`, `campus`, `grades`, `enrollment`, `team`. 그 밖의 항목은 판정에 쓰지 않는다 (제출물·기간은 #24 화면의 필터).
+
+**항목 상태와 판정**
+
+| 항목 `status` | 학생 조건과 맞음 | 맞지 않음 |
+|---|---|---|
+| `human_verified` | 통과 | `ineligible` |
+| `ai`, `auto_verified`, 그 밖의 값 (확인 전) | `check` ("확인 전") | `ineligible` + `unverified: true` (화면에 "확인 전 정보" 표시) |
+| `needs_check` | `check` | `check` (애매한 값으로 불가를 내지 않는다) |
+| `missing` | `check` | `check` |
+
+**항목별 규칙**
+
+- `apply`: `end`가 지났으면 불가. 시각이 없으면(`time_given: false`) 마감일 다음 날부터 불가로 보고, **마감일 당일은 `check`**(시각 미기재). `end`가 없으면(상시 접수 등) `check`. 시작 전이면 결과는 바꾸지 않고 `outcome: "note"`로 "신청 시작 전"을 남긴다.
+- `campus`·`grades`: `"any"`면 학생 조건과 상관없이 통과. 목록이면 학생 값이 목록에 있어야 한다. 학생 값이 `null`이면 `check`. 빈 목록이나 숫자가 아닌 학년은 추출 오류로 보고 `check` (불가로 읽지 않는다).
+- `enrollment`: 학생이 고를 수 있는 학적(재학, 휴학, 수료, 초과학기, 졸업유예)으로 판정한다. 학생 학적이 `excluded`에 있으면 불가. `allowed`가 비어 있으면 통과, 있으면 학생 학적이 그 안에 있어야 하고 아니면 불가(초과학기생이 `재학`에 포함되는지는 애매하므로 `check`). **학생 조건으로 답할 수 없는 표현이 있으면 맞든 안 맞든 `check`:** `allowed`의 위 다섯 낱말 밖 표현(원문 표현, `편입생`, `대학원생` 등), `excluded`의 표준 낱말 밖 원문 표현(예: "외국인 유학생"). 편입생(`is_transfer: true`)은 `excluded`에 `편입생`이 있으면 불가, 편입 여부가 `null`이면 `check`. `excluded`의 `기존 수상자`·`대학원생`·`졸업`은 결과를 바꾸지 않고 `note`로 남긴다. 학생 학적이 `null`이면 학적 제한(`allowed`가 있거나 `excluded`에 위 다섯 낱말이 있음)이 없을 때만 통과.
+- `team`: `individual_ok`가 `true`면 통과. `false`면 팀 참가 학생은 통과, 개인·미입력은 `team_needed`. `null`이면 팀 참가 학생은 통과, 개인·미입력은 `check`.
+
+**reasons:** 결과를 정한 사유가 앞에 온다 (`fail` → `unknown` → `team` → `note` → `ok`). `outcome`은 `fail`·`unknown`·`team`·`note`·`ok`. `eligible`의 `ok` 사유는 화면의 "맞은 조건 요약"에 쓴다 (✓ 표시는 화면이 붙이고 메시지에는 넣지 않는다). 확인 전 항목의 `ok`·`team`은 `unknown`이 되고 메시지 끝에 "(확인 전)"이 붙는다. `quote`는 그 항목 근거의 첫 문장, 없으면 `null`.
+
+**안전 원칙:** 확실하지 않으면 `eligible`을 내지 않는다. "불가인데 가능으로 판정"(위험 오판)을 가장 나쁜 오류로 보고 따로 센다. `eligible`은 핵심 항목 5개가 모두 `human_verified`이고 모두 학생 조건과 맞을 때만 나온다.
 
 ## 4. 바뀔 예정
 
