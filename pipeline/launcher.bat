@@ -87,7 +87,7 @@ set "RESULT=0"
 goto finish
 
 :direct_run
-call :run 3
+call :run 50
 set "RESULT=%ERRORLEVEL%"
 goto finish
 :direct_test

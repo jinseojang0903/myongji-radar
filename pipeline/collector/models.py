@@ -24,6 +24,7 @@ class NoticeRef:
     url: str
     title: str
     published_at: str | None
+    is_pinned: bool = False
 
 
 @dataclass

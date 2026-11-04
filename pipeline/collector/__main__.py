@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
     parser.add_argument("--source", help="출처 ID 하나만 실행")
-    parser.add_argument("--limit", type=int, default=3, help="출처별 상세 수집 수 (1~50)")
+    parser.add_argument("--limit", type=int, default=50, help="출처별 상세 수집 상한 (1~50, 기본 50; 시험 시 줄여서 실행)")
     args = parser.parse_args()
     if args.command == "analyze":
         try:
@@ -58,6 +58,9 @@ def main():
                 try:
                     refs = adapter.discover(fetcher.get(discovery_url, source.allowed_hosts), source)
                     stats["discovered"] = len(refs)
+                    # 미수집 글을 먼저, 같은 그룹에서는 일반 글을 고정 글보다 먼저.
+                    # stable sort로 각 그룹의 원래 발견 순서는 유지한다.
+                    refs = sorted(refs, key=lambda ref: (repo.has_notice(source.id, ref.external_id), ref.is_pinned))
                     for ref in refs[:args.limit]:
                         try:
                             html = fetcher.get(ref.url, source.allowed_hosts)
