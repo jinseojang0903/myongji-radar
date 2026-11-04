@@ -94,6 +94,25 @@ export function saveConditions(conditions, storage = BROWSER_STORAGE) {
 }
 
 /**
+ * 저장된 내 조건을 지운다 (공용 PC에 학년·학적이 남지 않게, PR #38 보안 리뷰).
+ * @returns {boolean} 지웠는지 (저장소가 막혀 있으면 false)
+ */
+export function clearSavedConditions(storage = BROWSER_STORAGE) {
+  try {
+    resolveStorage(storage).removeItem(CONDITIONS_STORAGE_KEY);
+    return true;
+  } catch (error) {
+    console.warn('저장된 조건을 지울 수 없음', error);
+    return false;
+  }
+}
+
+/** 아무 조건도 말하지 않은 상태 (계약 2절 형식) */
+export function emptyConditions() {
+  return { campus: null, grade: null, is_transfer: null, enrollment: null, participation: null, deliverables: [], period: null, unknown_terms: [] };
+}
+
+/**
  * "자연캠퍼스 2학년 재학생, 개인 참가" 같은 한 줄. 고른 것이 없으면 null.
  * @param {{withParticipation?: boolean}} [options]  false면 신분(캠퍼스·학년·편입·학적)만 (문의 초안 자기소개용)
  */

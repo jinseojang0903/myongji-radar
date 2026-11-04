@@ -1,0 +1,136 @@
+// 맞춤 추천 계산 (#24): 문장 해석 결과를 조건에 반영, 대회별 판정을 4상태로 묶기, 제출물·기간 필터, 사유 요약.
+// DOM을 쓰지 않아 Node로 테스트한다. 그리기는 recommend-page.js.
+// 판정은 rules.js(계약 3절)가 한다. 이 파일은 묶고 고르고 요약만 한다.
+
+import { judgeCard } from './rules.js';
+import { deadlineOf, deliverableTags } from './cards.js';
+import { kstDateString } from './dates.js';
+
+export const RESULT_ORDER = ['eligible', 'team_needed', 'check', 'ineligible'];
+export const RESULT_VIEW = {
+  eligible: { cls: 'j-ok', text: '● 신청 가능' },
+  team_needed: { cls: 'j-team', text: '◆ 팀 구성 시 가능' },
+  check: { cls: 'j-check', text: '? 확인 필요' },
+  ineligible: { cls: 'j-no', text: '✕ 불가' },
+};
+const URGENT_DAYS = 7; // 계약 2절 5: 마감임박 = 마감 7일 이내 (홈 필터와 같다)
+const CONDITION_FIELDS = ['campus', 'grade', 'is_transfer', 'enrollment', 'participation', 'period'];
+
+/**
+ * 문장 해석 결과를 지금 조건에 반영한다. 문장이 말한 조건만 바꾸고, 말하지 않은 조건(null)은 그대로 둔다.
+ * 제출물은 문장에 있으면 그 목록으로 바꾼다. unknown_terms는 화면 표시용으로만 돌려준다 (저장하지 않음).
+ * @param {object} current  지금 조건 (계약 2절)
+ * @param {object} parsed  parseConditions 결과
+ * @returns {{conditions: object, changed: string[], unknownTerms: string[]}}  changed: 문장으로 바뀐 조건 이름
+ */
+export function applyParsed(current, parsed) {
+  const conditions = { ...current, unknown_terms: [] };
+  const changed = [];
+  for (const field of CONDITION_FIELDS) {
+    if (parsed[field] !== null && parsed[field] !== undefined && parsed[field] !== current[field]) {
+      conditions[field] = parsed[field];
+      changed.push(field);
+    }
+  }
+  if (Array.isArray(parsed.deliverables) && parsed.deliverables.length > 0) {
+    conditions.deliverables = [...parsed.deliverables];
+    if (parsed.deliverables.join('|') !== (current.deliverables ?? []).join('|')) changed.push('deliverables');
+  }
+  return { conditions, changed, unknownTerms: Array.isArray(parsed.unknown_terms) ? parsed.unknown_terms : [] };
+}
+
+/**
+ * 기간 필터의 마지막 날 (마감일 기준, 계약 2절 5). 한국 시간으로 계산한다.
+ * - 마감임박: 오늘부터 7일 뒤까지
+ * - 이번주: 이번 주 일요일까지 (월요일 시작, 오늘이 일요일이면 오늘)
+ * - 이번달: 이번 달 마지막 날까지
+ * @returns {string|null} "YYYY-MM-DD", 기간을 고르지 않았으면 null
+ */
+export function periodEndDate(period, now) {
+  const today = kstDateString(now);
+  const at = (days) => new Date(Date.parse(`${today}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+  if (period === '마감임박') return at(URGENT_DAYS);
+  if (period === '이번주') {
+    const weekday = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = 일요일
+    return at(weekday === 0 ? 0 : 7 - weekday);
+  }
+  if (period === '이번달') {
+    const [year, month] = today.split('-').map(Number);
+    return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+/**
+ * 대회별 판정을 4상태로 묶는다. 마감 지난 대회는 뺀다. 제출물·기간은 판정이 아니라 필터다 (계약 3절 "핵심 항목").
+ * @param {object[]} cards  validateCardData를 통과한 카드
+ * @param {object} conditions  계약 2절 조건
+ * @param {Date} now  기준 시각
+ * @returns {{groups: Record<string, {card: object, judged: object, deadline: object, summary: string}[]>,
+ *   closedCount: number, filteredCount: number, total: number}}
+ *   filteredCount: 제출물·기간 필터로 빠진 수. total: 보여 주는 대회 수
+ */
+export function recommendCards(cards, conditions, now) {
+  const groups = Object.fromEntries(RESULT_ORDER.map((result) => [result, []]));
+  const periodEnd = periodEndDate(conditions.period, now);
+  const tags = conditions.deliverables ?? [];
+  let closedCount = 0;
+  let filteredCount = 0;
+  for (const card of cards) {
+    const deadline = deadlineOf(card, now);
+    if (deadline.state === 'closed') {
+      closedCount += 1;
+      continue;
+    }
+    // 기간을 고르면 마감일을 읽을 수 있는 대회만 (마감일 없음·읽을 수 없음은 그 기간 안인지 알 수 없다)
+    const isOutOfPeriod = periodEnd && !(deadline.state === 'open' && deadline.endDate <= periodEnd);
+    const isOtherDeliverable = tags.length > 0 && !deliverableTags(card).some((tag) => tags.includes(tag));
+    if (isOutOfPeriod || isOtherDeliverable) {
+      filteredCount += 1;
+      continue;
+    }
+    const judged = judgeCard(card, conditions, { now });
+    groups[judged.result].push({ card, judged, deadline, summary: reasonSummary(judged) });
+  }
+  for (const items of Object.values(groups)) items.sort(compareDeadline);
+  const total = Object.values(groups).reduce((sum, items) => sum + items.length, 0);
+  return { groups, closedCount, filteredCount, total };
+}
+
+function compareDeadline(a, b) {
+  const key = ({ deadline }) => (deadline.state === 'open' ? `${deadline.endDate} ${deadline.endTime ?? '24:00'}` : '9999');
+  return key(a).localeCompare(key(b)) || a.card.title.localeCompare(b.card.title, 'ko');
+}
+
+/**
+ * 판정 사유 한 줄. 신청 가능이면 맞은 조건(✓), 아니면 결과를 정한 사유부터 (계약 3절 reasons 순서).
+ * 불가 사유에는 근거 문장을 붙인다 (화면설계.md 4절 "맞지 않는 조건과 근거 문장").
+ * @param {{result: string, reasons: object[]}} judged
+ * @param {number} [limit]  보여 줄 사유 수
+ */
+export function reasonSummary(judged, limit = 3) {
+  if (judged.result === 'eligible') {
+    return judged.reasons.filter((reason) => reason.outcome === 'ok').slice(0, limit).map((reason) => `${reason.message} ✓`).join(' · ');
+  }
+  const deciding = judged.reasons.filter((reason) => reason.outcome !== 'ok').slice(0, limit);
+  return deciding.map((reason) => {
+    const quote = reason.outcome === 'fail' && reason.quote ? ` · 근거: "${reason.quote}"` : '';
+    return `${reason.message}${quote}`;
+  }).join(' · ');
+}
+
+/** 판정 사유 중 확인 전 근거로 "불가"가 나온 것이 있는지 ("확인 전 정보" 표시용, 계약 3절) */
+export function hasUnverifiedFail(judged) {
+  return judged.reasons.some((reason) => reason.outcome === 'fail' && reason.unverified);
+}
+
+/**
+ * "이해하지 못한 표현" 칩을 화면에 맞게 줄인다 (PR #36 보안 리뷰: 칩 개수·길이 상한).
+ * @returns {{shown: string[], hiddenCount: number}}
+ */
+export function limitTerms(terms, { maxCount = 10, maxLength = 20 } = {}) {
+  const list = Array.isArray(terms) ? terms.filter((term) => typeof term === 'string' && term.trim() !== '') : [];
+  const shown = list.slice(0, maxCount).map((term) => ([...term].length > maxLength ? `${[...term].slice(0, maxLength).join('')}…` : term));
+  return { shown, hiddenCount: Math.max(0, list.length - maxCount) };
+}
+

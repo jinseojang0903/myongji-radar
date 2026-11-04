@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
 <title>명지레이더 · 맞춤 추천</title>
 <link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/recommend-page.js"></script>
 </head>
 <body>
 <header>
@@ -16,14 +17,35 @@
       <a href="recommend.html" aria-current="page">맞춤 추천</a>
       <a href="log.html">제작 기록</a>
     </nav>
-    <span class="cond">내 조건: 아직 고르지 않음</span>
+    <span class="cond" id="cond-summary">내 조건: 아직 고르지 않음</span>
   </div>
 </header>
+<p class="demo" id="sample-banner" hidden></p>
+
 <main>
-  <section class="panel" aria-labelledby="h-page">
-    <h1 id="h-page">맞춤 추천</h1>
-    <p class="small">이 화면은 아직 만드는 중입니다 (#24). 화면 설계는 <code>docs/ui/화면설계.md</code>에 있습니다.</p>
-    <a class="btn" href="index.html">홈으로</a>
+  <section class="panel" aria-labelledby="h-ask">
+    <h1 id="h-ask">내 조건으로 찾기</h1>
+    <form class="ask" id="ask-form">
+      <label for="q" class="sr-only">조건을 문장으로 입력</label>
+      <input id="q" name="q" autocomplete="off" placeholder="예: 자연캠 2학년인데 혼자 낼 수 있는 대회 있어?">
+      <button type="submit" class="btn primary">조건으로 바꾸기</button>
+    </form>
+    <p class="small">문장은 이 기기 안에서 정해진 표현 사전으로 해석합니다. AI나 서버로 보내지 않고, 문장은 저장하지 않습니다.</p>
+    <p class="small" id="parse-status" role="status"></p>
+    <div class="row" id="parsed"></div>
+
+    <div id="chip-groups"></div>
+    <div class="row">
+      <span class="small">고른 조건은 이 기기의 브라우저에만 저장되고 서버로 보내지 않습니다.</span>
+      <button type="button" class="btn" id="clear-saved">저장된 조건 지우기</button>
+      <span class="small" id="save-status" role="status"></span>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="result-heading">
+    <div class="row"><h2 id="result-heading">불러오는 중…</h2><span class="small spacer" id="result-meta"></span></div>
+    <div class="result-list" id="result-list"></div>
+    <p class="small">판정은 AI가 아니라 규칙 코드가 합니다. 공지에 없거나 팀이 원문과 대조하기 전인 조건이 걸리면 "신청 가능" 대신 "확인 필요"로 보여 줍니다.</p>
   </section>
 </main>
 </body>

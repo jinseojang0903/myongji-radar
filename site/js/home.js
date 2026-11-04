@@ -1,7 +1,7 @@
 // 홈 화면 (#21): 대회 목록, 필터, 기준일·게시판 목록.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames } from './cards.js';
-import { loadPage, badgeElements, ddayElement } from './page.js';
+import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 
 const filters = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
@@ -15,6 +15,7 @@ async function main() {
     return;
   }
   const { data, now, rejected, isSample } = page;
+  showConditionSummary();
   renderTagChips();
   renderBoards(data.boards);
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다

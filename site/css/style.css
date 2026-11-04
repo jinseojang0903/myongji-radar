@@ -118,6 +118,12 @@ h2 { font-size: 16.5px; margin: 0; }
 .ev.draft { border-left-color: var(--warn); background: var(--note-bg); white-space: pre-wrap; }
 .side label.row { font-size: 14px; }
 
+/* 맞춤 추천 (#24) */
+.result-list { display: grid; gap: 10px; }
+.result-group { display: grid; gap: 10px; }
+#chip-groups { display: grid; gap: 6px; margin: 10px 0; }
+#parsed:empty { display: none; }
+
 /* 입력 */
 .ask { display: flex; gap: 8px; }
 .ask input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; }
