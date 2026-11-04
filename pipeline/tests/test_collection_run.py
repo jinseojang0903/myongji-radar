@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from collector.__main__ import main
+from collector.adapters.k2web import K2WebAdapter
 from collector.models import Notice, NoticeRef
 from collector.repository import Repository
 
@@ -120,6 +121,25 @@ class CollectionRunTests(unittest.TestCase):
         self.assertEqual(self.collect(refs, body="Updated body"), [ref.url for ref in refs])
         self.assertEqual(len(self.notices()), 2)
         self.assertTrue(all(notice["body_text"] == "Updated body" for notice in self.notices()))
+
+    def test_parser_upgrade_reparses_saved_html_during_collection(self):
+        refs = [reference(1)]
+        self.collect(refs)
+        previous = self.notices()[0]
+        original_parse = K2WebAdapter.parse_detail
+
+        def upgraded_parse(adapter, html, ref, source):
+            notice = original_parse(adapter, html, ref, source)
+            notice.body_text = "개선된 파싱: " + notice.body_text
+            notice.parser_version = "k2web-v2"
+            return notice
+
+        with patch.object(K2WebAdapter, "parse_detail", upgraded_parse):
+            self.collect(refs)
+        current = self.notices()[0]
+        self.assertEqual(current["version_id"], previous["version_id"])
+        self.assertEqual(current["body_text"], "개선된 파싱: Body")
+        self.assertEqual(current["parser_version"], "k2web-v2")
 
     def test_html_new_regular_and_pinned_posts_precede_saved_posts(self):
         refs = [reference(1, pinned=True), reference(2), reference(3, pinned=True), reference(4), reference(5)]
