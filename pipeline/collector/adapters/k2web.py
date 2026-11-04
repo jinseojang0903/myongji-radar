@@ -70,7 +70,13 @@ class K2WebAdapter:
             if published:
                 datetime.strptime(published, "%Y-%m-%d")
             external_id = "/".join(match.groups())
-            refs[external_id] = NoticeRef(external_id, url, normalized_text(title), published)
+            # K2Web 목록에서 확인한 고정 행/번호 칸 표식만 사용한다.
+            # 제목의 '공지' 문구나 게시 날짜로 고정 여부를 추측하지 않는다.
+            is_pinned = ("headline" in row.get("class", [])
+                         or row.select_one("._artclTdNum ._artclNotice") is not None)
+            previous = refs.get(external_id)
+            refs[external_id] = NoticeRef(external_id, url, normalized_text(title), published,
+                                         is_pinned or (previous.is_pinned if previous else False))
         if not refs:
             raise ValueError("HTML 목록 0건: 접근 권한 또는 목록 구조 확인 필요")
         return list(refs.values())

@@ -53,6 +53,28 @@ class CollectorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "RSS 항목 링크 없음"):
             self.adapter.discover(b'<rss><channel><item><title>NOT SUPPORT RSS</title><link/></item></channel></rss>', self.source)
 
+    def test_html_pinned_markers_do_not_depend_on_notice_title(self):
+        html = '''<table><tbody>
+            <tr class="headline"><td class="_artclTdNum">1</td><td>
+                <a class="artclLinkView" href="/bbs/test/1/1/artclView.do"><strong>First</strong></a></td></tr>
+            <tr><td class="_artclTdNum"><span class="_artclNotice">Pinned</span></td><td>
+                <a class="artclLinkView" href="/bbs/test/1/2/artclView.do"><strong>Second</strong></a></td></tr>
+            <tr><td class="_artclTdNum">3</td><td>
+                <a class="artclLinkView" href="/bbs/test/1/3/artclView.do"><strong>공지 안내</strong></a></td></tr>
+            </tbody></table>'''
+        refs = self.adapter.discover(html.encode(), replace(self.source, discovery="html", list_url="https://example.com/list"))
+        self.assertEqual([ref.is_pinned for ref in refs], [True, True, False])
+
+    def test_html_duplicate_keeps_pinned_marker_in_either_order(self):
+        pinned = '<tr class="headline"><td><a class="artclLinkView" href="/bbs/test/1/1/artclView.do">Pinned</a></td></tr>'
+        regular = pinned.replace(' class="headline"', '')
+        for rows in (pinned + regular, regular + pinned):
+            with self.subTest(rows=rows):
+                refs = self.adapter.discover(('<table><tbody>' + rows + '</tbody></table>').encode(),
+                                             replace(self.source, discovery="html", list_url="https://example.com/list"))
+                self.assertEqual(len(refs), 1)
+                self.assertTrue(refs[0].is_pinned)
+
     def test_invalid_pages_fail_explicitly(self):
         with self.assertRaises(ValueError):
             self.adapter.discover(b"<rss><channel/></rss>", self.source)
