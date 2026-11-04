@@ -42,6 +42,10 @@ class Repository:
             self.db.execute("UPDATE runs SET finished_at=?, result_json=? WHERE id=?",
                             (now(), json.dumps(result, ensure_ascii=False), run_id))
 
+    def has_notice(self, source_id: str, external_id: str) -> bool:
+        return self.db.execute("SELECT 1 FROM notices WHERE source_id=? AND external_id=?",
+                               (source_id, external_id)).fetchone() is not None
+
     def save(self, notice, html: bytes) -> str:
         payload = asdict(notice)
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
