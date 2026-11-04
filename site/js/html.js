@@ -52,6 +52,14 @@ function isInternalHref(href) {
   return /^(#[\w-]*|[\w-]+\.html(\?[\w=%&.!'()*~-]*)?(#[\w-]*)?)$/.test(href);
 }
 
+// 화면엔 안 보이지만 글자 순서를 바꾸거나(양방향 제어) 숨기는(폭 없는) 글자. 공지 문자열을 복사·파일에 넣을 때 지운다
+const INVISIBLE_CHARS = /[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
+
+/** 양방향 제어·폭 없는 글자를 지운다 (문의 초안의 이메일 주소가 위장되지 않게) */
+export function stripInvisible(text) {
+  return String(text ?? '').replace(INVISIBLE_CHARS, '');
+}
+
 /**
  * 외부 링크. 허용되지 않는 주소면 링크 대신 글자만 돌려준다.
  * @returns {HTMLAnchorElement|HTMLSpanElement}

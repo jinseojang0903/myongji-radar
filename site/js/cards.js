@@ -162,7 +162,8 @@ export function summaryLine(card, deadline) {
   return parts.filter(Boolean).join(' · ');
 }
 
-function teamText(team) {
+/** 팀 인원 설명: "2~5인, 팀만", "3인 이내, 개인 지원 가능" */
+export function teamText(team) {
   const size = Number.isInteger(team.min) && Number.isInteger(team.max) ? `${team.min}~${team.max}인`
     : Number.isInteger(team.max) ? `${team.max}인 이내`
       : Number.isInteger(team.min) ? `${team.min}인 이상` : '';

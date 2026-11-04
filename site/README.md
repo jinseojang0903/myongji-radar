@@ -18,7 +18,8 @@ python -m http.server 8000
 | 경로 | 내용 | 이슈 |
 |---|---|---|
 | `index.html` | 홈: 대회 목록, 필터(마감 7일 이내·마감 변경·제출물·캠퍼스), 정렬, 기준일·게시판 목록 | #21 |
-| `recommend.html`, `card.html`, `log.html` | 맞춤 추천·카드 상세·제작 기록 (지금은 자리만) | #24, #25, #26 |
+| `card.html`, `js/card-page.js` | 카드 상세: 내 조건 판정, 항목 표(값·상태·근거 펼치기), 마감 변경 이력, 캘린더 파일, 문의 초안, 원문 링크 | #25 |
+| `recommend.html`, `log.html` | 맞춤 추천·제작 기록 (지금은 자리만) | #24, #26 |
 | `css/style.css` | 공통 스타일. 색은 모두 CSS 변수 | #21 |
 | `js/html.js` | 요소 만들기(`el`), 외부 링크 검사(`safeUrl`, `externalLink`) | #21 |
 | `js/data.js` | 데이터 읽기. `data/cards.json`이 없으면(404) 예시를 읽는다 | #21 |
@@ -27,7 +28,9 @@ python -m http.server 8000
 | `js/home.js` | 홈 화면 그리기 | #21 |
 | `js/rules.js` | 조건 × 카드 → 신청 가능 / 팀 구성 시 가능 / 확인 필요 / 불가 | #22 |
 | `js/parser.js` | 자연어 문장 → 조건 (표현 사전 기반) | #23 |
-| `js/ics.js` | 캘린더 파일(D-3·D-1 알림, 마감 단계 분리) | #25 |
+| `js/detail.js` | 카드 상세 계산: 항목 값 글·상태 배지, 근거, 신청 링크 호스트명, 마감 변경 이력, 문의 초안 (DOM 없음, Node 테스트) | #25 |
+| `js/ics.js` | 캘린더 파일(RFC 5545): 단계별 일정, D-3·D-1 알림, 시각 없는 마감은 하루 종일 (Node 테스트) | #25 |
+| `js/conditions.js` | 내 조건 브라우저 저장(`localStorage`, 계약 5절). 해석된 값만 저장 | #25, #24 |
 | `data/cards.json` | 파이프라인 출력 (아직 없음) | #17 |
 | `data/cards.sample.json` | 계약 형식 예시 4건. 화면 개발용이며 상단에 "예시 데이터"로 표시된다 | #21 |
 
