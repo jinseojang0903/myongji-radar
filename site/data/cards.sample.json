@@ -1,0 +1,757 @@
+{
+  "schema_version": "0.1",
+  "sample": true,
+  "sample_note": "화면 개발용 예시 데이터입니다. 대회 정보는 실제 교내 공지(2026-10-15 기준)를 예선 때 AI(프롬프트 v0.1)로 정리한 값이며 수집기 데이터가 아닙니다. 검수 상태는 화면 설명용으로 정한 값입니다. ABI-X 해커톤은 공지 주소 대신 게시판 주소를 넣었고 근거 문장 일부가 없습니다.",
+  "generated_at": "2026-10-15T06:00:00+09:00",
+  "boards": [
+    {
+      "id": "mju_general",
+      "name": "메인 일반공지",
+      "list_url": null
+    },
+    {
+      "id": "mju_ctl",
+      "name": "교수학습센터",
+      "list_url": null
+    },
+    {
+      "id": "mju_startup",
+      "name": "창업교육센터",
+      "list_url": "https://startup.mju.ac.kr/startup/3240/subview.do"
+    },
+    {
+      "id": "mju_abix",
+      "name": "ABI-X사업단",
+      "list_url": "https://aict.mju.ac.kr/aict/9557/subview.do"
+    },
+    {
+      "id": "mju_innovation",
+      "name": "대학혁신지원사업",
+      "list_url": "https://innov.mju.ac.kr/innovation/1090/subview.do"
+    },
+    {
+      "id": "mju_ecc",
+      "name": "공학교육혁신센터",
+      "list_url": "https://www.mju.ac.kr/eng/12125/subview.do"
+    },
+    {
+      "id": "mju_scict",
+      "name": "반도체·ICT대학",
+      "list_url": "https://www.mju.ac.kr/scict/10494/subview.do"
+    }
+  ],
+  "cards": [
+    {
+      "id": "ai-literacy-2026",
+      "title": "2026학년도 AI 리터러시 경진대회",
+      "organizer": "교수학습센터",
+      "scope": "교내",
+      "sources": [
+        {
+          "board_id": "mju_ctl",
+          "url": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do",
+          "title": "2026학년도 AI 리터러시 경진대회 참가자 모집",
+          "posted_at": "2026-10-02"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-10-01",
+            "end": "2026-10-21 15:00",
+            "time_given": true
+          },
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+              "location": "이미지",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do",
+              "file": "일정표(임시 이름).png"
+            }
+          ],
+          "note": "본문에는 없고 일정표 이미지에만 있음"
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-10-21 15:00",
+              "time_given": true
+            }
+          ],
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+              "location": "이미지",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do",
+              "file": "일정표(임시 이름).png"
+            }
+          ]
+        },
+        "campus": {
+          "value": "any",
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "1) 정규학기 등록 학부 재학생",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            },
+            {
+              "quote": "3) 팀 구성 시 캠퍼스 간 연합 가능",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 캠퍼스 구분 없음"
+        },
+        "grades": {
+          "value": "any",
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "1) 정규학기 등록 학부 재학생",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": [
+              "휴학",
+              "수료",
+              "초과학기",
+              "졸업유예",
+              "대학원생"
+            ]
+          },
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "※휴학생, 수료생, 초과 학기생, 졸업유예자, 대학원생은 신청 불가",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ],
+          "note": "편입생은 마일리지 장학금 지급에서만 제외"
+        },
+        "team": {
+          "value": {
+            "min": null,
+            "max": 3,
+            "individual_ok": true
+          },
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "2) 3인 이내로 구성된 팀 (개인 지원 가능)",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ]
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "기획서·제안서",
+              "발표"
+            ],
+            "text": "예선 제안서 최대 3장, 결선 발표 PPT·최종 결과물·프롬프트"
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "※ 분량 : 최대 3장 이내 (팀 구성원 소개란 제외)",
+              "location": "첨부",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do",
+              "file": "붙임1. 2026학년도 AI 리터러시 경진대회_학생 안내문.pdf"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "대상 1팀 총장상·100만원, 최우수 1팀 60만원, 우수 2팀 40만원",
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "1) 대 상(1팀) : 총장상, 100만원, 수상 마일리지 인당 30점",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ]
+        },
+        "mileage": {
+          "value": {
+            "text": "예선 참가자 전원 창의 10점",
+            "area": "창의",
+            "points": 10
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "가. 예선 참가자 전원 : 명지 비교과 활동 마일리지 창의 10점 지급",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ]
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "제출 파일을 zip으로 압축해 MYiCap+ 비교과 프로그램 신청 시 업로드",
+            "url": null
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "제출 파일들을 압축(zip파일)하여 MYiCap+ 비교과 프로그램 신청 시 업로드",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ]
+        },
+        "contact": {
+          "value": {
+            "dept": "교수학습센터",
+            "email": "ctl@mju.ac.kr",
+            "phone": ""
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "결선 서류(예선 합격자에 한함) : 교수학습센터 이메일 제출 ( ctl@mju.ac.kr )",
+              "location": "본문",
+              "source": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do"
+            }
+          ]
+        }
+      },
+      "deadline_history": [],
+      "meta": {
+        "prompt_version": "v0.1",
+        "extract_model": "Claude (예선 시험)",
+        "cross_model": null,
+        "checked_at": "2026-10-13"
+      }
+    },
+    {
+      "id": "history-video-5",
+      "title": "제5회 역사 영상 콘텐츠 제작 프로젝트 공모전",
+      "organizer": "방목기초교육대학",
+      "scope": "교내",
+      "sources": [
+        {
+          "board_id": "mju_general",
+          "url": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+          "posted_at": "2026-10-07",
+          "title": "(신청기한 연장) [혁신사업] 2026학년도 제5회 공동체 의식 함양을 위한 역사 영상 콘텐츠 제작 프로젝트 공모전"
+        },
+        {
+          "board_id": "mju_innovation",
+          "url": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+          "posted_at": "2026-10-02",
+          "title": "[혁신사업] 2026학년도 제5회 공동체 의식 함양을 위한 역사 영상 콘텐츠 제작 프로젝트 공모전"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-09-14",
+            "end": "2026-10-23",
+            "time_given": false
+          },
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "※ 참가 신청서 제출 기한이 2026년 10월 23일(금)까지 2주 연장되었습니다.",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "연장 공지(10/7)의 값. 시각 미기재"
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-10-23",
+              "time_given": false
+            },
+            {
+              "name": "출품",
+              "end": "2026-11-11",
+              "time_given": false
+            }
+          ],
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "출품작 제출 9월 14일(월)부터 ~ 11월 11(수)까지",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do"
+            }
+          ]
+        },
+        "campus": {
+          "value": "any",
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "- [팀 프로젝트] 명지대학교 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 캠퍼스 구분 없음 (시상·접수는 캠퍼스별)"
+        },
+        "grades": {
+          "value": "any",
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "- [팀 프로젝트] 명지대학교 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": [
+              "휴학",
+              "졸업",
+              "초과학기",
+              "졸업유예",
+              "기존 수상자"
+            ]
+          },
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "(휴학생, 졸업생, 초과학기생 신청 불가)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "(*휴학생, 졸업생, 졸업유예생, 기존 수상자 참여 불가)",
+              "location": "이미지",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+              "file": "포스터(임시 이름).jpg"
+            }
+          ],
+          "note": "제외 대상이 본문과 포스터에서 다름. 두 목록을 합쳐 표시"
+        },
+        "team": {
+          "value": {
+            "min": 2,
+            "max": 5,
+            "individual_ok": false
+          },
+          "status": "human_verified",
+          "evidence": [
+            {
+              "quote": "- 2인에서 5인까지 1개의 팀 구성 가능",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "영상"
+            ],
+            "text": "영상 3분 이내 + 콘티·작업일지·저작권 사용 확인서"
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "가. 영상형식 : 3분 이내 자유형식",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "캠퍼스별 대상 1팀 100만원, 금상 2팀 80만원, 은상 3팀 60만원, 동상 4팀 30만원",
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "- 대상 (1팀) 상장 및 상금 100만원 (팀)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "mileage": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "신청서와 작품 파일을 캠퍼스별 담당자 이메일로 제출",
+            "url": null
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "신청서, 작품 파일을 첨부해 캠퍼스별 담당자 이메일로 제출",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "contact": {
+          "value": {
+            "dept": "방목기초교육대학",
+            "email": "",
+            "phone": ""
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "방목기초교육대학에서는 제 5회 역사 영상콘텐츠(UCC) 제작 프로젝트 공모전을 아래와 같이 개최하오니",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "담당자 개인 이메일은 싣지 않음"
+        }
+      },
+      "deadline_history": [
+        {
+          "field": "apply_end",
+          "old": "2026-09-30",
+          "new": "2026-10-23",
+          "old_source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+          "new_source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+          "checked_at": "2026-10-13"
+        }
+      ],
+      "meta": {
+        "prompt_version": "v0.1",
+        "extract_model": "Claude (예선 시험)",
+        "cross_model": null,
+        "checked_at": "2026-10-13"
+      }
+    },
+    {
+      "id": "evc-13-nature",
+      "title": "제13회 English Video Contest (자연캠)",
+      "organizer": "방목기초교육대학",
+      "scope": "교내",
+      "sources": [
+        {
+          "board_id": "mju_general",
+          "url": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+          "title": "[자연캠퍼스] 제13회 English Video Contest(EVC) 개최 안내",
+          "posted_at": "2026-10-01"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-10-01",
+            "end": "2026-10-16 17:00",
+            "time_given": true
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "신청 기간 2026.10.01(목) ~ 10.16(금) 17:00까지",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ]
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-10-16 17:00",
+              "time_given": true
+            },
+            {
+              "name": "출품",
+              "end": "2026-11-06",
+              "time_given": false
+            }
+          ],
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "~ 11.6(금)까지 구글드라이브에 영상을 업로드 한 후 공유(share)한다. (ecafe@mju.ac.kr)",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ],
+          "note": "출품 마감 연도 추정"
+        },
+        "campus": {
+          "value": [
+            "자연"
+          ],
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "[자연캠퍼스] 제13회 English Video Contest(EVC) 개최 안내",
+              "location": "제목",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do"
+            }
+          ]
+        },
+        "grades": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "참가 자격 문구가 공지와 포스터에 없음"
+        },
+        "enrollment": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "참가 자격 문구가 공지와 포스터에 없음"
+        },
+        "team": {
+          "value": {
+            "min": null,
+            "max": null,
+            "individual_ok": null
+          },
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "각 팀당 참여인원 제한은 없으나 팀 대표 이름으로 제출한다.",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ],
+          "note": "개인 참가 가능 여부를 직접 적은 문장이 없음"
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "영상"
+            ],
+            "text": "영어 영상 3~5분 + 대본(300단어 이상)"
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "약 3-5분 길이의 영어 동영상을 제작하여 대본과 함께 출품",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "대상 1팀 40만원, 금상 1팀 25만원, 은상 1팀 15만원, 동상 2팀 5만원",
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "대상 1팀 40만원 상장 및 상금 40만원(장학금), 마일리지 30점 추가",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ]
+        },
+        "mileage": {
+          "value": {
+            "text": "참가자 10점, 입상 시 추가",
+            "area": null,
+            "points": 10
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "참가자들에게는 마일리지 점수(10점)이 부여되며, 입상자의 경우 별도 추가 점수가 부여됨",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ]
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "신청 기간 내 구글 폼 신청서 작성 후 제출",
+            "url": "https://forms.gle/GgcCYLgYgvRr64Sz8"
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "■ 신청 링크: https://forms.gle/GgcCYLgYgvRr64Sz8",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do"
+            }
+          ]
+        },
+        "contact": {
+          "value": {
+            "dept": "잉글리쉬카페",
+            "email": "ecafe@mju.ac.kr",
+            "phone": "031-330-6643"
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "잉글리쉬카페 : 031-330-6643 / ecafe@mju.ac.kr",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/235913/artclView.do",
+              "file": "제13회_EVC_포스터_자연_1.png"
+            }
+          ]
+        }
+      },
+      "deadline_history": [],
+      "meta": {
+        "prompt_version": "v0.1",
+        "extract_model": "Claude (예선 시험)",
+        "cross_model": null,
+        "checked_at": "2026-10-13"
+      }
+    },
+    {
+      "id": "abix-hackathon-2026",
+      "title": "2026학년도 AI 창의적 아이디어 해커톤",
+      "organizer": "ABI-X사업단",
+      "scope": "교내",
+      "sources": [
+        {
+          "board_id": "mju_abix",
+          "url": "https://aict.mju.ac.kr/aict/9557/subview.do",
+          "title": "AI 창의적 아이디어 해커톤 경진대회 참가자 모집",
+          "posted_at": "2026-10-15"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": null,
+            "end": "2026-10-28 17:00",
+            "time_given": true
+          },
+          "status": "ai",
+          "evidence": [],
+          "note": "예시: 근거 문장을 기록해 두지 않음"
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-10-28 17:00",
+              "time_given": true
+            },
+            {
+              "name": "본선",
+              "end": "2026-11-06",
+              "time_given": false
+            }
+          ],
+          "status": "ai",
+          "evidence": [],
+          "note": "예시: 현장 해커톤 11/5~6"
+        },
+        "campus": {
+          "value": [
+            "인문"
+          ],
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "참가자격: 명지대학교 소속 인문캠퍼스 재학생",
+              "location": "본문",
+              "source": "https://aict.mju.ac.kr/aict/9557/subview.do"
+            }
+          ]
+        },
+        "grades": {
+          "value": "any",
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "참가자격: 명지대학교 소속 인문캠퍼스 재학생",
+              "location": "본문",
+              "source": "https://aict.mju.ac.kr/aict/9557/subview.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": []
+          },
+          "status": "auto_verified",
+          "evidence": [
+            {
+              "quote": "참가자격: 명지대학교 소속 인문캠퍼스 재학생",
+              "location": "본문",
+              "source": "https://aict.mju.ac.kr/aict/9557/subview.do"
+            }
+          ]
+        },
+        "team": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "현장 참가",
+              "코드·개발"
+            ],
+            "text": "현장 해커톤 (11/5~6)"
+          },
+          "status": "ai",
+          "evidence": [],
+          "note": "예시: 근거 문장을 기록해 두지 않음"
+        },
+        "benefits": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        },
+        "mileage": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        },
+        "how_to_apply": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        },
+        "contact": {
+          "value": null,
+          "status": "missing",
+          "evidence": []
+        }
+      },
+      "deadline_history": [],
+      "meta": {
+        "prompt_version": "수동 확인",
+        "extract_model": null,
+        "cross_model": null,
+        "checked_at": "2026-10-15"
+      }
+    }
+  ]
+}

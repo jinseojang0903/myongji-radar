@@ -11,3 +11,4 @@ npm test
 ```
 
 - `rules.test.js`: 판정 규칙. 기준은 `docs/api-contract.md` 3절. 마지막 테스트는 무작위 5만 건으로 "불가인데 가능" 판정이 없는지 본다.
+- `cards.test.js`: 홈 화면 계산(마감·D-day·카드 배지·필터·정렬), 외부 링크 검사, 데이터 읽기, 예시 데이터(`site/data/cards.sample.json`)가 계약 형식을 따르는지와 판정 결과가 화면 설계와 같은지.
