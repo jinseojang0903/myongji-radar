@@ -31,8 +31,8 @@ def reference(number, *, pinned=False):
                      f"Notice {number}", None, pinned)
 
 
-def detail(ref):
-    return f'<h2 class="artclViewTitle">{ref.title}</h2><div class="artclView">Body</div>'.encode()
+def detail(ref, body="Body"):
+    return f'<h2 class="artclViewTitle">{ref.title}</h2><div class="artclView">{body}</div>'.encode()
 
 
 class CollectionRunTests(unittest.TestCase):
@@ -51,7 +51,7 @@ class CollectionRunTests(unittest.TestCase):
         finally:
             repo.close()
 
-    def collect(self, refs, *, limit=None, html=False):
+    def collect(self, refs, *, limit=None, html=False, body="Body"):
         self.config.write_text(CONFIG + ('discovery = "html"\n' if html else ''), encoding="utf-8")
         if html:
             rows = []
@@ -64,7 +64,7 @@ class CollectionRunTests(unittest.TestCase):
             items = ''.join(f'<item><title>{ref.title}</title><link>{ref.url}</link></item>' for ref in refs)
             listing = f'<rss><channel>{items}</channel></rss>'.encode()
         discovery_url = "https://example.com/list" if html else "https://example.com/rss"
-        responses = {ref.url: detail(ref) for ref in refs}
+        responses = {ref.url: detail(ref, body) for ref in refs}
         responses[discovery_url] = listing
         requests = []
 
@@ -117,8 +117,9 @@ class CollectionRunTests(unittest.TestCase):
     def test_saved_posts_are_still_checked_for_changes(self):
         refs = [reference(1), reference(2)]
         self.seed(refs)
-        self.assertEqual(self.collect(refs), [ref.url for ref in refs])
+        self.assertEqual(self.collect(refs, body="Updated body"), [ref.url for ref in refs])
         self.assertEqual(len(self.notices()), 2)
+        self.assertTrue(all(notice["body_text"] == "Updated body" for notice in self.notices()))
 
     def test_html_new_regular_and_pinned_posts_precede_saved_posts(self):
         refs = [reference(1, pinned=True), reference(2), reference(3, pinned=True), reference(4), reference(5)]

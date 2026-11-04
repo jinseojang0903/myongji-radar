@@ -37,7 +37,7 @@ python -m venv .venv
 .\launcher.bat test
 ```
 
-수집하려면 `.\launcher.bat run`, 저장된 공지를 규칙으로 분석하려면 `.\launcher.bat analyze`를 실행한다. 수집은 발견한 목록에서 출처별 최대 50건을 처리하며 새 글을 우선한다. 빠른 시험은 BAT 메뉴 1번(3건) 또는 `python -m collector run --limit 3`으로 제한한다. 전체 실행은 출처·응답 속도에 따라 몇 분이 걸릴 수 있다.
+수집하려면 `.\launcher.bat run`, 저장된 공지를 규칙으로 분석하려면 `.\launcher.bat analyze`를 실행한다. 수집은 발견한 목록에서 출처별 최대 50건을 처리하며 새 글을 우선한다. 빠른 시험은 BAT 메뉴 1번(3건) 또는 `.\.venv\Scripts\python.exe -m collector run --limit 3`으로 제한한다. 전체 실행은 출처·응답 속도에 따라 몇 분이 걸릴 수 있다.
 
 현재 등록 출처는 7곳이며 전체 목표 11곳으로 확장 중이다. 예약 실행은 아직 구현 전이다. RSS 최근 목록과 HTML 첫 페이지 밖의 과거 공지까지 탐색하는 기능은 아직 없다.
 
