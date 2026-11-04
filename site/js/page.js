@@ -3,6 +3,7 @@
 import { el } from './html.js';
 import { validateCardData, referenceDate, ddayLabel, cardBadges } from './cards.js';
 import { loadCardData } from './data.js';
+import { readSavedConditions, describeConditions } from './conditions.js';
 
 const BADGE_CLASS = { human: 's-human', need: 's-need', before: 's-before', missing: 's-missing' };
 
@@ -46,4 +47,13 @@ export function badgeElements(card) {
 export function ddayElement(deadline, extraClass = '') {
   const dday = ddayLabel(deadline);
   return el('span', { class: ['dday', dday.isUrgent ? '' : 'far', extraClass].filter(Boolean).join(' ') }, dday.text);
+}
+
+/**
+ * 머리글의 "내 조건" 한 줄. 넘긴 조건이 없으면 저장된 조건(계약 5절)을 읽는다. 모든 화면이 같은 표시를 쓴다.
+ * @param {object|null} [conditions]
+ */
+export function showConditionSummary(conditions = readSavedConditions()) {
+  const target = document.getElementById('cond-summary');
+  if (target) target.textContent = `내 조건: ${describeConditions(conditions) ?? '아직 고르지 않음'}`;
 }

@@ -2,6 +2,7 @@
 // 계산은 log.js(Node 테스트), 여기서는 그리기와 버튼만. 글자는 모두 el()/textContent로 넣는다.
 import { el, externalLink } from './html.js';
 import { validateLogData, measureText, checkAnswer, repoFileUrl, stageKind, optionMark } from './log.js';
+import { showConditionSummary } from './page.js';
 
 const STAGE_CLASS = { code: 'step', rule: 'step rule', ai: 'step ai', human: 'step human' };
 
@@ -11,6 +12,7 @@ main().catch((error) => {
 });
 
 async function main() {
+  showConditionSummary();
   // 다른 사이트의 프레임 안에서 열리면 그리지 않는다 (page.js loadPage와 같은 이유: meta CSP로는 frame-ancestors를 못 건다)
   if (window.top !== window.self) {
     showError('이 화면은 다른 사이트 안에서 열 수 없습니다. 주소창에서 직접 열어 주세요.');
