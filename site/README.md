@@ -20,7 +20,8 @@ python -m http.server 8000
 | `index.html` | 홈: 대회 목록, 필터(마감 7일 이내·마감 변경·제출물·캠퍼스), 정렬, 기준일·게시판 목록 | #21 |
 | `card.html`, `js/card-page.js` | 카드 상세: 내 조건 판정, 항목 표(값·상태·근거 펼치기), 마감 변경 이력, 캘린더 파일, 문의 초안, 원문 링크 | #25 |
 | `recommend.html`, `js/recommend-page.js`, `js/recommend.js` | 맞춤 추천: 문장 → 조건 칩(해석기), 칩으로 고치기, 판정 4상태별 결과·사유, 제출물·마감 필터, 문의 초안 복사, 저장된 조건 지우기 | #24 |
-| `log.html` | 제작 기록 (지금은 자리만) | #26 |
+| `log.html`, `js/log-page.js`, `js/log.js` | 제작 기록: 처리 단계별 담당, 정확도 표(측정 전은 "측정 중"), 프롬프트 버전, AI가 틀린 것과 잡은 방법, 1분 AI 검수 체험, 사용한 AI 도구 | #26 |
+| `data/log.json` | 제작 기록 데이터 (팀이 손으로 씀, 계약 4절). 수치는 측정일·출처가 있어야 화면에 나온다 | #26 |
 | `css/style.css` | 공통 스타일. 색은 모두 CSS 변수 | #21 |
 | `js/html.js` | 요소 만들기(`el`), 외부 링크 검사(`safeUrl`, `externalLink`) | #21 |
 | `js/data.js` | 데이터 읽기. `data/cards.json`이 없으면(404) 예시를 읽는다 | #21 |
