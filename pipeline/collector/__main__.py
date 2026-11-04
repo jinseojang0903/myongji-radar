@@ -1,13 +1,12 @@
 import argparse
 import json
 import sys
-import tomllib
 from pathlib import Path
 
 from .adapters import ADAPTERS
 from .analysis import analyze_file
+from .config import load_sources
 from .fetcher import Fetcher
-from .models import Source
 from .repository import Repository
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,15 +36,10 @@ def main():
         parser.error("--limit은 1~50이어야 합니다")
     sources = []
     if args.command == "run":
-        entries = tomllib.loads(args.config.read_text(encoding="utf-8"))["sources"]
-        sources = sorted((Source(**entry) for entry in entries), key=lambda source: source.priority)
-        if len({s.id for s in sources}) != len(sources):
-            parser.error("출처 ID 중복")
-        for source in sources:
-            if source.adapter not in ADAPTERS:
-                parser.error(f"미등록 어댑터: {source.adapter}")
-            if source.discovery not in ("rss", "html") or (source.discovery == "html" and not source.list_url):
-                parser.error(f"잘못된 발견 설정: {source.id}")
+        try:
+            sources = load_sources(args.config)
+        except (ValueError, OSError) as exc:
+            parser.error(f"출처 설정 오류: {exc}")
         if args.source:
             sources = [s for s in sources if s.id == args.source]
         if not sources:

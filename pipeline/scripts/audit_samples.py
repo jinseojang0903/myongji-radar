@@ -5,7 +5,8 @@
 import json
 import re
 import sqlite3
-import tomllib
+import sys
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
@@ -13,6 +14,9 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from collector.config import load_sources
 
 
 def compact(text):
@@ -20,17 +24,16 @@ def compact(text):
 
 
 def audit():
-    sources = sorted(tomllib.loads((ROOT / "config/sources.toml").read_text(encoding="utf-8"))["sources"],
-                     key=lambda source: source.get("priority", 100))
+    sources = load_sources(ROOT / "config/sources.toml")
     result = {"checked_at": datetime.now(timezone.utc).isoformat(), "scope": "HTML structural consistency; not semantic accuracy", "sources": []}
-    with sqlite3.connect(ROOT / "data/collector.sqlite3") as db:
+    with closing(sqlite3.connect(ROOT / "data/collector.sqlite3")) as db:
         for source in sources:
-            if source.get("priority", 100) > 5:
+            if source.priority > 5:
                 continue
             rows = db.execute("""SELECT payload_json,raw_path FROM notice_versions v
                 WHERE source_id=? AND id=(SELECT MAX(id) FROM notice_versions v2
                     WHERE v2.source_id=v.source_id AND v2.external_id=v.external_id)
-                ORDER BY id DESC LIMIT 5""", (source["id"],)).fetchall()
+                ORDER BY id DESC LIMIT 5""", (source.id,)).fetchall()
             samples = []
             for payload, raw_path in rows:
                 notice = json.loads(payload)
@@ -53,8 +56,8 @@ def audit():
                 samples.append({"external_id": notice["external_id"], "title": notice["title"], "url": notice["url"],
                                 "raw_path": raw_path, "body_chars": len(notice["body_text"]),
                                 "images": len(image_urls), "attachments": len(file_urls), "checks": checks})
-            result["sources"].append({"id": source["id"], "name": source["name"], "priority": source["priority"],
-                "discovery": source.get("discovery", "rss"), "sample_count": len(samples),
+            result["sources"].append({"id": source.id, "name": source.name, "priority": source.priority,
+                "discovery": source.discovery, "sample_count": len(samples),
                 "passed_checks": sum(sum(s["checks"].values()) for s in samples),
                 "total_checks": len(samples) * 4,
                 "text_available": sum(s["body_chars"] > 0 for s in samples),
