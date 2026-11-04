@@ -184,6 +184,7 @@ export function parseConditions(text) {
     for (let used = index; used <= context.end; used += 1) consumed.add(used);
     index = context.end;
   }
+  applyListNegation(tokens, hits);
   applyClauseRisks(tokens, hits, consumed);
   return assemble(hits, unknownTerms);
 }
@@ -324,6 +325,13 @@ function readContext(tokens, index, hit) {
   for (let offset = 1; offset <= NEGATION_WINDOW; offset += 1) {
     const word = at(offset);
     if (word === null) break;
+    // 떨어진 "안"·"못" ("팀으로 참가 못해"): 바로 옆이 아니면 무엇을 부정하는지 확실하지 않다
+    const distantAdverb = readAdverbNegation(word, at(offset + 1));
+    if (distantAdverb) {
+      const end = index + offset + distantAdverb.length - 1;
+      if (distantAdverb.state === 'plain') return result('plain', end);
+      return result(isBridgedOnly ? distantAdverb.state : 'uncertain', end);
+    }
     if (NEGATION_RE.test(word)) {
       if (!isBridgedOnly) return result('uncertain', index + offset);
       return result(REJECTION_RE.test(word) ? rejection() : 'negated', index + offset);
@@ -360,6 +368,29 @@ function readAdverbNegation(next, after) {
   return { state: 'uncertain', length };
 }
 
+// 나열을 잇는 말: "휴학이나 수료", "영상과 발표", "인문캠 또는 자연캠"
+const LIST_JOIN_TAIL_RE = /(이나|나|과|와|이랑|랑|하고|이든|든)$/;
+const LIST_JOIN_WORDS = new Set(['및', '또는', '혹은', '이나', '아니면']);
+
+/**
+ * 나열한 같은 조건의 뒤쪽이 부정·불확실이면 앞쪽도 비운다.
+ * "휴학이나 수료는 아니에요"의 부정은 나열 전체에 걸리므로 "휴학"을 값으로 확정하면 안 된다.
+ */
+function applyListNegation(tokens, hits) {
+  for (let i = hits.length - 2; i >= 0; i -= 1) {
+    const first = hits[i];
+    const second = hits[i + 1];
+    if (first.state !== 'plain' || second.state === 'plain') continue;
+    if (first.dim !== second.dim || first.clause !== second.clause || first.tokenIndex === second.tokenIndex) continue;
+    const between = tokens.slice(first.tokenIndex + 1, second.tokenIndex).map((token) => token.lower);
+    const isJoinedByTail = between.length === 0 && LIST_JOIN_TAIL_RE.test(first.rest);
+    const isJoinedByWord = between.length === 1 && LIST_JOIN_WORDS.has(between[0]);
+    if (!isJoinedByTail && !isJoinedByWord) continue;
+    first.state = 'uncertain';
+    first.phrase = `${first.phrase} … ${second.phrase}`;
+  }
+}
+
 /**
  * 어느 표현에도 묶이지 않은 신분 부정·시간 표현이 절에 있으면 판정 조건을 불확실로 바꾼다.
  * - 신분 부정("자연캠 학생은 아니에요"): 같은 절에서 그 앞의 표현. 절 첫머리면("편입생, 아니고") 앞 절의 마지막 표현
@@ -367,8 +398,9 @@ function readAdverbNegation(next, after) {
  */
 function applyClauseRisks(tokens, hits, consumed) {
   const judged = hits.filter((hit) => JUDGED_DIMS.has(hit.dim));
-  const markUncertain = (hit, token) => {
-    if (hit.state !== 'plain') return;
+  // 시간 표현은 부정으로 읽은 표현도 비운다 ("지난 학기에 편입 안 했어"는 지금 편입생이 아닌지 알 수 없다)
+  const markUncertain = (hit, token, isNegationAffected = false) => {
+    if (hit.state !== 'plain' && !(isNegationAffected && hit.state === 'negated')) return;
     hit.state = 'uncertain';
     hit.phrase = `${hit.phrase} … ${displayForm(token.raw)}`;
   };
@@ -376,7 +408,7 @@ function applyClauseRisks(tokens, hits, consumed) {
     if (token.isBoundary || consumed.has(index)) return;
     if (CLAUSE_TIME_RE.test(token.lower)) {
       for (const hit of judged) {
-        if (hit.clause === token.clause && FUTURE_SENSITIVE.has(hit.dim)) markUncertain(hit, token);
+        if (hit.clause === token.clause && FUTURE_SENSITIVE.has(hit.dim)) markUncertain(hit, token, true);
       }
     } else if (CLAUSE_IDENTITY_NEGATION_RE.test(token.lower)) {
       for (const hit of judged) {

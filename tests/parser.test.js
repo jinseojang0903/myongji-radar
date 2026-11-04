@@ -105,7 +105,7 @@ const DEV_CASES = [
   ['휴학 해야 하나', { unknown_terms: ['휴학 해야'] }],
   ['자연캠 학생은 아니에요', { unknown_terms: ['자연캠 … 아니'] }],
   ['편입생 신분은 아니고 재학생', { enrollment: '재학', unknown_terms: ['신분', '편입생 … 아니고'] }],
-  ['친구랑 같이 하는 건 싫어', { unknown_terms: ['같이 하는 건 싫어'] }],
+  ['친구랑 같이 하는 건 싫어', { unknown_terms: ['친구 … 같이 하는 건 싫어', '같이 하는 건 싫어'] }],
   ['혼자 안 해봐서 걱정이에요', { unknown_terms: ['걱정', '혼자 안 해봐서'] }],
   ['친구들이 추천한 대회', { unknown_terms: ['친구들'] }],
   ['친구들과 나갈래', { participation: '팀' }],
@@ -113,6 +113,18 @@ const DEV_CASES = [
   ['같이 내용이 비슷한 대회', { unknown_terms: ['같이', '내용', '비슷한'] }],
   ['2학년인데 경험 없어서 혼자', { grade: 2, participation: '개인', unknown_terms: ['경험'] }],
   ['편입생도되나요', { is_transfer: true }],
+  // PR #36 리뷰(CattonNyan)에서 나온 오인식: 이미 인식하는 표현이 결합될 때 틀린 값을 확정함
+  ['지난 학기에 편입 안 했어. 자연캠 2학년 재학생 혼자',
+    { campus: '자연', grade: 2, enrollment: '재학', participation: '개인', unknown_terms: ['지난학기', '편입 안 했어 … 지난학기'] }],
+  ['휴학이나 수료는 아니에요', { unknown_terms: ['휴학 … 수료는 아니', '수료는 아니'] }],
+  ['인문캠이나 자연캠은 아니에요', { unknown_terms: ['인문캠 … 자연캠은 아니', '자연캠은 아니'] }],
+  ['영상과 발표는 말고', { unknown_terms: ['영상과 … 발표는 말고', '발표는 말고'] }],
+  ['팀으로 참가 못해', { unknown_terms: ['팀으로 참가 못해'] }],
+  ['친구랑 참가 못해', { unknown_terms: ['친구랑 참가 못해'] }],
+  // 비교: 나열 자체, 자격을 묻는 "안 되나요"는 그대로
+  ['영상과 발표', { deliverables: ['영상', '발표'] }],
+  ['팀으로 참가 안 되나요', { participation: '팀' }],
+  ['휴학생이나 수료생 말고 재학생', { enrollment: '재학', unknown_terms: ['휴학생 … 수료생 말고', '수료생 말고'] }],
 ];
 
 for (const [sentence, partial] of DEV_CASES) {
@@ -207,6 +219,52 @@ test('같은 조건 두 값을 접속 조사로 이으면 값을 비우고 둘 �
       assert.ok(result.unknown_terms.some((term) => term.includes(first)), `${sentence}: ${result.unknown_terms}`);
       assert.ok(result.unknown_terms.some((term) => term.includes(second)), `${sentence}: ${result.unknown_terms}`);
     }
+  }
+});
+
+test('나열한 같은 조건에 부정이 걸리면 어느 값도 확정하지 않는다', () => {
+  const pairs = [['인문캠', '자연캠', 'campus'], ['휴학', '수료', 'enrollment'], ['1학년', '2학년', 'grade'], ['혼자', '팀', 'participation']];
+  for (const joiner of ['이나 ', '나 ', ' 또는 ', '과 ', '와 ', '랑 ', '하고 ']) {
+    for (const negation of ['은 아니에요', ' 말고', '은 빼고']) {
+      for (const [first, second, field] of pairs) {
+        const sentence = `${first}${joiner}${second}${negation}`;
+        assert.equal(parseConditions(sentence)[field], null, sentence);
+      }
+    }
+  }
+});
+
+test('시간 표현이 있는 절의 편입·학적은 부정으로 읽었어도 비운다', () => {
+  for (const sentence of ['지난 학기에 편입 안 했어', '작년엔 편입생 아니었어', '원래 휴학생 아니었는데', '내년에 편입 안 할 거야']) {
+    const result = parseConditions(sentence);
+    assert.equal(result.is_transfer, null, sentence);
+    assert.equal(result.enrollment, null, sentence);
+  }
+});
+
+test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
+  const now = new Date('2026-10-15T00:00:00Z');
+  const verified = (value) => ({ value, status: 'human_verified', evidence: [{ quote: '근거 문장', location: '본문' }] });
+  const card = (overrides) => ({
+    id: 'fixture',
+    fields: {
+      apply: verified({ start: '2026-10-01', end: '2026-10-31', time_given: false }),
+      campus: verified('any'),
+      grades: verified('any'),
+      enrollment: verified({ allowed: [], excluded: [] }),
+      team: verified({ min: null, max: 3, individual_ok: true }),
+      ...overrides,
+    },
+  });
+  const cases = [
+    // [문장, 카드, 현재 기대 판정]
+    ['지난 학기에 편입 안 했어. 자연캠 2학년 재학생 혼자', card({ enrollment: verified({ allowed: [], excluded: ['편입생'] }) }), 'check'],
+    ['휴학이나 수료는 아니에요', card({ enrollment: verified({ allowed: ['휴학'], excluded: [] }) }), 'check'],
+    ['팀으로 참가 못해', card({ team: verified({ min: 2, max: 4, individual_ok: false }) }), 'team_needed'],
+    ['친구랑 참가 못해', card({ team: verified({ min: 2, max: 4, individual_ok: false }) }), 'team_needed'],
+  ];
+  for (const [sentence, fixture, expected] of cases) {
+    assert.equal(judgeCard(fixture, parseConditions(sentence), { now }).result, expected, sentence);
   }
 });
 
