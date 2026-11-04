@@ -39,18 +39,13 @@ GitHub에서 처음 내려받았다면 Python 3.11 이상 설치 후 5번부터 
 
 ### Python 명령으로 실행
 
-PowerShell에서 저장소의 pipeline 폴더로 이동한 뒤 실행한다. 아래 명령은 myongji-radar 저장소 루트 기준이다. 최초 설치는 다음 절차를 먼저 진행한다.
+최초 설치는 Python 3.11 이상으로 아래 순서대로 진행한다. PowerShell에서 myongji-radar 저장소 루트를 기준으로 실행한다. 확인한 의존성 버전은 lock 파일에 기록했다.
 
 ```powershell
 cd pipeline
-.\.venv\Scripts\python.exe -m collector run --limit 3
-```
-
-다른 환경에서 최초 설치할 때는 Python 3.11 이상으로 다음을 실행한다. 이번에 검증한 의존성 버전은 lock 파일에 기록했다.
-
-```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+.\.venv\Scripts\python.exe -m collector run --limit 3
 ```
 
 출처 하나만 수집하거나 더 많은 글을 확인할 수 있다. limit은 출처별 상세 요청 수이며 기본값은 3, 최대 50이다.

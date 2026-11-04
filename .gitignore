@@ -16,6 +16,7 @@ site/data/*
 __pycache__/
 *.pyc
 .venv/
+.venv_previous/
 venv/
 .pytest_cache/
 
