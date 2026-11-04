@@ -103,3 +103,57 @@ test('저장된 조건 지우기 (공용 PC에 학년·학적이 남지 않게)'
   assert.equal(readSavedConditions(storage), null);
   assert.equal(clearSavedConditions({ removeItem: () => { throw new Error('막힘'); } }), false);
 });
+
+// ---- 리뷰 반영 ----
+
+test('문장 반영: 읽은 조건·바뀐 조건·그대로 둔 조건을 따로 알려 준다', () => {
+  const before = { ...emptyConditions(), grade: 4, enrollment: '휴학', deliverables: ['영상', '발표'] };
+  const result = applyParsed(before, parseConditions('4학년 혼자 에세이'));
+  assert.deepEqual(result.read.sort(), ['deliverables', 'grade', 'participation']);
+  assert.deepEqual(result.changed.sort(), ['deliverables', 'participation'], '4학년은 이미 같은 값');
+  assert.deepEqual(result.kept, ['enrollment'], '말하지 않은 휴학은 그대로 두었다고 알린다');
+  assert.deepEqual(result.conditions.deliverables, ['에세이·수기'], '제출물을 말하면 목록을 문장의 것으로 바꾼다');
+  assert.deepEqual(before.deliverables, ['영상', '발표'], '원래 조건 객체는 바꾸지 않는다');
+  assert.deepEqual(applyParsed({ ...emptyConditions(), deliverables: undefined }, parseConditions('편입생 아니고')).conditions.is_transfer, false);
+});
+
+test('기간 경계: 한국 시간 일요일 밤과 월요일 0시, 윤년·연말', () => {
+  assert.equal(periodEndDate('이번주', new Date('2026-10-18T23:59:00+09:00')), '2026-10-18');
+  assert.equal(periodEndDate('이번주', new Date('2026-10-19T00:00:00+09:00')), '2026-10-25');
+  assert.equal(periodEndDate('이번주', new Date('2026-10-17T12:00:00+09:00')), '2026-10-18', '토요일 → 다음 날');
+  assert.equal(periodEndDate('이번달', new Date('2028-02-10T12:00:00+09:00')), '2028-02-29');
+  assert.equal(periodEndDate('이번달', new Date('2026-12-31T23:30:00+09:00')), '2026-12-31');
+  assert.equal(periodEndDate('마감임박', new Date('2026-12-28T12:00:00+09:00')), '2027-01-04');
+});
+
+test('기간 필터: 마감일 당일은 포함, 하루 뒤는 숨김, 마감일 없는 대회는 따로 센다', () => {
+  const card = (id, end, timeGiven = false) => {
+    const base = structuredClone(SAMPLE.cards.find((item) => item.id === 'ai-literacy-2026'));
+    base.id = id;
+    base.fields.apply.value = end === null ? { start: null, end: null, time_given: false } : { start: null, end, time_given: timeGiven };
+    if (end === null) base.fields.apply.status = 'missing';
+    return base;
+  };
+  const now = new Date('2026-10-15T09:00:00+09:00');
+  const cards = [card('on-edge', '2026-10-22'), card('day-after', '2026-10-23'), card('no-deadline', null), card('today-no-time', '2026-10-15')];
+  const result = recommendCards(cards, { ...emptyConditions(), period: '마감임박' }, now);
+  const shown = RESULT_ORDER.flatMap((name) => ids(result.groups[name])).sort();
+  assert.deepEqual(shown, ['on-edge', 'today-no-time']);
+  assert.equal(result.filteredCount, 2);
+  assert.equal(result.undatedCount, 1);
+});
+
+test('판정하다 오류가 나는 카드는 그 카드만 빼고 센다 (목록 전체가 사라지지 않게)', () => {
+  const broken = structuredClone(SAMPLE.cards[0]);
+  broken.id = 'broken';
+  Object.defineProperty(broken, 'fields', { get() { throw new Error('깨진 카드'); } });
+  const result = recommendCards([broken, ...SAMPLE.cards], emptyConditions(), AT_SAMPLE);
+  assert.equal(result.skippedCount, 1);
+  assert.equal(result.total, 4);
+});
+
+test('사유 요약: 근거 문장은 60자까지, 신청 가능인데 맞은 사유가 없으면 기본 문구', () => {
+  const long = '가'.repeat(80);
+  assert.equal(reasonSummary({ result: 'ineligible', reasons: [{ outcome: 'fail', message: '불가', quote: long }] }), `불가 · 근거: "${'가'.repeat(60)}…"`);
+  assert.equal(reasonSummary({ result: 'eligible', reasons: [] }), '조건이 모두 맞습니다');
+});

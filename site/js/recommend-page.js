@@ -21,7 +21,7 @@ const CHIP_GROUPS = [
 ];
 const FIELD_NAMES = { campus: '캠퍼스', grade: '학년', is_transfer: '편입', enrollment: '학적', participation: '참가', period: '마감', deliverables: '제출물' };
 
-const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [] };
+const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [] };
 
 main().catch((error) => {
   console.error('맞춤 추천을 그리지 못함', error);
@@ -29,11 +29,26 @@ main().catch((error) => {
 });
 
 async function main() {
-  const page = await loadPage({ errorTarget: document.getElementById('result-list') });
-  if (!page) return;
-  const { data, now } = page;
   const input = document.getElementById('q');
   input.maxLength = MAX_INPUT_LENGTH;
+  showConditionSummary(state.conditions);
+  // 데이터를 받기 전에 Enter를 눌러도 폼이 주소에 문장을 실어 보내지 않게, 제출 막기를 가장 먼저 단다
+  let onSubmit = () => {};
+  document.getElementById('ask-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    onSubmit();
+  });
+  // 주소로 받은 문장(recommend.html#q=…)은 서버로 가지 않는 # 뒤에 둔다. 읽은 즉시 주소에서 지워
+  // 방문 기록·다른 화면 요청에 남지 않게 한다 (#24 보안 리뷰). 예전 형식 ?q=도 같은 방식으로 읽고 지운다
+  const fromAddress = readSentenceFromAddress();
+
+  const page = await loadPage({ errorTarget: document.getElementById('result-list') });
+  if (!page) {
+    document.getElementById('result-heading').textContent = '대회 정보를 불러오지 못했습니다';
+    return;
+  }
+  const { data, now } = page;
+  const saveStatus = document.getElementById('save-status');
 
   const render = () => {
     renderChips();
@@ -41,38 +56,56 @@ async function main() {
     renderResults(data.cards, now);
     showConditionSummary(state.conditions);
   };
-  const update = (conditions) => {
+  // shouldSave=false: 화면에만 반영 (주소로 받은 문장은 학생이 칩·버튼을 누르기 전까지 저장하지 않는다)
+  const update = (conditions, { shouldSave = true } = {}) => {
     state.conditions = conditions;
-    saveConditions(conditions);
+    if (shouldSave && !saveConditions(conditions)) {
+      announce(saveStatus, '이 브라우저가 저장을 막고 있어 조건이 저장되지 않습니다. 이 화면에서만 쓰입니다.');
+    }
     render();
   };
 
-  document.getElementById('ask-form').addEventListener('submit', (event) => {
-    event.preventDefault();
-    interpret(input.value, update);
-  });
+  onSubmit = () => interpret(input.value, update);
   document.getElementById('clear-saved').addEventListener('click', () => {
-    clearSavedConditions();
+    const isCleared = clearSavedConditions();
     state.conditions = emptyConditions();
     state.unknownTerms = [];
     state.changed = [];
+    state.read = [];
     input.value = '';
+    document.getElementById('parse-status').textContent = '';
     render();
-    announce(document.getElementById('save-status'), '저장된 조건을 지웠습니다.');
+    announce(saveStatus, isCleared
+      ? '저장된 조건을 지웠습니다.'
+      : '이 브라우저가 저장소를 막고 있어 지우지 못했습니다. 브라우저의 사이트 데이터 삭제를 이용하세요.');
   });
-  bindChips(update);
+  bindChips((conditions) => {
+    // 칩으로 고치면 문장 해석 안내는 더 이상 지금 조건을 설명하지 않으므로 지운다
+    document.getElementById('parse-status').textContent = '';
+    state.unknownTerms = [];
+    state.changed = [];
+    state.read = [];
+    update(conditions);
+  });
 
-  // 주소로 받은 문장(recommend.html?q=…)도 입력창과 같은 상한을 거쳐 해석한다 (PR #36 보안 리뷰)
-  const fromUrl = new URLSearchParams(window.location.search).get('q');
-  if (fromUrl) {
-    input.value = fromUrl.slice(0, MAX_INPUT_LENGTH);
-    interpret(input.value, update);
+  if (fromAddress) {
+    input.value = fromAddress;
+    interpret(fromAddress, (conditions) => update(conditions, { shouldSave: false }), '주소로 받은 문장이라 아직 저장하지 않았습니다. 칩을 누르거나 다시 바꾸면 저장됩니다.');
   } else {
     render();
   }
 }
 
-function interpret(text, update) {
+// 주소의 #q= (또는 예전 ?q=)를 읽고 주소에서 지운다. 200자로 자른다
+function readSentenceFromAddress() {
+  const fromHash = new URLSearchParams(window.location.hash.slice(1)).get('q');
+  const fromSearch = new URLSearchParams(window.location.search).get('q');
+  const sentence = fromHash ?? fromSearch;
+  if (sentence !== null) window.history.replaceState(null, '', window.location.pathname);
+  return sentence ? sentence.slice(0, MAX_INPUT_LENGTH) : null;
+}
+
+function interpret(text, update, note = null) {
   const status = document.getElementById('parse-status');
   if (text.trim() === '') {
     announce(status, '문장을 입력하거나 아래 조건을 눌러 고르세요.');
@@ -83,19 +116,26 @@ function interpret(text, update) {
     parsed = parseConditions(text.slice(0, MAX_INPUT_LENGTH));
   } catch (error) {
     console.warn('문장을 해석하지 못함', error);
-    announce(status, `문장은 ${MAX_INPUT_LENGTH}자까지 쓸 수 있습니다.`);
+    announce(status, error instanceof RangeError ? `문장은 ${MAX_INPUT_LENGTH}자까지 쓸 수 있습니다.` : '문장을 해석하지 못했습니다. 아래 조건을 눌러 고르세요.');
     return;
   }
-  const { conditions, changed, unknownTerms } = applyParsed(state.conditions, parsed);
+  const { conditions, read, changed, kept, unknownTerms } = applyParsed(state.conditions, parsed);
   state.unknownTerms = unknownTerms;
   state.changed = changed;
-  announce(status, changed.length > 0
-    ? `문장에서 ${changed.map((field) => FIELD_NAMES[field]).join('·')} 조건을 읽었습니다. 아래에서 고칠 수 있습니다.`
-    : '문장에서 새로 읽은 조건이 없습니다. 아래 조건을 눌러 고르세요.');
+  state.read = read;
+  const names = (fields) => fields.map((field) => FIELD_NAMES[field]).join('·');
+  const parts = [];
+  if (read.length === 0) parts.push('문장에서 읽은 조건이 없습니다. 아래 조건을 눌러 고르세요.');
+  else if (changed.length === 0) parts.push(`문장에서 ${names(read)} 조건을 읽었습니다 (이미 고른 값과 같음).`);
+  else parts.push(`문장에서 ${names(read)} 조건을 읽었습니다. 아래에서 고칠 수 있습니다.`);
+  // 지난번에 고른 조건이 조용히 섞이지 않게 무엇을 그대로 두었는지 알린다
+  if (kept.length > 0) parts.push(`말하지 않은 ${names(kept)} 조건은 그대로 두었습니다.`);
+  if (note) parts.push(note);
+  announce(status, parts.join(' '));
   update(conditions);
 }
 
-function bindChips(update) {
+function bindChips(onChange) {
   const container = document.getElementById('chip-groups');
   container.replaceChildren(
     ...CHIP_GROUPS.map(([field, label, options]) => el('div', { class: 'row' },
@@ -105,7 +145,7 @@ function bindChips(update) {
           const chip = el('button', { type: 'button', class: 'chip', 'data-field': field, 'aria-pressed': 'false' }, text);
           chip.addEventListener('click', () => {
             const isSame = state.conditions[field] === value;
-            update({ ...state.conditions, [field]: isSame ? null : value });
+            onChange({ ...state.conditions, [field]: isSame ? null : value });
           });
           chip.chipValue = value;
           return chip;
@@ -117,7 +157,7 @@ function bindChips(update) {
           const chip = el('button', { type: 'button', class: 'chip', 'data-field': 'deliverables', 'aria-pressed': 'false' }, tag);
           chip.addEventListener('click', () => {
             const tags = state.conditions.deliverables ?? [];
-            update({ ...state.conditions, deliverables: tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag] });
+            onChange({ ...state.conditions, deliverables: tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag] });
           });
           chip.chipValue = tag;
           return chip;
@@ -134,9 +174,10 @@ function renderChips() {
   });
 }
 
+// 문장을 해석한 직후에만 "이해하지 못한 표현"을 보여 준다 (칩으로 고치면 지움)
 function renderParsed() {
   const target = document.getElementById('parsed');
-  if (state.changed.length === 0 && state.unknownTerms.length === 0) {
+  if (state.read.length === 0 && state.unknownTerms.length === 0) {
     target.replaceChildren();
     return;
   }
@@ -145,7 +186,7 @@ function renderParsed() {
   target.replaceChildren(...[
     el('span', { class: 'small' }, '이해하지 못한 표현'),
     ...(shown.length > 0
-      ? shown.map((term) => el('span', { class: 'badge s-before', dir: 'auto' }, term))
+      ? shown.map((term) => el('span', { class: 'term', dir: 'auto' }, term))
       : [el('span', { class: 'small' }, '없음')]),
     hiddenCount > 0 ? el('span', { class: 'small' }, `외 ${hiddenCount}개`) : null,
     shown.length > 0 ? el('span', { class: 'small' }, '→ 조건으로 쓰지 않았습니다. 필요하면 아래 칩으로 고르세요.') : null,
@@ -153,13 +194,14 @@ function renderParsed() {
 }
 
 function renderResults(cards, now) {
-  const { groups, closedCount, filteredCount, total } = recommendCards(cards, state.conditions, now);
+  const { groups, closedCount, filteredCount, undatedCount, skippedCount, total } = recommendCards(cards, state.conditions, now);
   const periodEnd = periodEndDate(state.conditions.period, now);
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
   document.getElementById('result-meta').textContent = [
     periodEnd ? `마감 ${formatShortDate(periodEnd)}까지` : null,
-    filteredCount > 0 ? `제출물·마감 조건으로 ${filteredCount}건 숨김` : null,
+    filteredCount > 0 ? `제출물·마감 조건으로 ${filteredCount}건 숨김${undatedCount > 0 ? ` (그중 마감일이 없거나 읽을 수 없는 ${undatedCount}건)` : ''}` : null,
     closedCount > 0 ? `마감 지난 대회 ${closedCount}건 제외` : null,
+    skippedCount > 0 ? `정보를 읽지 못한 대회 ${skippedCount}건 제외` : null,
   ].filter(Boolean).join(' · ');
 
   const list = document.getElementById('result-list');
@@ -167,15 +209,20 @@ function renderResults(cards, now) {
     list.replaceChildren(el('p', { class: 'empty' }, '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.'));
     return;
   }
-  list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => el('section', { class: 'result-group', 'aria-label': `${RESULT_VIEW[result].text} ${groups[result].length}건` },
-    ...groups[result].map((item) => renderItem(item)))));
+  list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {
+    const headingId = `group-${result}`;
+    return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
+      el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
+      ...groups[result].map((item) => renderItem(item)));
+  }));
 }
 
 function renderItem({ card, judged, deadline, summary }) {
   const view = RESULT_VIEW[judged.result];
   const change = latestDeadlineChange(card);
   const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions) : null;
-  const status = el('span', { class: 'small', role: 'status' });
+  // 복사 안내 영역은 복사 버튼이 있을 때만 (안내 영역이 카드마다 생기지 않게)
+  const status = draft ? el('span', { class: 'small', role: 'status' }) : null;
   const copyButton = draft ? el('button', { type: 'button', class: 'btn spacer' }, '✉ 문의 초안 복사') : null;
   copyButton?.addEventListener('click', async () => {
     try {
@@ -191,7 +238,7 @@ function renderItem({ card, judged, deadline, summary }) {
       el('span', { class: `badge ${view.cls}` }, view.text),
       el('span', { class: 'title' }, card.title),
       ddayElement(deadline, 'spacer')),
-    el('span', { class: 'reason' }, summary),
+    summary ? el('span', { class: 'reason' }, summary) : null,
     change ? el('p', { class: 'notice' }, `⚠ 마감 변경: ${shortDate(change.old)} → ${shortDate(change.new)}`) : null,
     el('div', { class: 'row' },
       ...deliverableTags(card).map((tag) => el('span', { class: 'tag' }, tag)),

@@ -9,13 +9,13 @@ const filters = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags:
 main();
 
 async function main() {
+  showConditionSummary();
   const page = await loadPage({ errorTarget: document.getElementById('card-list') });
   if (!page) {
     document.getElementById('summary-line').replaceChildren('대회 정보를 불러오지 못했습니다.');
     return;
   }
   const { data, now, rejected, isSample } = page;
-  showConditionSummary();
   renderTagChips();
   renderBoards(data.boards);
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다

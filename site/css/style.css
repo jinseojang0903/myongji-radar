@@ -123,6 +123,8 @@ h2 { font-size: 16.5px; margin: 0; }
 .result-group { display: grid; gap: 10px; }
 #chip-groups { display: grid; gap: 6px; margin: 10px 0; }
 #parsed:empty { display: none; }
+.group-heading { font-size: 15px; margin: 6px 0 0; }
+.term { font-size: 13px; padding: 1px 8px; border-radius: 10px; background: var(--note-bg); border: 1px solid var(--line); }
 
 /* 입력 */
 .ask { display: flex; gap: 8px; }

@@ -21,22 +21,28 @@ const CONDITION_FIELDS = ['campus', 'grade', 'is_transfer', 'enrollment', 'parti
  * 제출물은 문장에 있으면 그 목록으로 바꾼다. unknown_terms는 화면 표시용으로만 돌려준다 (저장하지 않음).
  * @param {object} current  지금 조건 (계약 2절)
  * @param {object} parsed  parseConditions 결과
- * @returns {{conditions: object, changed: string[], unknownTerms: string[]}}  changed: 문장으로 바뀐 조건 이름
+ * 제출물을 말하면 칩으로 고른 제출물 목록을 문장의 목록으로 바꾼다 (말한 조건만 바꾼다는 규칙과 같다, 계약 5절).
+ * @returns {{conditions: object, read: string[], changed: string[], kept: string[], unknownTerms: string[]}}
+ *   read: 문장에서 읽은 조건(값이 같아도 포함), changed: 그중 값이 바뀐 것, kept: 문장이 말하지 않아 그대로 둔 고른 조건
  */
 export function applyParsed(current, parsed) {
-  const conditions = { ...current, unknown_terms: [] };
+  const conditions = { ...current, deliverables: [...(current.deliverables ?? [])], unknown_terms: [] };
+  const read = [];
   const changed = [];
   for (const field of CONDITION_FIELDS) {
-    if (parsed[field] !== null && parsed[field] !== undefined && parsed[field] !== current[field]) {
-      conditions[field] = parsed[field];
-      changed.push(field);
-    }
+    if (parsed[field] === null || parsed[field] === undefined) continue;
+    read.push(field);
+    if (parsed[field] !== current[field]) changed.push(field);
+    conditions[field] = parsed[field];
   }
   if (Array.isArray(parsed.deliverables) && parsed.deliverables.length > 0) {
+    read.push('deliverables');
+    if (parsed.deliverables.join('|') !== conditions.deliverables.join('|')) changed.push('deliverables');
     conditions.deliverables = [...parsed.deliverables];
-    if (parsed.deliverables.join('|') !== (current.deliverables ?? []).join('|')) changed.push('deliverables');
   }
-  return { conditions, changed, unknownTerms: Array.isArray(parsed.unknown_terms) ? parsed.unknown_terms : [] };
+  const kept = [...CONDITION_FIELDS, 'deliverables'].filter((field) => !read.includes(field)
+    && (field === 'deliverables' ? conditions.deliverables.length > 0 : conditions[field] !== null && conditions[field] !== undefined));
+  return { conditions, read, changed, kept, unknownTerms: Array.isArray(parsed.unknown_terms) ? parsed.unknown_terms : [] };
 }
 
 /**
@@ -67,8 +73,9 @@ export function periodEndDate(period, now) {
  * @param {object} conditions  계약 2절 조건
  * @param {Date} now  기준 시각
  * @returns {{groups: Record<string, {card: object, judged: object, deadline: object, summary: string}[]>,
- *   closedCount: number, filteredCount: number, total: number}}
- *   filteredCount: 제출물·기간 필터로 빠진 수. total: 보여 주는 대회 수
+ *   closedCount: number, filteredCount: number, undatedCount: number, skippedCount: number, total: number}}
+ *   filteredCount: 제출물·기간 필터로 빠진 수 (그중 undatedCount는 마감일이 없거나 읽을 수 없어 기간 안인지 모르는 대회).
+ *   skippedCount: 판정하다 오류가 나 뺀 대회 (한 장 때문에 목록 전체가 사라지지 않게). total: 보여 주는 대회 수
  */
 export function recommendCards(cards, conditions, now) {
   const groups = Object.fromEntries(RESULT_ORDER.map((result) => [result, []]));
@@ -76,30 +83,41 @@ export function recommendCards(cards, conditions, now) {
   const tags = conditions.deliverables ?? [];
   let closedCount = 0;
   let filteredCount = 0;
+  let undatedCount = 0;
+  let skippedCount = 0;
   for (const card of cards) {
-    const deadline = deadlineOf(card, now);
-    if (deadline.state === 'closed') {
-      closedCount += 1;
-      continue;
+    // 한 장이 깨져 있어도(마감 계산·판정 오류) 그 카드만 빼고 센다
+    try {
+      const deadline = deadlineOf(card, now);
+      if (deadline.state === 'closed') {
+        closedCount += 1;
+        continue;
+      }
+      // 기간을 고르면 마감일을 읽을 수 있는 대회만 (마감일 없음·읽을 수 없음은 그 기간 안인지 알 수 없다)
+      const isOutOfPeriod = periodEnd && !(deadline.state === 'open' && deadline.endDate <= periodEnd);
+      const isOtherDeliverable = tags.length > 0 && !deliverableTags(card).some((tag) => tags.includes(tag));
+      if (isOutOfPeriod || isOtherDeliverable) {
+        filteredCount += 1;
+        if (isOutOfPeriod && deadline.state !== 'open') undatedCount += 1;
+        continue;
+      }
+      const judged = judgeCard(card, conditions, { now });
+      groups[judged.result].push({ card, judged, deadline, summary: reasonSummary(judged) });
+    } catch (error) {
+      console.error('카드를 판정하지 못해 뺌', card?.id, error);
+      skippedCount += 1;
     }
-    // 기간을 고르면 마감일을 읽을 수 있는 대회만 (마감일 없음·읽을 수 없음은 그 기간 안인지 알 수 없다)
-    const isOutOfPeriod = periodEnd && !(deadline.state === 'open' && deadline.endDate <= periodEnd);
-    const isOtherDeliverable = tags.length > 0 && !deliverableTags(card).some((tag) => tags.includes(tag));
-    if (isOutOfPeriod || isOtherDeliverable) {
-      filteredCount += 1;
-      continue;
-    }
-    const judged = judgeCard(card, conditions, { now });
-    groups[judged.result].push({ card, judged, deadline, summary: reasonSummary(judged) });
   }
   for (const items of Object.values(groups)) items.sort(compareDeadline);
   const total = Object.values(groups).reduce((sum, items) => sum + items.length, 0);
-  return { groups, closedCount, filteredCount, total };
+  return { groups, closedCount, filteredCount, undatedCount, skippedCount, total };
 }
 
 function compareDeadline(a, b) {
+  // 날짜 문자열은 로케일과 상관없이 비교한다. 마감일이 없거나 읽을 수 없으면 뒤로
   const key = ({ deadline }) => (deadline.state === 'open' ? `${deadline.endDate} ${deadline.endTime ?? '24:00'}` : '9999');
-  return key(a).localeCompare(key(b)) || a.card.title.localeCompare(b.card.title, 'ko');
+  if (key(a) !== key(b)) return key(a) < key(b) ? -1 : 1;
+  return a.card.title.localeCompare(b.card.title, 'ko');
 }
 
 /**
@@ -110,11 +128,14 @@ function compareDeadline(a, b) {
  */
 export function reasonSummary(judged, limit = 3) {
   if (judged.result === 'eligible') {
-    return judged.reasons.filter((reason) => reason.outcome === 'ok').slice(0, limit).map((reason) => `${reason.message} ✓`).join(' · ');
+    const ok = judged.reasons.filter((reason) => reason.outcome === 'ok').slice(0, limit);
+    return ok.length > 0 ? ok.map((reason) => `${reason.message} ✓`).join(' · ') : '조건이 모두 맞습니다';
   }
   const deciding = judged.reasons.filter((reason) => reason.outcome !== 'ok').slice(0, limit);
   return deciding.map((reason) => {
-    const quote = reason.outcome === 'fail' && reason.quote ? ` · 근거: "${reason.quote}"` : '';
+    // 근거 문장은 목록에서는 60자까지 (전체는 카드 상세에서)
+    const shortQuote = typeof reason.quote === 'string' && [...reason.quote].length > 60 ? `${[...reason.quote].slice(0, 60).join('')}…` : reason.quote;
+    const quote = reason.outcome === 'fail' && shortQuote ? ` · 근거: "${shortQuote}"` : '';
     return `${reason.message}${quote}`;
   }).join(' · ');
 }

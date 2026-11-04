@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 다른 화면으로 갈 때 이 주소(문장이 들어 있을 수 있음)를 보내지 않는다 -->
+<meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
 <title>명지레이더 · 맞춤 추천</title>
 <link rel="stylesheet" href="css/style.css">
@@ -27,7 +29,7 @@
     <h1 id="h-ask">내 조건으로 찾기</h1>
     <form class="ask" id="ask-form">
       <label for="q" class="sr-only">조건을 문장으로 입력</label>
-      <input id="q" name="q" autocomplete="off" placeholder="예: 자연캠 2학년인데 혼자 낼 수 있는 대회 있어?">
+      <input id="q" autocomplete="off" placeholder="예: 자연캠 2학년인데 혼자 낼 수 있는 대회 있어?">
       <button type="submit" class="btn primary">조건으로 바꾸기</button>
     </form>
     <p class="small">문장은 이 기기 안에서 정해진 표현 사전으로 해석합니다. AI나 서버로 보내지 않고, 문장은 저장하지 않습니다.</p>
