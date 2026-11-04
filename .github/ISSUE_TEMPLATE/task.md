@@ -15,6 +15,6 @@ assignees: []
 - [ ] 
 
 ## 관련 문서
-<!-- 예: docs/api-contract.md, collector/boards.yaml -->
+<!-- 예: docs/api-contract.md, pipeline/config/sources.toml -->
 
 ## 메모
