@@ -61,7 +61,7 @@
 | `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 대상 문장이 있는데 캠퍼스로 나누지 않거나 "제한 없음"이 명시된 경우 (11/3 보완, 근거는 그 대상 문장). 대상 문장 자체가 없으면 `missing` |
 | `grades` | `[1, 2, 3, 4]` 또는 `"any"` | `campus`와 같은 규칙. 예: "정규학기 학부 재학생" → `"any"` |
 | `enrollment` | `{ "allowed": ["재학"], "excluded": ["휴학", "수료", "초과학기", "졸업유예"] }` | 대상 문장은 있는데 학적 언급이 없으면 두 목록 모두 빈 배열 (= 제한 문구 없음). 대상 문장이 없으면 `missing` |
-| `team` | `{ "min": null, "max": 3, "individual_ok": true }` | 공지에 없는 숫자는 null ("3인 이내" → min null) |
+| `team` | `{ "min": null, "max": 3, "individual_ok": true \| false \| null }` | 공지에 없는 숫자는 null ("3인 이내" → min null). `individual_ok`가 null이면 개인 참가 가능 여부가 공지에 없거나 애매한 것이다 (판정에서 개인 참가 학생은 `check`) |
 | `deliverables` | `{ "tags": ["기획서·제안서", "영상", "에세이·수기", "코드·개발", "발표", "디자인", "현장 참가", "기타"], "text": "영상 3~5분 + 대본" }` | 제출물 배지. 태그 목록은 추출 프롬프트 v0.2와 같다 |
 | `benefits` | string | 상금·상장 |
 | `mileage` | `{ "text": "예선 참가자 전원 창의 10점", "area": "창의" \| null, "points": 10 \| null }` | `points`는 참가자 기준. 수상자 추가 점수는 `text`에만 |
@@ -97,7 +97,7 @@
 | result | 화면 | 판정 순서 |
 |---|---|---|
 | `ineligible` | 불가 | 1. 근거가 있는 자격 조건에 학생 조건이 맞지 않음 |
-| `check` | 확인 필요 | 2. 판정에 필요한 항목이 `missing`·`needs_check`·확인 전이거나, 학생 조건이 `null` |
+| `check` | 확인 필요 | 2. 판정에 필요한 항목이 `missing`·`needs_check`·확인 전이거나, 학생 조건이 `null`이거나, 개인 참가 학생인데 `team.individual_ok`가 `null` |
 | `team_needed` | 팀 구성 시 가능 | 3. 개인 지원인데 `team.individual_ok`가 false |
 | `eligible` | 신청 가능 | 4. 위에 해당하지 않음 |
 
