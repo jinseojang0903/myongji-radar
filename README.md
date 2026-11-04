@@ -7,14 +7,16 @@
 ## 구조
 
 ```
-collector/   공개 게시판 11곳에서 새 글과 첨부를 모은다 (Python)
-pipeline/    대회 공지 분류 → 카드 추출(Claude) → 검증(근거 대조, Gemini 교차) → 중복 병합 → site/data/cards.json
+pipeline/    Python 프로젝트. 공개 게시판 수집·규칙 분석 구현, AI 추출·검증·병합·공개 JSON은 후속 단계
+  collector/ 수집·분석 패키지와 CLI
+  config/    출처(sources.toml)·규칙(rules.toml)의 단일 설정
+  tests/     수집·분석 테스트
 prompts/     추출 프롬프트 버전별 원문과 바꾼 이유
 site/        정적 웹사이트 (GitHub Pages). 조건 해석·판정·캘린더는 브라우저에서 처리하고 AI를 호출하지 않는다
 eval/        정답표와 정확도 측정
 tests/       판정 규칙·해석기 테스트
 scripts/     매일 실행 스크립트
-docs/        데이터 계약(api-contract.md) 등 문서
+docs/        데이터 계약(api-contract.md), 수집기 설계·검증 기록(collector/) 등 문서
 ```
 
 ## 원칙
@@ -26,4 +28,17 @@ docs/        데이터 계약(api-contract.md) 등 문서
 
 ## 실행 방법
 
-준비 중입니다.
+Python 3.11 이상을 설치하고 저장소 루트에서 다음을 실행한다 (Windows PowerShell).
+
+```powershell
+cd pipeline
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+.\launcher.bat test
+```
+
+수집을 직접 확인하려면 `.\launcher.bat run`, 저장된 공지를 규칙으로 분석하려면 `.\launcher.bat analyze`를 실행한다. 현재 등록 출처는 7곳이며 전체 목표 11곳으로 확장 중이다. 예약 실행은 아직 구현 전이고, 현재 수집 기본값은 출처별 3건이다 (#4에서 개선 예정).
+
+자세한 실행법과 기존 환경 이동 방법은 [pipeline/README.md](pipeline/README.md), 추가할 4곳은 [출처 추가 대상](docs/collector/출처_추가대상.md)을 참고한다. 출처 설정은 `pipeline/config/sources.toml` 한 곳에서만 관리한다.
+
+사이트 JS 테스트는 저장소 루트에서 `node --test "tests/*.test.js"`로 실행할 수 있다. 데이터 형식은 [데이터 계약](docs/api-contract.md)을 따른다.
