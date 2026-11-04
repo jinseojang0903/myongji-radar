@@ -1,4 +1,4 @@
-// 판정 규칙 테스트. 실행: npm test (또는 node --test tests/)
+// 판정 규칙 테스트. 실행: npm test (또는 node --test "tests/*.test.js")
 // 기준: docs/api-contract.md 3절
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
