@@ -118,6 +118,17 @@ h2 { font-size: 16.5px; margin: 0; }
 .split { display: grid; gap: 14px; grid-template-columns: 1fr; }
 @media (min-width: 900px) { .split { grid-template-columns: 1.4fr 1fr; } }
 
+/* 카드 상세 (#25) */
+.side { display: grid; gap: 14px; align-content: start; }
+.reason-list { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.reason-list .badge { margin-left: 6px; }
+.quote { display: block; color: var(--muted); font-size: 12.5px; }
+.field-note { color: var(--sub); font-size: 12.5px; margin-top: 2px; }
+.field-note.need { color: var(--warn); }
+.small-btn { margin-top: 4px; padding: 2px 8px; font-size: 13px; }
+.ev.draft { border-left-color: var(--warn); background: var(--note-bg); white-space: pre-wrap; }
+.side label.row { font-size: 14px; }
+
 /* 입력 */
 .ask { display: flex; gap: 8px; }
 .ask input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; }
