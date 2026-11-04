@@ -57,6 +57,45 @@ class RepositoryTests(unittest.TestCase):
                 finally:
                     repo.close()
 
+    def test_invalid_reparse_identity_or_parser_keeps_database_unchanged(self):
+        for field, value in (("source_id", "other"), ("external_id", "test/1/other"),
+                             ("parser_version", "wrong-parser")):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp:
+                repo = Repository(Path(temp))
+                try:
+                    repo.save(self.notice, b"original")
+                    before_versions = repo.db.execute("SELECT * FROM notice_versions").fetchall()
+                    before_notices = repo.db.execute("SELECT * FROM notices").fetchall()
+                    updated = replace(self.notice, parser_version="k2web-v2", body_text="new")
+                    wrong_result = replace(updated, **{field: value})
+                    with self.assertRaisesRegex(ValueError, "현재 공지 또는 파서와 다릅니다"):
+                        repo.save(updated, b"new", lambda raw, payload: wrong_result)
+                    self.assertEqual(repo.db.execute("SELECT * FROM notice_versions").fetchall(), before_versions)
+                    self.assertEqual(repo.db.execute("SELECT * FROM notices").fetchall(), before_notices)
+                    self.assertEqual(len(list((Path(temp) / "raw").glob("*.html"))), 1)
+                finally:
+                    repo.close()
+
+    def test_two_parser_only_upgrades_preserve_one_original_version(self):
+        repo = Repository(self.data)
+        try:
+            repo.save(self.notice, b"original")
+            before = repo.db.execute("SELECT id, raw_path, collected_at FROM notice_versions").fetchone()
+            for version in ("k2web-v2", "k2web-v3"):
+                updated = replace(self.notice, parser_version=version)
+
+                def reparse(raw, payload):
+                    self.assertEqual(raw, b"original")
+                    return replace(Notice(**payload), parser_version=version)
+
+                self.assertEqual(repo.save(updated, b"view counter changed", reparse), "unchanged")
+                rows = repo.db.execute("SELECT id, raw_path, collected_at, payload_json FROM notice_versions").fetchall()
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0][:3], before)
+                self.assertEqual(json.loads(rows[0][3])["parser_version"], version)
+        finally:
+            repo.close()
+
     def test_reparse_distinguishes_parser_change_from_real_content_change(self):
         source = Source("test", "테스트", "k2web", "https://example.com/rss", ["example.com"],
                         ".title", ".body", ".file a[href]")

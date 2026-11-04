@@ -5,6 +5,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+DB_VERSION = 2
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -23,7 +25,7 @@ class Repository:
         self.db.execute("PRAGMA foreign_keys=ON")
         try:
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > 2:
+            if version > DB_VERSION:
                 raise ValueError(f"지원하지 않는 DB 버전: {version}")
             self.db.executescript("""
                 CREATE TABLE IF NOT EXISTS notices (
@@ -40,7 +42,7 @@ class Repository:
                     id INTEGER PRIMARY KEY, started_at TEXT NOT NULL,
                     finished_at TEXT, result_json TEXT);
             """)
-            if version < 2:
+            if version < DB_VERSION:
                 self._migrate_content_hashes()
         except Exception:
             self.db.close()
@@ -61,7 +63,7 @@ class Repository:
                 ORDER BY v.id DESC LIMIT 1)
                 WHERE EXISTS (SELECT 1 FROM notice_versions v WHERE v.source_id=notices.source_id
                     AND v.external_id=notices.external_id)""")
-            self.db.execute("PRAGMA user_version=2")
+            self.db.execute(f"PRAGMA user_version={DB_VERSION}")
 
     def start_run(self):
         with self.db:
