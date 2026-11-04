@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from collector.__main__ import main
+from collector.adapters.k2web import K2WebAdapter
 from collector.models import Notice, NoticeRef
 from collector.repository import Repository
 
@@ -51,7 +52,7 @@ class CollectionRunTests(unittest.TestCase):
         finally:
             repo.close()
 
-    def collect(self, refs, *, limit=None, html=False, body="Body"):
+    def collect(self, refs, *, limit=None, html=False, body="Body", expected_exit=0):
         self.config.write_text(CONFIG + ('discovery = "html"\n' if html else ''), encoding="utf-8")
         if html:
             rows = []
@@ -80,7 +81,7 @@ class CollectionRunTests(unittest.TestCase):
             args += ["--limit", str(limit)]
         with patch("sys.argv", args), patch("collector.__main__.Fetcher", return_value=fetcher), \
                 contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(), 0)
+            self.assertEqual(main(), expected_exit)
         fetcher.close.assert_called_once()
         self.assertEqual(requests[0], discovery_url)
         return requests[1:]
@@ -121,12 +122,60 @@ class CollectionRunTests(unittest.TestCase):
         self.assertEqual(len(self.notices()), 2)
         self.assertTrue(all(notice["body_text"] == "Updated body" for notice in self.notices()))
 
+    def test_parser_upgrade_reparses_saved_html_during_collection(self):
+        refs = [reference(1)]
+        self.collect(refs)
+        previous = self.notices()[0]
+        original_parse = K2WebAdapter.parse_detail
+
+        def upgraded_parse(adapter, html, ref, source):
+            notice = original_parse(adapter, html, ref, source)
+            notice.body_text = "개선된 파싱: " + notice.body_text
+            notice.parser_version = "k2web-v2"
+            return notice
+
+        with patch.object(K2WebAdapter, "parse_detail", upgraded_parse):
+            self.collect(refs)
+        current = self.notices()[0]
+        self.assertEqual(current["version_id"], previous["version_id"])
+        self.assertEqual(current["body_text"], "개선된 파싱: Body")
+        self.assertEqual(current["parser_version"], "k2web-v2")
+
     def test_html_new_regular_and_pinned_posts_precede_saved_posts(self):
         refs = [reference(1, pinned=True), reference(2), reference(3, pinned=True), reference(4), reference(5)]
         self.seed(refs[:2])
         self.assertEqual(self.collect(refs, html=True), [refs[i].url for i in (3, 4, 2, 1, 0)])
         self.assertEqual(len(self.notices()), 5)
         self.assertTrue(all("is_pinned" not in notice for notice in self.notices()))
+
+    def test_failed_previous_html_reparse_does_not_stop_other_notices(self):
+        refs = [reference(1), reference(2)]
+        self.collect(refs)
+        previous = {n["external_id"]: n for n in self.notices()}
+        original_parse = K2WebAdapter.parse_detail
+
+        def upgraded_parse(adapter, html, ref, source):
+            parsed = original_parse(adapter, html, ref, source)
+            if ref.external_id == refs[0].external_id and parsed.body_text == "Body":
+                raise ValueError("old HTML cannot be parsed")
+            parsed.parser_version = "k2web-v2"
+            return parsed
+
+        with patch.object(K2WebAdapter, "parse_detail", upgraded_parse):
+            self.collect(refs, body="Updated", expected_exit=1)
+        current = {n["external_id"]: n for n in self.notices()}
+        self.assertEqual(current[refs[0].external_id], previous[refs[0].external_id])
+        self.assertEqual(current[refs[1].external_id]["body_text"], "Updated")
+        self.assertGreater(current[refs[1].external_id]["version_id"], previous[refs[1].external_id]["version_id"])
+        repo = Repository(self.data)
+        try:
+            stats = json.loads(repo.db.execute("SELECT result_json FROM runs ORDER BY id DESC LIMIT 1").fetchone()[0])[0]
+            self.assertEqual(stats["changed"], 1)
+            self.assertEqual(len(stats["errors"]), 1)
+            self.assertEqual(stats["errors"][0]["url"], refs[0].url)
+            self.assertIn("old HTML cannot be parsed", stats["errors"][0]["error"])
+        finally:
+            repo.close()
 
     def test_saved_pinned_posts_do_not_take_limited_new_post_slots(self):
         refs = [reference(1, pinned=True), reference(2, pinned=True), reference(3), reference(4)]

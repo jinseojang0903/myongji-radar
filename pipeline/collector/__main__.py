@@ -7,6 +7,7 @@ from .adapters import ADAPTERS
 from .analysis import analyze_file
 from .config import load_sources
 from .fetcher import Fetcher
+from .models import NoticeRef
 from .repository import Repository
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,7 +66,12 @@ def main():
                         try:
                             html = fetcher.get(ref.url, source.allowed_hosts)
                             notice = adapter.parse_detail(html, ref, source)
-                            status = repo.save(notice, html)
+                            def reparse_previous(old_html, old_payload):
+                                old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
+                                                    old_payload["title"], old_payload["published_at"])
+                                return adapter.parse_detail(old_html, old_ref, source)
+
+                            status = repo.save(notice, html, reparse_previous)
                             stats[status] += 1
                             print(f"[{status}] {source.id} | {notice.title} | 본문 {len(notice.body_text)}자 / 이미지 {len(notice.images)} / 첨부 {len(notice.attachments)}")
                         except Exception as exc:
