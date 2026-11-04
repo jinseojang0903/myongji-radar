@@ -24,7 +24,7 @@ async function main() {
   document.getElementById('log-updated').textContent = `기록 갱신 ${data.updated_at}`;
   // 항목이 모두 빠진 목록은 빈 표 대신 안내 문구
   const fill = (id, items, render) => document.getElementById(id).replaceChildren(
-    ...(items.length > 0 ? [render(items)].flat() : [el('p', { class: 'empty' }, '아직 기록이 없습니다.')]));
+    ...(items.length > 0 ? [render(items)].flat() : [el(id === 'log-stages' ? 'li' : 'p', { class: 'empty' }, '아직 기록이 없습니다.')]));
   fill('log-stages', data.stages, renderStages);
   fill('log-accuracy', data.accuracy, renderAccuracy);
   fill('log-prompts', data.prompts, renderPrompts);

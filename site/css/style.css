@@ -127,6 +127,7 @@ h2 { font-size: 16.5px; margin: 0; }
 .metrics th, .metrics td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; }
 .metrics th { color: var(--sub); font-weight: 400; }
 .pending { color: var(--muted); }
+.metrics td.pending { white-space: nowrap; }
 
 /* 휴대폰: 한 열, 항목 표는 라벨 위·값 아래 */
 @media (max-width: 520px) {
@@ -140,4 +141,3 @@ h2 { font-size: 16.5px; margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-.metrics td.pending { white-space: nowrap; }
