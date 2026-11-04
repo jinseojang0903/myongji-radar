@@ -6,7 +6,8 @@
 import { parseContractDate, toKstInstant, kstDateString, formatShortDate } from './dates.js';
 import { safeUrl, stripInvisible } from './html.js';
 
-const DEADLINE_STAGES = new Set(['신청', '출품', '예선']);
+// 마감 단계. 예선은 제출 마감인지 심사일인지 공지마다 달라 마감으로 단정하지 않는다 ([일정]으로 표시)
+const DEADLINE_STAGES = new Set(['신청', '출품']);
 // UID에 쓰는 단계 이름 (날짜를 넣지 않아야 마감이 바뀌어도 같은 일정으로 갱신된다)
 const STAGE_UID = { 신청: 'apply', 출품: 'submit', 예선: 'prelim', 본선: 'final', 발표: 'announce', 시상: 'award', 기타: 'other' };
 // 알림: 시각이 있으면 마감 시각 기준 3일·1일 전. 하루 종일 일정은 그날 0시 기준이라 그대로 두면 자정에 울리므로

@@ -108,7 +108,7 @@ function renderFields(card, boards) {
       anchor.className = anchor.tagName === 'A' ? (index === 0 ? 'btn primary' : 'btn') : 'small';
       return anchor;
     })),
-    el('p', { class: 'small' }, 'AI 정리 → 근거 문장 대조·교차 추출로 자동 검증 → 신청기간·자격은 팀이 원문과 대조.',
+    el('p', { class: 'small' }, '카드는 AI 정리 → 근거 문장 대조·교차 추출(자동 검증) → 팀의 원문 대조(신청기간·자격) 순서로 확인합니다. 항목마다 어디까지 확인했는지는 상태 배지로 보여 줍니다.',
       checkedAt ? ` 마지막 확인 ${checkedAt.date}.` : ''));
 }
 
