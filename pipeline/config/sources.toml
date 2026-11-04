@@ -12,6 +12,40 @@ name = "명지대학교 일반공지"
 rss_url = "https://www.mju.ac.kr/bbs/mjukr/141/rssList.do?row=50"
 allowed_hosts = ["www.mju.ac.kr"]
 
+# #6 추가 출처. 기존 ID는 DB 호환성을 위해 유지한다.
+[[sources]]
+id = "mju_student"
+repair_rss_ampersands = true
+name = "명지대학교 학생활동공지"
+priority = 6
+list_url = "https://www.mju.ac.kr/mjukr/5364/subview.do"
+rss_url = "https://www.mju.ac.kr/bbs/mjukr/853/rssList.do?row=50"
+allowed_hosts = ["www.mju.ac.kr"]
+
+[[sources]]
+id = "mju_career"
+name = "명지대학교 진로/취업/창업공지"
+priority = 7
+discovery = "html"
+list_url = "https://www.mju.ac.kr/mjukr/260/subview.do"
+allowed_hosts = ["www.mju.ac.kr"]
+
+[[sources]]
+id = "mju_ince"
+name = "명지대학교 정보통신공학전공 학부 공지"
+priority = 8
+list_url = "https://ince.mju.ac.kr/ince/5121/subview.do"
+rss_url = "https://ince.mju.ac.kr/bbs/ince/679/rssList.do?row=50"
+allowed_hosts = ["ince.mju.ac.kr"]
+
+[[sources]]
+id = "mju_energy"
+repair_rss_ampersands = true
+name = "명지대학교 에너지 소재 사업단"
+priority = 9
+rss_url = "https://www.mju.ac.kr/bbs/energymaterials/1634/rssList.do?row=50"
+allowed_hosts = ["www.mju.ac.kr"]
+
 [[sources]]
 id = "mju_ctl"
 priority = 91

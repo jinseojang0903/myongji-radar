@@ -2,6 +2,7 @@
 
 신청 조건·날짜의 의미 정확도나 전체 공지 누락률을 측정하는 도구가 아니다.
 """
+import argparse
 import json
 import re
 import sqlite3
@@ -23,13 +24,19 @@ def compact(text):
     return re.sub(r"\s+", "", text)
 
 
-def audit():
+def audit(source_ids=None):
     sources = load_sources(ROOT / "config/sources.toml")
+    if source_ids:
+        missing = set(source_ids) - {s.id for s in sources}
+        if missing:
+            raise ValueError(f"등록되지 않은 출처: {', '.join(sorted(missing))}")
+        sources = [s for s in sources if s.id in source_ids]
+    else:
+        # 기존 기본 점검 대상은 유지. 추가 출처는 --source로 명시한다.
+        sources = [s for s in sources if s.priority <= 5]
     result = {"checked_at": datetime.now(timezone.utc).isoformat(), "scope": "HTML structural consistency; not semantic accuracy", "sources": []}
     with closing(sqlite3.connect(ROOT / "data/collector.sqlite3")) as db:
         for source in sources:
-            if source.priority > 5:
-                continue
             rows = db.execute("""SELECT payload_json,raw_path FROM notice_versions v
                 WHERE source_id=? AND id=(SELECT MAX(id) FROM notice_versions v2
                     WHERE v2.source_id=v.source_id AND v2.external_id=v.external_id)
@@ -73,4 +80,12 @@ def audit():
 
 
 if __name__ == "__main__":
-    raise SystemExit(audit())
+    parser = argparse.ArgumentParser(description="저장된 원문과 파싱 결과의 구조 점검")
+    parser.add_argument("--source", action="append", help="점검할 출처 ID. 여러 번 지정 가능")
+    args = parser.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    try:
+        raise SystemExit(audit(args.source))
+    except ValueError as exc:
+        parser.error(str(exc))
