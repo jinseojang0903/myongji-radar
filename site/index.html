@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
+<title>명지레이더 · 교내 대회·공모전</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/home.js"></script>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="index.html">명지레이더</a>
+    <nav aria-label="주요 화면">
+      <a href="index.html" aria-current="page">홈</a>
+      <a href="recommend.html">맞춤 추천</a>
+      <a href="log.html">제작 기록</a>
+    </nav>
+    <span class="cond">내 조건: 아직 고르지 않음</span>
+  </div>
+</header>
+<p class="demo" id="sample-banner" hidden></p>
+
+<main>
+  <section class="panel" aria-labelledby="h-summary">
+    <div class="row">
+      <div>
+        <h1 id="h-summary">교내 대회·공모전</h1>
+        <p class="lead" id="lead">교내 공개 게시판의 새 글을 매일 확인해, 포스터·첨부까지 읽고 대회 카드로 정리합니다.</p>
+      </div>
+      <a class="btn primary spacer" href="recommend.html">내 조건으로 찾기</a>
+    </div>
+    <div class="row small" id="summary-line">불러오는 중…</div>
+    <p class="small">AI가 정리한 결과입니다. <b>신청 전에 원문 공지를 꼭 확인하세요.</b> 신청기간과 자격은 팀이 원문과 대조하기 전까지 <span class="badge s-before">확인 전</span>으로 표시합니다.</p>
+  </section>
+
+  <section class="panel" aria-label="목록 필터">
+    <div class="row">
+      <span class="small filter-label" id="f-sort">정렬</span>
+      <div class="chips" role="group" aria-labelledby="f-sort">
+        <button type="button" class="chip" data-sort="deadline" aria-pressed="true">마감 가까운 순</button>
+        <button type="button" class="chip" data-sort="newest" aria-pressed="false">새로 올라온 순</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="small filter-label" id="f-period">기간</span>
+      <div class="chips" role="group" aria-labelledby="f-period">
+        <button type="button" class="chip" data-toggle="urgentOnly" aria-pressed="false">마감 7일 이내</button>
+        <button type="button" class="chip" data-toggle="changedOnly" aria-pressed="false">마감 변경된 대회</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="small filter-label" id="f-tags">제출물</span>
+      <div class="chips" role="group" aria-labelledby="f-tags" id="tag-chips"></div>
+    </div>
+    <div class="row">
+      <span class="small filter-label" id="f-campus">캠퍼스</span>
+      <div class="chips" role="group" aria-labelledby="f-campus">
+        <button type="button" class="chip" data-campus="인문" aria-pressed="false">인문</button>
+        <button type="button" class="chip" data-campus="자연" aria-pressed="false">자연</button>
+      </div>
+      <span class="small">캠퍼스 조건이 없거나 애매한 대회는 그대로 보입니다.</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-list">
+    <h2 id="h-list" class="sr-only">대회 목록</h2>
+    <p class="small" id="list-status" role="status"></p>
+    <div class="list" id="card-list"></div>
+  </section>
+
+  <section class="panel" id="boards" aria-labelledby="h-boards">
+    <h2 id="h-boards">확인하는 게시판</h2>
+    <p class="small" id="board-list"></p>
+    <p class="small">목록에 없는 학과·센터 게시판과 MYiCap+(로그인 필요)는 직접 확인해야 합니다. 공지 원문은 저장해 공개하지 않고, 요약·짧은 근거·원문 링크만 보여 줍니다.</p>
+  </section>
+</main>
+</body>
+</html>

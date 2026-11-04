@@ -2,6 +2,8 @@
 // AI를 쓰지 않는다. 규칙의 기준은 docs/api-contract.md 3절이다. 규칙을 바꿀 때는 계약을 먼저 고친다.
 // 안전 원칙: 확실하지 않으면 eligible을 내지 않는다 ("불가인데 가능"이 가장 나쁜 오류).
 
+import { parseContractDate, toKstInstant, kstDateString } from './dates.js';
+
 export const KEY_FIELDS = ['apply', 'campus', 'grades', 'enrollment', 'team'];
 
 // 계약 3절: 결과를 정한 사유가 앞에 오도록 하는 순서
@@ -12,8 +14,6 @@ const STUDENT_ENROLLMENT_TERMS = new Set(['재학', '휴학', '수료', '초과�
 // 학생 조건에 없는 제외 대상 (추출 프롬프트 v0.2의 표준 낱말). 결과는 바꾸지 않고 안내만 한다.
 const UNANSWERABLE_EXCLUSIONS = new Set(['기존 수상자', '대학원생', '졸업']);
 const TRANSFER_TERM = '편입생';
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /**
  * 카드 하나를 학생 조건으로 판정한다.
@@ -222,26 +222,4 @@ function formatTeamSize(team) {
   if (hasMax) return ` (${team.max}인 이내)`;
   if (hasMin) return ` (${team.min}인 이상)`;
   return '';
-}
-
-// --- 날짜 (계약 1절: "YYYY-MM-DD" 또는 "YYYY-MM-DD HH:MM", 한국 시간) ---
-
-const CONTRACT_DATE_PATTERN = /^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?$/;
-
-function parseContractDate(text) {
-  if (typeof text !== 'string') return null;
-  const match = CONTRACT_DATE_PATTERN.exec(text.trim());
-  if (!match) return null;
-  const instant = toKstInstant(match[1], match[2] ?? '00:00');
-  // 2026-02-30처럼 넘치는 날짜는 Date가 다음 달로 넘기므로 되돌려 비교한다
-  if (Number.isNaN(instant.getTime()) || kstDateString(instant) !== match[1]) return null;
-  return { date: match[1], time: match[2] ?? null };
-}
-
-function toKstInstant(date, time) {
-  return new Date(`${date}T${time}:00+09:00`);
-}
-
-function kstDateString(instant) {
-  return new Date(instant.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }

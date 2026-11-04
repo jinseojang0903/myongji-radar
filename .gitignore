@@ -1,5 +1,11 @@
 # 공지 원문·첨부·캐시: 전문 복제 금지 원칙에 따라 저장소에 올리지 않는다
 data/
+# 예외: 사이트가 배포하는 카드 JSON(요약·짧은 근거·원문 링크만)만 올린다.
+# 폴더 전체를 열면 디버그 덤프·원문이 실수로 Pages에 공개될 수 있어 파일 이름으로 한정한다.
+!site/data/
+site/data/*
+!site/data/cards.json
+!site/data/cards.sample.json
 
 # 비밀값
 .env

@@ -14,11 +14,14 @@
 }
 ```
 
+- `boards[].list_url`: 게시판 목록 주소. 모르면 `null` (화면은 이름만 보여 준다).
+- **예시 데이터** `site/data/cards.sample.json`은 같은 형식에 `"sample": true`와 `"sample_note"`(무엇이 예시인지)를 더한다. 화면은 `cards.json`이 없을 때만 예시를 읽고, 예시임을 상단에 표시하며, 기준일을 오늘 대신 `generated_at`의 날짜로 쓴다 (예시 대회가 이미 마감돼 목록이 비지 않도록).
+
 ### Card
 
 | 키 | 형식 | 설명 |
 |---|---|---|
-| `id` | string | 대회 고유 id. 같은 대회가 여러 게시판에 올라와도 하나 (중복 병합 결과) |
+| `id` | string | 대회 고유 id. 같은 대회가 여러 게시판에 올라와도 하나 (중복 병합 결과). **영문 소문자·숫자·하이픈 1~64자** (`^[a-z0-9][a-z0-9-]{0,63}$`, 주소 `card.html?id=`에 쓰임). 형식이 다른 카드는 화면이 뺀다 |
 | `title` | string | 대회명 |
 | `organizer` | string | 주관 |
 | `scope` | `"교내"` \| `"외부"` | 교내 대회 / 학교 게시판에 홍보된 외부 공모전 |
@@ -28,6 +31,8 @@
 | `meta` | object | `prompt_version`, `extract_model`, `cross_model`, `checked_at` |
 
 **Source:** `{ "board_id", "url", "title", "posted_at": "YYYY-MM-DD" }`
+
+화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
 
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
