@@ -6,6 +6,7 @@ data/
 site/data/*
 !site/data/cards.json
 !site/data/cards.sample.json
+!site/data/log.json
 
 # 비밀값
 .env
