@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
 <title>명지레이더 · 카드 상세</title>
 <link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/card-page.js"></script>
 </head>
 <body>
 <header>
@@ -16,14 +17,14 @@
       <a href="recommend.html">맞춤 추천</a>
       <a href="log.html">제작 기록</a>
     </nav>
-    <span class="cond">내 조건: 아직 고르지 않음</span>
+    <span class="cond" id="cond-summary">내 조건: 아직 고르지 않음</span>
   </div>
 </header>
-<main>
-  <section class="panel" aria-labelledby="h-page">
-    <h1 id="h-page">카드 상세</h1>
-    <p class="small">이 화면은 아직 만드는 중입니다 (#25). 화면 설계는 <code>docs/ui/화면설계.md</code>에 있습니다.</p>
-    <a class="btn" href="index.html">홈으로</a>
+<p class="demo" id="sample-banner" hidden></p>
+
+<main id="card-main">
+  <section class="panel">
+    <p class="small">불러오는 중…</p>
   </section>
 </main>
 </body>

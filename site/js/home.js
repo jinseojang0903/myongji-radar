@@ -1,7 +1,7 @@
 // 홈 화면 (#21): 대회 목록, 필터, 기준일·게시판 목록.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames } from './cards.js';
-import { loadPage, badgeElements, ddayElement } from './page.js';
+import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 
 const filters = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
@@ -9,6 +9,7 @@ const filters = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags:
 main();
 
 async function main() {
+  showConditionSummary();
   const page = await loadPage({ errorTarget: document.getElementById('card-list') });
   if (!page) {
     document.getElementById('summary-line').replaceChildren('대회 정보를 불러오지 못했습니다.');

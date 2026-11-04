@@ -151,6 +151,36 @@
 
 **안전 원칙:** 확실하지 않으면 `eligible`을 내지 않는다. "불가인데 가능으로 판정"(위험 오판)을 가장 나쁜 오류로 보고 따로 센다. `eligible`은 핵심 항목 5개가 모두 `human_verified`이고 모두 학생 조건과 맞을 때만 나온다.
 
-## 4. 바뀔 예정
+## 4. 제작 기록 `site/data/log.json`
 
-- `site/data/log.json`(제작 기록 탭: 프롬프트 버전, 정확도) 형식은 11/7까지 정한다.
+제작 기록 화면(`log.html`, #26)이 읽는다. 파이프라인이 아니라 **팀이 손으로 쓰는 파일**이다 (측정 결과·사용기록에서 옮김). 수치는 측정한 것만 쓴다.
+
+```json
+{
+  "schema_version": "0.1",
+  "updated_at": "YYYY-MM-DD",
+  "stages": [ { "name": "수집", "by": "코드 | 규칙 | AI | 사람", "status": "동작 | 만드는 중", "detail": "설명" } ],
+  "accuracy": [ { "method": "규칙만 사용", "filled": Measure, "field_accuracy": Measure, "risky_misreads": Measure } ],
+  "prompts": [ { "version": "v0.1", "date": "YYYY-MM-DD", "changes": "바꾼 것", "reason": "이유", "accuracy": Measure, "path": "prompts/..." } ],
+  "ai_errors": [ { "date": "YYYY-MM-DD", "where": "어느 작업", "ai_did": "AI가 틀린 것", "caught_by": "잡은 방법", "fix": "고친 것", "path": "근거 문서 | null" } ],
+  "quiz": [ { "id": "영문 소문자·숫자·하이픈", "kind": "사례 종류", "question": "질문", "quotes": [ { "text": "원문 그대로", "location": "본문 | 이미지 | 첨부", "url": "https://... | null" } ],
+              "options": ["보기1", "보기2", "보기3"], "answer": 2, "explanation": "해설", "path": "근거 문서 | null" } ],
+  "tools": [ { "name": "도구", "used_for": "쓴 곳", "status": "사용 | 예정", "issue": "#15 | null" } ]
+}
+```
+
+- **Measure:** `{ "value": 23, "total": 350, "unit": "항목", "note": "공지 35건", "measured_at": "YYYY-MM-DD", "source": "어디서 쟀는지" }` 또는 `null`. **`null`이면 화면은 "측정 중"**으로 보여 준다. 수치는 **개수(`value`, 정수)와 전체 수(`total`)**로 쓴다(비율·백분율은 화면이 계산한다). 값이 있으면 `total`·`measured_at`·`source`가 반드시 있어야 하고, `measured_at`은 `updated_at`보다 늦을 수 없다. 하나라도 틀리면 화면은 그 칸을 "측정 중"으로 둔다 (지어낸 수치 방지). `unit`·`note`는 선택. `source`는 저장소 파일 경로나 재현 방법을 쓴다.
+- `path`: 저장소 안 파일 경로(`prompts/CHANGELOG.md`). 화면은 저장소 주소에 붙여 링크로 만든다. `..`·절대 경로·주소 문자(`:` `?` `#` `%` `\`)가 든 경로는 링크만 빼고 항목은 보여 준다.
+- `answer`: `options`의 0부터 센 번호.
+- 형식이 틀린 항목은 화면이 그 항목만 빼고 보여 준다. 검수 체험 `id`가 겹치면 뒤의 것을 뺀다. 최상위 형식(`updated_at`, 각 목록이 배열)이 틀리면 화면 전체에 오류 안내를 낸다.
+
+## 5. 브라우저 저장 (내 조건)
+
+맞춤 추천(#24)에서 고른 조건을 카드 상세(#25)·홈이 같이 쓰도록 브라우저 `localStorage`에 둔다 (`site/js/conditions.js`). 서버로 보내지 않는다.
+
+- 키: `myongji-radar.conditions.v1`. 값: 2절 조건에서 `unknown_terms`를 뺀 JSON.
+- **입력 문장과 `unknown_terms`는 저장하지 않는다** (이름·학번이 들어 있을 수 있음).
+- 맞춤 추천 화면에 "저장된 조건 지우기"를 둔다 (공용 PC에 학년·학적이 남지 않게). 문장으로 조건을 바꿀 때는 문장이 말한 조건만 바꾸고(제출물을 말하면 제출물 목록을 문장의 것으로), 말하지 않은 조건은 그대로 두며 무엇을 그대로 뒀는지 화면에 알린다.
+- 문장을 담은 링크는 `recommend.html#q=문장` (`#` 뒤는 서버로 가지 않는다). 화면은 읽은 즉시 주소에서 지우고, 학생이 칩이나 버튼을 누르기 전까지 저장하지 않는다. 다른 화면으로 갈 때 주소를 보내지 않는다(`referrer` 없음).
+- 제출물·마감 기간은 판정이 아니라 목록 필터다. 마감 기간을 고르면 마감일이 없거나 읽을 수 없는 대회는 기간 안인지 알 수 없어 숨기고, 숨긴 수를 따로 알린다.
+- 읽을 때 2절 값 범위로 다시 검사하고, 하나라도 틀리면 저장된 조건이 없는 것으로 본다. 형식을 바꾸면 키의 버전을 올린다.

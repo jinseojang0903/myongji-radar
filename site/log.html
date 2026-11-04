@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
 <title>명지레이더 · 제작 기록</title>
 <link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/log-page.js"></script>
 </head>
 <body>
 <header>
@@ -16,14 +17,49 @@
       <a href="recommend.html">맞춤 추천</a>
       <a href="log.html" aria-current="page">제작 기록</a>
     </nav>
-    <span class="cond">내 조건: 아직 고르지 않음</span>
+    <span class="cond" id="cond-summary">내 조건: 아직 고르지 않음</span>
   </div>
 </header>
-<main>
-  <section class="panel" aria-labelledby="h-page">
-    <h1 id="h-page">제작 기록</h1>
-    <p class="small">이 화면은 아직 만드는 중입니다 (#26). 화면 설계는 <code>docs/ui/화면설계.md</code>에 있습니다.</p>
-    <a class="btn" href="index.html">홈으로</a>
+
+<main id="log-main">
+  <section class="panel" aria-labelledby="h-log">
+    <h1 id="h-log">제작 기록</h1>
+    <p class="lead">명지레이더가 AI를 어디에 쓰고, AI 결과를 어떻게 검토하고 고쳤는지 공개합니다. 측정하지 않은 수치는 "측정 중"으로 둡니다.</p>
+    <p class="small" id="log-updated">불러오는 중…</p>
+    <h2 class="sub-heading">처리 단계와 담당</h2>
+    <ol class="stage-list" id="log-stages"></ol>
+  </section>
+
+  <div class="split">
+    <section class="panel" aria-labelledby="h-acc">
+      <h2 id="h-acc">정확도·시험 결과</h2>
+      <div id="log-accuracy"></div>
+      <p class="small">항목 정확도는 팀이 원문을 보고 만드는 정답표(#7)와 대조해 잽니다. 정답표가 완성되기 전이라 아직 대조한 값은 없습니다.</p>
+      <p class="small">규칙만으로는 대부분의 항목을 채우지 못했습니다 (위 표의 "채운 항목 수"). 그래서 생성형 AI로 공지·포스터·첨부를 읽고, 대신 AI 결과는 근거 대조·교차 검증·사람 검수로 확인합니다.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-prompt">
+      <h2 id="h-prompt">프롬프트 버전과 바꾼 이유</h2>
+      <div class="timeline" id="log-prompts"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-errors">
+    <h2 id="h-errors">AI가 틀린 것과 잡은 방법</h2>
+    <p class="small">만드는 동안 AI가 틀렸거나, AI가 쓴 규칙에 빈틈이 있던 실제 사례입니다. 여럿이 "신청할 수 없는데 가능"으로 이어질 수 있는 오류였고, 리뷰·시험 결과 분석·원문 재확인으로 잡았습니다.</p>
+    <div id="log-errors"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-quiz">
+    <h2 id="h-quiz">1분 AI 검수 체험</h2>
+    <p class="small">실제 공지 인용과 실제 AI 사례입니다. 카드에 무엇을 보여 줘야 할지 골라 보세요. 근거가 분명하면 확정하고, 애매하면 확인을 권하는 것이 명지레이더의 기준입니다.</p>
+    <div class="quiz-list" id="log-quiz"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-tools">
+    <h2 id="h-tools">사용한 AI 도구</h2>
+    <div id="log-tools"></div>
+    <p class="small">화면 디자인·이미지를 만드는 생성형 AI는 쓰지 않았습니다.</p>
   </section>
 </main>
 </body>
