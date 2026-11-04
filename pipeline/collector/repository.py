@@ -93,7 +93,7 @@ class Repository:
                 raise ValueError("저장된 공지의 원문 버전이 없습니다")
             previous_payload = json.loads(current_version[1])
             parser_changed = previous_payload.get("parser_version") != payload["parser_version"]
-            if parser_changed and baseline_hash != digest:
+            if parser_changed:
                 if reparse_previous is None:
                     raise ValueError("파서가 변경되어 저장된 원문을 다시 파싱해야 합니다")
                 old_html = (self.data_dir / current_version[2]).read_bytes()

@@ -30,7 +30,7 @@ class RepositoryTests(unittest.TestCase):
             self.assertEqual(repo.save(self.notice, b"original"), "new")
             old_row = repo.db.execute("SELECT id, raw_path, collected_at FROM notice_versions").fetchone()
             updated = replace(self.notice, parser_version="k2web-v2")
-            self.assertEqual(repo.save(updated, b"views changed"), "unchanged")
+            self.assertEqual(repo.save(updated, b"views changed", lambda raw, payload: updated), "unchanged")
             rows = repo.db.execute("SELECT id, raw_path, collected_at, payload_json FROM notice_versions").fetchall()
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0][:3], old_row)
@@ -110,6 +110,33 @@ class RepositoryTests(unittest.TestCase):
                 repo.save(updated, b"new", lambda raw, payload: updated)
             self.assertEqual(repo.db.execute("SELECT * FROM notice_versions").fetchall(), before)
             self.assertEqual(repo.db.execute("SELECT * FROM notices").fetchall(), before_notice)
+        finally:
+            repo.close()
+
+    def test_equal_old_and_new_hashes_do_not_hide_change_during_parser_upgrade(self):
+        source = Source("test", "테스트", "k2web", "https://example.com/rss", ["example.com"],
+                        ".title", ".body", ".file a[href]")
+        ref = NoticeRef(self.notice.external_id, self.notice.url, "", None)
+        adapter = K2WebAdapter()
+        old_html = b'<h1 class="title">Title</h1><div class="body">Body<span>Extra</span></div>'
+        new_html = b'<h1 class="title">Title</h1><div class="body">Body</div>'
+
+        def parse(raw, version):
+            notice = adapter.parse_detail(raw, ref, source)
+            notice.parser_version = version
+            if version == "v1":
+                notice.body_text = notice.body_text.split("\n")[0]
+            return notice
+
+        repo = Repository(self.data)
+        try:
+            old_notice = parse(old_html, "v1")
+            new_notice = parse(new_html, "v2")
+            self.assertEqual(content_hash(asdict(old_notice)), content_hash(asdict(new_notice)))
+            self.assertEqual(repo.save(old_notice, old_html), "new")
+            self.assertEqual(repo.save(new_notice, new_html, lambda raw, payload: parse(raw, "v2")), "changed")
+            rows = repo.db.execute("SELECT payload_json FROM notice_versions ORDER BY id").fetchall()
+            self.assertEqual([json.loads(row[0])["body_text"] for row in rows], ["Body\nExtra", "Body"])
         finally:
             repo.close()
 
