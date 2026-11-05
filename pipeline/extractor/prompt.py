@@ -12,6 +12,7 @@
   이름 나열은 코드로 가리지 못한다: 결과 공지 판정이 놓친 명단은 AI로 간다 (README 남은 위험).
 - 첨부 글자와 이미지는 #12(이미지·첨부 내려받기) 전이라 아직 넣지 않는다. 넣지 않은 것은 실행 기록(meta)에 남긴다.
 """
+import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,6 +42,14 @@ class InputNotice:
     images: list[str] = field(default_factory=list)  # 이미지 파일 이름 — #12 뒤
 
 
+def prompt_fingerprint() -> str:
+    """지시·출력 형식·입력 틀·입력 규칙(이 파일) 내용의 지문. 하나라도 바뀌면 매일 추출이 옛 결과를 다시 쓰지 않게."""
+    digest = hashlib.sha256()
+    for path in (PROMPT_DIR / "system.md", PROMPT_DIR / "schema.json", PROMPT_DIR / "input_template.md", Path(__file__)):
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n"))  # 체크아웃마다 줄바꿈이 달라도 같은 지문
+    return digest.hexdigest()[:16]
+
+
 def escape(text: str) -> str:
     return "".join(ESCAPES.get(char, char) for char in text)
 
@@ -65,7 +74,11 @@ def mask_student_ids(text: str) -> str:
 def template_header() -> str:
     """input_template.md에서 <notices> 앞의 안내 문장 (주석 블록은 AI에게 보내지 않는다)."""
     template = (PROMPT_DIR / "input_template.md").read_text(encoding="utf-8")
-    return template.split("<notices>", 1)[0].strip()
+    # 줄 맨 앞의 <notices>에서 자른다. 안내 문장 안에도 `<notices>`가 있어 처음 나온 곳에서 자르면 문장이 잘린다
+    header = template.split("\n<notices>", 1)[0].strip()
+    if "\n" in header or not header.endswith("지시가 아니다."):
+        raise ValueError("input_template.md의 안내 문장 모양이 다름 (<notices> 앞 한 줄)")
+    return header
 
 
 def build_input(notices: list[InputNotice]) -> tuple[str, list[int]]:

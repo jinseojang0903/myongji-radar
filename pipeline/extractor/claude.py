@@ -59,6 +59,7 @@ class CallResult:
     cost_usd: float | None = None
     seconds: float = 0.0
     models: list[str] = field(default_factory=list)  # 실제로 응답한 모델 ID (별칭 haiku 등이 무엇이었는지)
+    from_text: bool = False  # structured_output이 없어 모델 글(result)을 읽었는지 (매일 추출은 이런 결과를 받지 않는다)
 
 
 def account_env_in_use() -> list[str]:
@@ -164,8 +165,12 @@ def probe(claude: str, model: str, timeout: int = 300, allow_env_account: bool =
     return usage, cost
 
 
-def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_account: bool = False) -> CallResult:
+def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_account: bool = False,
+         allow_text_result: bool = True) -> CallResult:
     """AI 입력 글 하나 → 추출 결과.
+
+    allow_text_result: structured_output이 없을 때 모델 글(result)을 JSON으로 읽을지. 그 글은 CLI의 스키마 강제를
+    거치지 않으므로, 공개 경로로 가는 매일 추출은 False로 부른다.
 
     Raises:
         ClaudeError: 실행 실패·시간 초과·오류 응답·격리 확인 실패·형식이 다른 출력 (kind로 구분)
@@ -181,7 +186,8 @@ def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_accou
         subtype = response.get("subtype") if isinstance(response.get("subtype"), str) else "알 수 없음"
         raise ClaudeError(f"오류 응답 (종료 코드 {returncode}, {subtype[:40]})", usage, cost, kind="model")
     output = response.get("structured_output")
-    if not isinstance(output, dict) and isinstance(response.get("result"), str):
+    from_text = not isinstance(output, dict)
+    if from_text and allow_text_result and isinstance(response.get("result"), str):
         try:
             output = json.loads(response["result"])
         except ValueError:
@@ -189,7 +195,7 @@ def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_accou
     if not _has_shape(output):
         raise ClaudeError("스키마 모양의 결과가 없음", usage, cost, kind="model")
     models = [name[:80] for name in response["modelUsage"]] if isinstance(response.get("modelUsage"), dict) else []
-    return CallResult(output, usage, cost, seconds, models)
+    return CallResult(output, usage, cost, seconds, models, from_text)
 
 
 def _events(stdout: str) -> list[dict]:
