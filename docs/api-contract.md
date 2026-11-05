@@ -15,6 +15,7 @@
 ```
 
 - `boards[].list_url`: 게시판 목록 주소. 모르면 `null` (화면은 이름만 보여 준다).
+- **오래된 정보 경고:** 실제 데이터의 `generated_at`이 36시간보다 오래됐으면(매일 갱신이 하루 넘게 멈춤) 화면 맨 위에 "대회 정보가 N일 전(시각) 기준"이라는 경고와 원문 확인 안내를 띄운다 (`site/js/cards.js` `bannerText`, #19). 파이프라인이 멈추면 어제 cards.json이 그대로 공개되기 때문이다.
 - **예시 데이터** `site/data/cards.sample.json`은 같은 형식에 `"sample": true`와 `"sample_note"`(무엇이 예시인지)를 더한다. 화면은 `cards.json`이 없을 때만 예시를 읽고, 예시임을 상단에 표시하며, 기준일을 오늘 대신 `generated_at`의 날짜로 쓴다 (예시 대회가 이미 마감돼 목록이 비지 않도록).
 
 ### Card

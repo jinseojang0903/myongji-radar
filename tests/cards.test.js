@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline,
-  cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames,
+  cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames, bannerText, STALE_HOURS,
 } from '../site/js/cards.js';
 import { safeUrl } from '../site/js/html.js';
 import { loadCardData } from '../site/js/data.js';
@@ -267,4 +267,17 @@ test.describe('데이터 읽기', () => {
   test('404가 아닌 실패는 예시로 덮지 않고 오류', async () => {
     await assert.rejects(loadCardData(async () => response(500)), /HTTP 500/);
   });
+});
+
+test('안내 띠: 예시 안내, 오래된 실제 데이터 경고 (#19: 갱신이 멈추면 어제 카드가 그대로 공개된다)', () => {
+  const data = { generated_at: '2026-11-05T21:00:00+09:00' };
+  const at = (hours) => new Date(Date.parse(data.generated_at) + hours * 3600 * 1000);
+  assert.equal(bannerText({ ...data, sample_note: '예시입니다' }, at(1000), true), '예시입니다', '예시는 오래돼도 예시 안내');
+  assert.equal(bannerText(data, at(0), true), '예시 데이터입니다.');
+  assert.equal(STALE_HOURS, 36);
+  assert.equal(bannerText(data, at(24), false), null, '하루 전 갱신은 정상');
+  assert.equal(bannerText(data, at(STALE_HOURS), false), null, '36시간까지는 정상 (하루 한 번을 건너뛴 정도)');
+  assert.match(bannerText(data, at(STALE_HOURS + 1), false), /^대회 정보가 1일 전\(2026-11-05 21:00\) 기준입니다\. .*원문 공지를 꼭 확인/);
+  assert.match(bannerText(data, at(24 * 5 + 2), false), /5일 전/);
+  assert.equal(bannerText(data, at(-48), false), null, '시계가 어긋나 미래 시각이면 경고하지 않는다');
 });

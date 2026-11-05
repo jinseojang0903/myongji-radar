@@ -2,11 +2,14 @@
 // 홈(#21)·추천(#24)·상세(#25)가 같이 쓴다. DOM을 쓰지 않으므로 Node 테스트로 검사한다.
 
 import { KEY_FIELDS } from './rules.js';
-import { parseContractDate, toKstInstant, kstDateString, daysBetween, formatShortDate } from './dates.js';
+import { parseContractDate, toKstInstant, kstDateString, daysBetween, formatShortDate, formatKstDateTime } from './dates.js';
 
 export const DELIVERABLE_TAGS = ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가', '기타'];
 const FIELD_STATUSES = new Set(['ai', 'auto_verified', 'needs_check', 'human_verified', 'missing']);
 const URGENT_DAYS = 7;
+// 매일 한 번 갱신한다(#19). 하루 한 번을 건너뛴 정도(36시간)를 넘으면 오래된 정보라고 알린다
+export const STALE_HOURS = 36;
+const HOUR_MS = 3600 * 1000;
 
 // 카드 id: 주소(card.html?id=)에 그대로 들어가므로 계약 1절의 형식만 받는다
 const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -86,6 +89,23 @@ function findCardProblem(card) {
  */
 export function referenceDate(data, now = new Date(), isSample = data.sample === true) {
   return isSample ? new Date(data.generated_at) : now;
+}
+
+/**
+ * 화면 맨 위 안내 띠의 글. 예시 데이터면 예시 안내, 실제 데이터가 STALE_HOURS보다 오래됐으면 오래된 정보 경고, 아니면 null.
+ * 파이프라인이 며칠 멈추면 어제 카드가 그대로 공개되므로(#19), 학생이 원문을 다시 확인하게 한다.
+ * @param {{generated_at: string, sample_note?: string}} data  validateCardData를 통과한 데이터
+ * @param {Date} now  지금 (기준일이 아니라 실제 시각)
+ * @param {boolean} isSample
+ * @returns {string|null}
+ */
+export function bannerText(data, now, isSample) {
+  if (isSample) return typeof data.sample_note === 'string' && data.sample_note !== '' ? data.sample_note : '예시 데이터입니다.';
+  const generated = new Date(data.generated_at);
+  const hours = (now.getTime() - generated.getTime()) / HOUR_MS;
+  if (!(hours > STALE_HOURS)) return null; // 미래 시각(시계 어긋남)도 경고하지 않는다
+  const days = Math.floor(hours / 24);
+  return `대회 정보가 ${days}일 전(${formatKstDateTime(generated)}) 기준입니다. 그 뒤 바뀐 공지는 반영되지 않았을 수 있으니 신청 전에 원문 공지를 꼭 확인하세요.`;
 }
 
 /**
