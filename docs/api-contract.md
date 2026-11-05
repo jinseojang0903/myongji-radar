@@ -62,7 +62,7 @@
 | 키 | value 형식 | 예 |
 |---|---|---|
 | `apply` | `{ "start": "YYYY-MM-DD HH:MM" \| null, "end": ..., "time_given": bool }` | 시각이 없으면 `time_given: false`이고 값은 `"YYYY-MM-DD"`만. 시각을 임의로 채우지 않는다. `time_given`은 `end`의 시각 기준 |
-| `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용) |
+| `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용). `end`는 신청·출품이면 마감, 그 밖(예선·본선·발표·시상·기타)이면 그 일정의 날짜(기간이면 끝나는 날) |
 | `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 대상 문장이 있는데 캠퍼스로 나누지 않거나 "제한 없음"이 명시된 경우 (11/3 보완, 근거는 그 대상 문장). 대상 문장 자체가 없으면 `missing` |
 | `grades` | `[1, 2, 3, 4]` 또는 `"any"` | `campus`와 같은 규칙. 예: "정규학기 학부 재학생" → `"any"` |
 | `enrollment` | `{ "allowed": ["재학"], "excluded": ["휴학", "수료", "초과학기", "졸업유예"] }` | 대상 문장은 있는데 학적 언급이 없으면 두 목록 모두 빈 배열 (= 제한 문구 없음). 대상 문장이 없으면 `missing` |
@@ -71,7 +71,7 @@
 | `benefits` | string | 상금·상장 |
 | `mileage` | `{ "text": "예선 참가자 전원 창의 10점", "area": "창의" \| null, "points": 10 \| null }` | `points`는 참가자 기준. 수상자 추가 점수는 `text`에만 |
 | `how_to_apply` | `{ "text": "신청 방법 요약", "url": "https://..." \| null }` | 링크는 http·https만 |
-| `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만 |
+| `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만. `email`은 사람이 검수한 문의처만 채운다 (학생도 `mju.ac.kr`을 써서 부서 메일과 구분할 수 없음) |
 
 ## 2. 조건 (자연어 해석기 출력, 버튼 입력과 같은 형식)
 

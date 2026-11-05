@@ -73,6 +73,11 @@ def one_field(name, raw, **changes):
     return build_card(with_fields(fields, **changes))["fields"][name]
 
 
+def checked_contact(raw):
+    """사람이 검수한 문의처 (학교 메일은 검수 뒤에만 공개되므로)."""
+    return one_field("contact", raw, statuses={"contact": {"status": "human_verified", "checked_value": copy.deepcopy(raw["value"])}})
+
+
 def fixture_bundles():
     """결과 파일에 넣는 카드 2장: 예시 추출 결과(핵심 항목 검수 완료) + 상태가 섞인 카드."""
     checked = bundle(statuses=verified(EXAMPLE["fields"], KEY_FIELDS) | verified(EXAMPLE["fields"], ["deliverables"], "auto_verified"))
@@ -121,7 +126,7 @@ class ExporterContractTests(unittest.TestCase):
         evidence = card["fields"]["apply"]["evidence"][0]
         self.assertEqual(evidence["source"], NOTICE["url"], "근거의 공지 번호는 원문 주소로")
         self.assertIn(evidence.get("file"), EXAMPLE_FILES)
-        self.assertEqual(card["fields"]["contact"]["value"], {"dept": "교수학습센터", "email": "ctl@mju.ac.kr", "phone": ""})
+        self.assertEqual(card["fields"]["contact"]["value"], {"dept": "교수학습센터", "email": "", "phone": ""}, "검수 전 학교 메일은 비움")
         self.assertEqual(card["meta"], META)
 
     def test_flag_and_verification_become_status(self):
@@ -200,6 +205,50 @@ class ExporterContractTests(unittest.TestCase):
         item = one_field("stages", field([stage("신청", None), stage("기타", "2026-11-01", label="오리엔테이션")]))
         self.assertEqual(item["status"], "ai", "날짜가 아예 없는 단계(상시 접수)는 정상")
         self.assertIn("오리엔테이션", item["note"], "기타 단계는 원문 표현을 남긴다")
+
+    def test_single_date_stages(self):
+        def stage(name, start=None, end=None, time=None):
+            day = lambda value: {"date": value, "time": time, "year_inferred": False}
+            return {"name": name, "label": name, "start": day(start), "end": day(end)}
+        item = one_field("stages", field([stage("신청", "2026-10-01", "2026-10-21"), stage("본선", start="2026-11-26", time="13:30"),
+                                          stage("발표", end="2026-11-30")]))
+        self.assertEqual(item["value"], [{"name": "신청", "end": "2026-10-21", "time_given": False},
+                                         {"name": "본선", "end": "2026-11-26 13:30", "time_given": True},
+                                         {"name": "발표", "end": "2026-11-30", "time_given": False}])
+        self.assertEqual(item["status"], "ai", "날짜 하나인 일정 단계는 그 날짜로 쓴다 (값을 바꾼 것이 아님)")
+        self.assertIn("날짜가 하나인 본선 일정", item["note"])
+        item = one_field("stages", field([stage("신청", start="2026-10-01"), stage("시상", start="2026-12-01")]))
+        self.assertEqual(item["value"], [{"name": "시상", "end": "2026-12-01", "time_given": False}],
+                         "신청 시작일을 마감으로 쓰면 D-day가 틀린다")
+        self.assertEqual(item["status"], "needs_check")
+        self.assertIn("마감일 없는 신청 단계를 뺌", item["note"])
+
+    def test_broken_stage_end_is_not_replaced_by_start(self):
+        stage = {"name": "본선", "label": "본선", "start": {"date": "2026-11-26", "time": None, "year_inferred": False},
+                 "end": {"date": "2026-02-30", "time": None, "year_inferred": False}}
+        item = one_field("stages", field([stage]))
+        self.assertIsNone(item["value"], "끝 날짜가 틀리면 시작일로 대신하지 않는다 (기간이 하루로 보임)")
+        self.assertEqual(item["status"], "needs_check")
+        self.assertNotIn("날짜가 하나인", item.get("note", ""))
+
+    def test_contact_email_needs_final_human_status(self):
+        raw = field({"dept": "센터", "email": "ctl@mju.ac.kr", "phone": None})
+        checked = {"status": "human_verified", "checked_value": copy.deepcopy(raw["value"])}
+        for case, changes in {"근거 대조 실패": {"evidence_failed": True}, "근거 없음": {}}.items():
+            given = copy.deepcopy(raw) if changes else dict(raw, evidence=[])
+            item = one_field("contact", given, statuses={"contact": {**checked, **changes}})
+            self.assertEqual(item["value"]["email"], "", case)
+            self.assertNotEqual(item["status"], "human_verified", case)
+
+    def test_email_inside_links_is_rejected_even_for_school(self):
+        for url in ["https://docs.google.com/forms/d/x/viewform?entry.1=hong123@mju.ac.kr",
+                    "https://forms.gle/x?e=hong123%40mju.ac.kr", "https://forms.gle/x?e=hong123%2540mju.ac.kr",
+                    "https://forms.gle/x?e=hong123+%40+mju.ac.kr", "https://forms.gle/x?e=hong%2540gmail.com",
+                    "https://forms.gle/x?p=010%252D1234%252D5678", "https://forms.gle/x?e=a%2525252540b.com"]:
+            item = one_field("how_to_apply", field({"text": "신청", "url": url}))
+            self.assertIsNone(item["value"]["url"], url)
+        item = one_field("how_to_apply", field({"text": "신청 https://forms.gle/x?e=hong123%40mju.ac.kr", "url": None}))
+        self.assertNotIn("hong123", item["value"]["text"])
 
     def test_silent_value_changes_lower_status(self):
         fields = example_fields()
@@ -282,7 +331,8 @@ class ExporterSafetyTests(unittest.TestCase):
             item = one_field("how_to_apply", field({"text": "신청", "url": url}))
             self.assertIsNone(item["value"]["url"], url)
             self.assertEqual(item["status"], "needs_check", url)
-        for url in ["https://forms.gle/abc", "https://docs.google.com/forms/d/x", "https://ctl.mju.ac.kr/a"]:
+        for url in ["https://forms.gle/abc", "https://docs.google.com/forms/d/x", "https://ctl.mju.ac.kr/a",
+                    "https://docs.google.com/forms/d/x/viewform?usp=pp_url&entry.1=%EA%B3%B5%EB%AA%A8+%EC%A0%84"]:
             self.assertEqual(one_field("how_to_apply", field({"text": "신청", "url": url}))["value"]["url"], url)
         with self.assertRaises(CardExportError):
             build_card(bundle(notices=[dict(NOTICE, url="https://evil.example/notice")]))
@@ -296,14 +346,15 @@ class ExporterSafetyTests(unittest.TestCase):
         item = one_field("contact", field({"dept": "센터", "email": "student@gmail.com", "phone": "010-1234-5678"}))
         self.assertEqual(item["value"], {"dept": "센터", "email": "", "phone": ""})
         self.assertEqual(item["status"], "needs_check")
-        item = one_field("contact", field({"dept": "센터", "email": "ctl@mju.ac.kr", "phone": "02-300-1234(내선 5)"}))
+        item = checked_contact(field({"dept": "센터", "email": "ctl@mju.ac.kr", "phone": "02-300-1234(내선 5)"}))
         self.assertEqual(item["value"], {"dept": "센터", "email": "ctl@mju.ac.kr", "phone": "02-300-1234(내선 5)"})
         quote = "문의: 홍길동 010 9876 5432, hong@naver.com, 학번 60201234 / 센터 ctl@mju.ac.kr"
         item = one_field("benefits", field("상금", quote=quote))
         exported = json.dumps(item, ensure_ascii=False)
         for leaked in ["9876", "naver", "60201234"]:
             self.assertNotIn(leaked, exported)
-        self.assertIn("ctl@mju.ac.kr", exported)
+        self.assertNotIn("ctl@mju.ac.kr", exported, "학생도 학교 메일을 써서 글 속 학교 메일도 가린다")
+        self.assertIn("(학교 이메일 생략)", exported)
         self.assertEqual(item["status"], "needs_check")
         item = one_field("deliverables", field({"tags": ["영상"], "text": "제출 문의 +82 10-1111-2222"}))
         self.assertNotIn("1111", item["value"]["text"])
@@ -376,6 +427,17 @@ class ExporterSafetyTests(unittest.TestCase):
             item = one_field("contact", field({"dept": "센터", "email": email, "phone": None}))
             self.assertEqual((item["value"]["email"], item["status"]), ("", "needs_check"), email)
 
+    def test_school_email_needs_human_check(self):
+        raw = field({"dept": "센터", "email": "hong123@mju.ac.kr", "phone": None})
+        item = one_field("contact", raw)
+        self.assertEqual((item["value"]["email"], item["status"]), ("", "ai"), "검수 전에는 비우되 값이 틀린 것은 아니다")
+        self.assertIn("검수하기 전이라 비움", item["note"])
+        auto = one_field("contact", raw, statuses={"contact": {"status": "auto_verified", "checked_value": copy.deepcopy(raw["value"])}})
+        self.assertEqual(auto["value"]["email"], "", "자동 검증도 학생 메일과 구분하지 못한다")
+        self.assertEqual(checked_contact(raw)["value"]["email"], "hong123@mju.ac.kr")
+        item = one_field("how_to_apply", field({"text": "팀장 hong123@mju.ac.kr 로 제출", "url": None}))
+        self.assertEqual((item["value"]["text"], item["status"]), ("팀장 (학교 이메일 생략) 로 제출", "ai"))
+
     def test_email_variants_are_masked(self):
         fullwidth_at = chr(0xFF20)
         for email in [f"hong{fullwidth_at}gmail.com", "hong [at] gmail.com", "hong @ gmail.com", "홍길동@gmail.com", "hong@www.gmail.com"]:
@@ -383,7 +445,7 @@ class ExporterSafetyTests(unittest.TestCase):
             exported = json.dumps(item, ensure_ascii=False)
             self.assertNotIn("gmail", exported, email)
             self.assertNotIn("hong", exported, email)
-        item = one_field("contact", field({"dept": "센터", "email": f"ctl{fullwidth_at}mju.ac.kr", "phone": None}))
+        item = checked_contact(field({"dept": "센터", "email": f"ctl{fullwidth_at}mju.ac.kr", "phone": None}))
         self.assertEqual(item["value"]["email"], "ctl@mju.ac.kr")
 
     def test_more_invisible_characters_are_removed(self):

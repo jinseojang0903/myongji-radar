@@ -22,7 +22,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote_plus, urlsplit
 
 SCHEMA_VERSION = "0.1"
 CARD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -30,7 +30,7 @@ DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 CONTRACT_DATE_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?$")
 ALLOWED_HOSTS = ("mju.ac.kr", "forms.gle", "docs.google.com")  # site/js/html.js와 같게
-ALLOWED_EMAIL_DOMAIN = "mju.ac.kr"
+ALLOWED_EMAIL_DOMAIN = "mju.ac.kr"  # 학생 메일도 이 도메인이라, 문의처 이메일은 사람 검수 뒤에만 공개한다
 
 MAX_TITLE_CHARS = 200      # schema.json title
 MAX_ORGANIZER_CHARS = 100  # schema.json organizer
@@ -53,6 +53,8 @@ SKIPPED_KINDS = {"결과", "취소"}  # 수상자 발표·취소 공지는 신�
 EVIDENCE_LOCATIONS = {"제목", "본문", "이미지", "첨부"}
 SCOPES = {"교내", "외부"}
 STAGE_NAMES = {"신청", "출품", "예선", "본선", "발표", "시상", "기타"}
+# 마감 단계 (site/js/ics.js DEADLINE_STAGES와 같다). 나머지는 그날 열리는 일정이라 날짜가 하나면 그 날짜가 곧 end다
+DEADLINE_STAGES = {"신청", "출품"}
 DELIVERABLE_TAGS = ["기획서·제안서", "영상", "에세이·수기", "코드·개발", "발표", "디자인", "현장 참가", "기타"]
 CAMPUSES = {"인문", "자연"}
 META_KEYS = ("prompt_version", "extract_model", "cross_model", "checked_at")
@@ -318,7 +320,7 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
     if _has_inferred_year(raw_value):
         notes.append("연도가 공지에 없어 게시일의 연도로 추정함")
     if name == "stages":
-        notes += _other_stage_labels(raw_value)
+        notes += _other_stage_labels(raw_value) + _start_only_stage_notes(raw_value)
     if verification_note:
         notes.append(verification_note)
     if value is None:
@@ -337,6 +339,10 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
         evidence = []  # 문의처 근거에는 담당자 이름이 흔하다. 이름은 패턴으로 못 가려 사람이 본 것만 싣는다
     if status in VERIFIED and not evidence:
         status = "ai"  # 계약: 자동 검증 통과·검수 완료는 원문 근거가 있어야 한다
+    if name == "contact" and status != "human_verified" and value.get("email"):
+        # 학생도 mju.ac.kr을 써서 부서 메일인지 사람이 확인해야 공개한다. 근거가 없어 검수 완료가 풀린 경우도 비운다
+        value = {**value, "email": ""}
+        notes.append("문의 이메일은 사람이 검수하기 전이라 비움")
     return _make_field(value, status, evidence, problems, notes, ai_note)
 
 
@@ -393,13 +399,10 @@ def _value(name: str, raw):
             if not isinstance(stage, dict) or stage.get("name") not in STAGE_NAMES:
                 problems.append("모르는 단계 이름")
                 continue
-            end, end_problem = _contract_date(stage.get("end"), f"{stage['name']} 마감")
-            if end_problem:
-                problems.append(end_problem)
+            end, _, problem = _stage_end(stage)
+            if problem:
+                problems.append(problem)
             if end is None:
-                start, _ = _contract_date(stage.get("start"), "")
-                if start:  # 날짜가 아예 없는 단계(상시 접수)는 정상이라 조용히 뺀다
-                    problems.append(f"마감일 없는 {stage['name']} 단계를 뺌")
                 continue
             stages.append({"name": stage["name"], "end": end, "time_given": len(end) > 10})
         if len(stages) > MAX_LIST_ITEMS:
@@ -589,6 +592,42 @@ def _has_inferred_year(value) -> bool:
     return False
 
 
+def _stage_end(stage: dict) -> tuple[str | None, bool, str | None]:
+    """단계 하나의 계약 end → (end 또는 None, start 날짜를 썼는지, 문제).
+
+    end가 있으면 end. end가 틀렸으면 빼고 문제로 남긴다 (시작일로 대신하면 기간이 하루로 보인다).
+    end가 비고 start만 있으면: 일정 단계는 모델이 날짜 하나를 start에 넣은 경우라 그 날짜를 쓰고,
+    마감 단계(신청·출품)는 시작일을 마감으로 쓰면 D-day가 틀려서 뺀다. 날짜가 아예 없으면(상시 접수) 조용히 뺀다.
+    """
+    name = stage["name"]
+    end, end_problem = _contract_date(stage.get("end"), f"{name} 마감")
+    if end is not None or end_problem:
+        return end, False, end_problem
+    start, start_problem = _contract_date(stage.get("start"), f"{name} 시작")
+    if start is None:
+        return None, False, start_problem
+    if name in DEADLINE_STAGES:
+        return None, False, f"마감일 없는 {name} 단계를 뺌"
+    return start, True, start_problem
+
+
+def _start_only_stage_notes(raw) -> list[str]:
+    """날짜를 start에만 넣은 일정 단계 (그 날짜를 end로 썼음을 알린다). _value와 같은 판단·같은 개수 상한."""
+    names, kept = [], 0
+    for stage in raw if isinstance(raw, list) else []:
+        if not isinstance(stage, dict) or stage.get("name") not in STAGE_NAMES:
+            continue
+        end, used_start, _ = _stage_end(stage)
+        if end is None:
+            continue
+        kept += 1
+        if kept > MAX_LIST_ITEMS:
+            break
+        if used_start:
+            names.append(stage["name"])
+    return [f"날짜가 하나인 {', '.join(dict.fromkeys(names))} 일정은 그 날짜로 표시"] if names else []
+
+
 def _other_stage_labels(raw) -> list[str]:
     """계약 단계에는 label이 없다. '기타' 단계와 이름이 겹치는 단계(예선 1차·2차)는 원문 표현을 note로 남긴다."""
     stages = [stage for stage in (raw if isinstance(raw, list) else []) if isinstance(stage, dict)]
@@ -731,9 +770,21 @@ def _safe_url(url, allow_http: bool = False) -> str | None:
         return None
     if not URL_HOST.fullmatch(host) or not any(host == allowed or host.endswith("." + allowed) for allowed in ALLOWED_HOSTS):
         return None
-    if _has_personal_contact(unquote(url)):
-        return None  # 미리 채운 신청 폼 주소 등
+    decoded = _fully_decoded(url)
+    if decoded is None or _has_personal_contact(decoded) or EMAIL_IN_TEXT.search(_probe(decoded)):
+        return None  # 미리 채운 신청 폼 주소 등. 학생도 mju.ac.kr을 써서 학교 메일도 거부
     return url
+
+
+def _fully_decoded(url: str) -> str | None:
+    """판정용으로 주소를 더 바뀌지 않을 때까지 푼다 (%2540 같은 이중 인코딩, + 공백). 3번 풀어도 바뀌면 None."""
+    decoded = url
+    for _ in range(3):
+        unquoted = unquote_plus(decoded)
+        if unquoted == decoded:
+            return decoded
+        decoded = unquoted
+    return decoded if unquote_plus(decoded) == decoded else None
 
 
 def _is_school_domain(domain: str) -> bool:
@@ -811,7 +862,8 @@ def _clean(text, limit: int) -> tuple[str, set[str]]:
 
     def replace_email(match):
         if _is_school_domain(match.group(1)):
-            return None
+            # 학생도 mju.ac.kr을 써서 부서 메일과 구분할 수 없다. 문제로 세지는 않는다 (문의처 칸은 검수 후 공개)
+            return "(학교 이메일 생략)"
         events.add("pii")
         return "(이메일 생략)"
 

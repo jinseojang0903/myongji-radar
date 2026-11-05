@@ -223,12 +223,12 @@
         "contact": {
           "value": {
             "dept": "교수학습센터",
-            "email": "ctl@mju.ac.kr",
+            "email": "",
             "phone": ""
           },
           "status": "ai",
           "evidence": [],
-          "note": "제출용 이메일. 문의 전용 연락처는 이 예시 입력에 없음"
+          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 제출용 이메일. 문의 전용 연락처는 이 예시 입력에 없음"
         }
       },
       "deadline_history": [],
@@ -441,12 +441,12 @@
         "contact": {
           "value": {
             "dept": "교수학습센터",
-            "email": "ctl@mju.ac.kr",
+            "email": "",
             "phone": ""
           },
           "status": "ai",
           "evidence": [],
-          "note": "제출용 이메일. 문의 전용 연락처는 이 예시 입력에 없음"
+          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 제출용 이메일. 문의 전용 연락처는 이 예시 입력에 없음"
         }
       },
       "deadline_history": [
