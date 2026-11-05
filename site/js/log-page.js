@@ -64,15 +64,20 @@ function measureNodes(measure) {
   return [el('span', { class: shown.isPending ? 'pending' : '' }, shown.text), shown.detail ? el('div', { class: 'small' }, shown.detail) : null];
 }
 
+// 좁은 화면에서 표만 가로로 밀어 보게 감싼다. 표에는 포커스 갈 요소가 없어 영역에 tabindex를 줘 키보드로도 민다 (#27)
+function scrollable(label, table) {
+  return el('div', { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': label }, table);
+}
+
 function renderAccuracy(rows) {
   const cell = (measure) => el('td', { class: measure === null ? 'pending' : '' }, ...measureNodes(measure));
-  return el('table', { class: 'metrics' },
+  return scrollable('방법별 정확도 표', el('table', { class: 'metrics' },
     el('caption', { class: 'sr-only' }, '방법별 정확도. 측정하지 않은 값은 측정 중'),
     el('thead', {}, el('tr', {},
       el('th', { scope: 'col' }, '방법'), el('th', { scope: 'col' }, '채운 항목 수'),
       el('th', { scope: 'col' }, '항목 정확도'), el('th', { scope: 'col' }, '위험 오판 (불가 → 가능)'))),
     el('tbody', {}, ...rows.map((row) => el('tr', {},
-      el('th', { scope: 'row' }, row.method), cell(row.filled), cell(row.field_accuracy), cell(row.risky_misreads)))));
+      el('th', { scope: 'row' }, row.method), cell(row.filled), cell(row.field_accuracy), cell(row.risky_misreads))))));
 }
 
 function renderPrompts(prompts) {
@@ -84,7 +89,7 @@ function renderPrompts(prompts) {
 }
 
 function renderErrors(errors) {
-  return el('table', { class: 'metrics' },
+  return scrollable('AI가 틀린 것과 잡은 방법 표', el('table', { class: 'metrics' },
     el('caption', { class: 'sr-only' }, 'AI가 틀린 것과 잡은 방법'),
     el('thead', {}, el('tr', {},
       el('th', { scope: 'col' }, '날짜·작업'), el('th', { scope: 'col' }, 'AI가 틀린 것'),
@@ -93,7 +98,7 @@ function renderErrors(errors) {
       el('th', { scope: 'row' }, error.date, el('div', { class: 'small' }, error.where)),
       el('td', {}, error.ai_did),
       el('td', {}, error.caught_by),
-      el('td', {}, error.fix, error.path ? el('div', { class: 'small' }, repoLink(error.path, '근거 문서')) : null)))));
+      el('td', {}, error.fix, error.path ? el('div', { class: 'small' }, repoLink(error.path, '근거 문서')) : null))))));
 }
 
 function renderQuiz(quiz) {
@@ -123,11 +128,11 @@ function renderQuiz(quiz) {
 }
 
 function renderTools(tools) {
-  return el('table', { class: 'metrics' },
+  return scrollable('사용한 AI 도구 표', el('table', { class: 'metrics' },
     el('caption', { class: 'sr-only' }, '사용한 AI 도구'),
     el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, '도구'), el('th', { scope: 'col' }, '쓴 곳'), el('th', { scope: 'col' }, '상태'))),
     el('tbody', {}, ...tools.map((tool) => el('tr', {},
       el('th', { scope: 'row' }, tool.name),
       el('td', {}, tool.used_for),
-      el('td', {}, tool.status === '사용' ? '사용' : el('span', { class: 'badge s-before' }, `예정${tool.issue ? ` (${tool.issue})` : ''}`))))));
+      el('td', {}, tool.status === '사용' ? '사용' : el('span', { class: 'badge s-before' }, `예정${tool.issue ? ` (${tool.issue})` : ''}`)))))));
 }
