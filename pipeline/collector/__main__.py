@@ -8,12 +8,13 @@ from .analysis import analyze_file
 from .config import load_sources
 from .fetcher import Fetcher
 from .models import NoticeRef
+from .locking import AlreadyRunning, CollectorLock
 from .repository import Repository
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def main():
+def main(argv=None, *, lock_held=False):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="명지레이더 RSS 기반 수집 프로토타입")
@@ -23,16 +24,7 @@ def main():
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
     parser.add_argument("--source", help="출처 ID 하나만 실행")
     parser.add_argument("--limit", type=int, default=50, help="출처별 상세 수집 상한 (1~50, 기본 50; 시험 시 줄여서 실행)")
-    args = parser.parse_args()
-    if args.command == "analyze":
-        try:
-            summary = analyze_file(args.data_dir / "notices.json", args.rules, args.data_dir)
-        except (ValueError, OSError, KeyError) as exc:
-            parser.exit(1, f"분석 실패: {exc}\n")
-        print(json.dumps(summary, ensure_ascii=False, indent=2))
-        print(f"검수용 JSON: {args.data_dir / 'analysis.json'}")
-        print(f"검수 목록: {args.data_dir / 'analysis_review.md'}")
-        return 0
+    args = parser.parse_args(argv)
     if not 1 <= args.limit <= 50:
         parser.error("--limit은 1~50이어야 합니다")
     sources = []
@@ -45,6 +37,22 @@ def main():
             sources = [s for s in sources if s.id == args.source]
         if not sources:
             parser.error("실행할 출처가 없습니다")
+    if not lock_held:
+        try:
+            with CollectorLock(args.data_dir):
+                return main(argv, lock_held=True)
+        except AlreadyRunning as exc:
+            print(f"작업 건너뜀: {exc}")
+            return 2
+    if args.command == "analyze":
+        try:
+            summary = analyze_file(args.data_dir / "notices.json", args.rules, args.data_dir)
+        except (ValueError, OSError, KeyError) as exc:
+            parser.exit(1, f"분석 실패: {exc}\n")
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        print(f"검수용 JSON: {args.data_dir / 'analysis.json'}")
+        print(f"검수 목록: {args.data_dir / 'analysis_review.md'}")
+        return 0
     repo = Repository(args.data_dir)
     fetcher = Fetcher()
     failed = False
