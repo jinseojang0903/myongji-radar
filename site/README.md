@@ -33,7 +33,7 @@ python -m http.server 8000
 | `js/detail.js` | 카드 상세 계산: 항목 값 글·상태 배지, 근거, 신청 링크 호스트명, 마감 변경 이력, 문의 초안 (DOM 없음, Node 테스트) | #25 |
 | `js/ics.js` | 캘린더 파일(RFC 5545): 단계별 일정, D-3·D-1 알림, 시각 없는 마감은 하루 종일 (Node 테스트) | #25 |
 | `js/conditions.js` | 내 조건 브라우저 저장(`localStorage`, 계약 5절). 해석된 값만 저장 | #25, #24 |
-| `data/cards.json` | 파이프라인 출력 (아직 없음) | #17 |
+| `data/cards.json` | 파이프라인 출력 (`pipeline/exporter`, 매일 실행 #19에서 만듦. 아직 없음) | #17 |
 | `data/cards.sample.json` | 계약 형식 예시 4건. 화면 개발용이며 상단에 "예시 데이터"로 표시된다 | #21 |
 
 ## 지키는 것
