@@ -266,6 +266,29 @@ class ScoreTests(unittest.TestCase):
         score.write_judgment_todo(run_score, run)
         self.assertIn(long_text, (run / "judgments_todo.csv").read_text(encoding="utf-8-sig"), "판정자가 전체 글을 본다")
 
+    def test_judgment_sheet_cells_cannot_run_as_formulas(self):
+        formula = '=HYPERLINK("http://example.com","확인")'
+        output = copy.deepcopy(EXAMPLE)
+        output["fields"]["benefits"]["value"] = formula
+        write_answer_key(self.folder / "answers4", {"formula-2026": EXACT})
+        run = write_run(self.folder / "runs" / "formula", {"formula-2026": output})
+        run_score = score.score_run(run, score.read_answer_key(self.folder / "answers4"), {})
+        score.write_judgment_todo(run_score, run)
+        with open(run / "judgments_todo.csv", encoding="utf-8-sig", newline="") as file:
+            row = next(row for row in csv.DictReader(file) if row["item"] == "benefits")
+        self.assertEqual(row["ai"], "'" + formula, "엑셀로 열 때 수식으로 실행되지 않게")
+        row["judgment"] = "오답"
+        judgments_dir = self.folder / "judgments"
+        judgments_dir.mkdir(exist_ok=True)
+        with open(judgments_dir / "formula.csv", "w", encoding="utf-8-sig", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=list(row))
+            writer.writeheader()
+            writer.writerow(row)
+        judgments = score.read_judgments("formula", judgments_dir)
+        rescored = {result.item: result.category for result in score.score_run(run, score.read_answer_key(self.folder / "answers4"), judgments).results}
+        self.assertEqual(rescored["benefits"], "wrong", "읽을 때 '를 떼어 판정이 그대로 쓰인다")
+        self.assertEqual(score._cell("일반 글"), "일반 글")
+
     def test_report_never_invents_numbers(self):
         empty_report = score.render_report([], self.answer_key)
         self.assertIn("측정 중", empty_report)

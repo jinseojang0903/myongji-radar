@@ -11,7 +11,7 @@ python -m unittest discover -s eval/extraction    # 채점기·기준선 변환�
 
 ```
 eval/extraction/runs/2026-11-06_sonnet_v0.2/
-  meta.json             {"model": "claude-sonnet-...", "prompt_version": "v0.2", "ran_at": "2026-11-06T10:00:00+09:00"}
+  meta.json             {"model": "sonnet", "prompt_version": "v0.2", "models_seen": [...], "totals": {...}}  (pipeline/extractor가 쓴다)
   outputs/<contest_id>.json   AI 출력 그대로 (schema.json 형식). contest_id는 정답표와 같게
   score.json            채점기가 만든다 (항목별 집계)
   judgments_todo.csv    채점기가 만든다 (사람이 판정할 칸)
@@ -75,7 +75,61 @@ python eval/extraction/score.py eval/extraction/runs/<날짜>_rules eval/extract
 - 출력은 채점용 부분 형식이다: 규칙이 다루는 항목만 있고, 근거 인용은 공백을 정리해 원문과 글자 단위로 같지 않다. 스키마 검증이나 내보내기 입력으로 쓰지 않는다.
 - 같은 실행 폴더로 다시 변환하면 옛 출력을 지운다. 규칙 기준선 폴더가 아니면(AI 실행 등) 덮어쓰지 않고 멈춘다.
 
+## 모델 비교 실행 순서 (#9)
+
+`claude -p`는 **실행하는 사람의 Claude 로그인**으로 돈다. 회사 계정이나 다른 사람 계정으로 돌리지 않는다. 명령은 PowerShell, 저장소의 `pipeline/` 폴더 기준이다 (가상환경은 `pipeline/README.md` "Python 명령으로 실행").
+
+**0. 준비**
+- 정답표 PR(#41)이 main에 머지돼 있어야 한다 (`eval/answer_key/sources.csv`에 대회 17건).
+- Claude Code 설치·로그인: `claude --version`이 나오고, `claude`를 한 번 열어 본인 계정으로 로그인했는지 확인한다.
+- `ANTHROPIC_API_KEY`·`ANTHROPIC_BASE_URL` 같은 환경변수가 있으면 로그인 대신 그 계정으로 간다. 실행기는 이런 변수가 있으면 시작하지 않는다 (`Get-ChildItem Env:ANTHROPIC*`로 확인). 본인 API 키로 돌릴 때만 `--use-env-account`.
+- 실행기는 도구를 모두 끄고 빈 임시 폴더에서 claude를 부른다 (공지에 숨은 지시가 PC의 파일·명령에 닿지 않게). 공지를 보내기 전에 공지 없이 한 번 불러 도구가 모두 꺼졌는지·로그인 계정인지 확인하고(`[확인]` 줄, 하루 상한에서 1번), 호출마다 다시 확인한다. **격리 옵션을 빼거나 바꾸지 않는다.** 실행기가 막히면 Claude Code를 업데이트(`claude update`)하거나 팀에 알린다.
+
+**1. 정답표 공지 수집 확인** (claude를 부르지 않음)
+```powershell
+.\.venv\Scripts\python.exe -m collector run
+.\.venv\Scripts\python.exe -m collector export
+.\.venv\Scripts\python.exe -m extractor eval --model haiku --run-dir ..\eval\extraction\runs\check --dry-run
+```
+`[빠짐]`이 나온 대회는 공지가 수집 원문(`data/notices.json`)에 없거나(`없음`) 같은 주소가 두 번 있다(`중복`). 수집기는 게시판마다 최근 글만 보므로 8~9월 공지나 아직 등록되지 않은 게시판(#6) 공지는 빠질 수 있다. 빠진 채로 돌리면 그 대회는 출력 실패로 채점되어 모델끼리 비교가 흐려진다. 모두 `[준비]`가 될 때까지 수집 쪽에서 채운다.
+
+**2. 한 건으로 시험**
+```powershell
+$day = Get-Date -Format yyyy-MM-dd
+.\.venv\Scripts\python.exe -m extractor eval --model haiku --run-dir "..\eval\extraction\runs\${day}_haiku_v0.2" --contest ai-literacy-2026
+```
+- `[뽑음]`이면 `outputs\ai-literacy-2026.json`이 생긴다. `meta.json`의 `models_seen`에 실제 모델 ID가, `totals`에 토큰 수가 남는다.
+- `[실패]`·`[멈춤]`이면 `logs\ai-literacy-2026.json`의 `error`(또는 화면의 그 줄)를 팀 채널에 알린다. 출력·공지 내용은 붙이지 않고, 올리기 전에 PC 경로·사용자 이름·서버 이름이 들어 있지 않은지 본다. 자주 나올 수 있는 것:
+  - `결과가 없음 (... unknown option ...)`: 이 CLI 버전에 없는 옵션. `claude update` 뒤 다시.
+  - `공지를 보내기 전 확인에서 멈춤: 격리 확인 실패 ...` 또는 `계정 확인 실패`: 끈 도구가 켜져 있거나 로그인이 아닌 키로 돈다. 공지는 보내지 않았다. 그대로 팀에 알린다 (옵션을 지우지 않는다).
+  - `claude.CMD는 명령줄이 ...`: `--claude`로 `claude.exe` 경로를 준다.
+- 실행·설정 문제로 같은 이유가 3번 연달아 나면 실행기가 스스로 멈춘다 (하루 상한을 아끼려고). 모델이 형식에 맞게 못 답한 것(`스키마 모양`, `오류 응답`)은 비교 대상이라 멈추지 않고 다음 대회로 간다.
+
+**3. 세 모델로 전체 실행** (대회 17건 × 3 + 확인 호출 3번 = 54번. 하루 상한 기본 60번, `--max-calls`로 바꾼다. 한 터미널에서 차례로)
+```powershell
+foreach ($model in "haiku", "sonnet", "opus") {
+  .\.venv\Scripts\python.exe -m extractor eval --model $model --run-dir "..\eval\extraction\runs\${day}_${model}_v0.2"
+}
+```
+중간에 멈추거나 실패해도 같은 명령을 다시 돌리면 남은 대회만 부른다 (`$day`를 처음 실행한 날로 두기).
+
+**4. 채점과 보고서**
+```powershell
+$runs = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${day}_${_}_v0.2" }
+.\.venv\Scripts\python.exe ..\eval\extraction\score.py @runs --report "..\eval\extraction\reports\${day}_models_v0.2.md"
+```
+실행 폴더마다 `judgments_todo.csv`(대회명·혜택처럼 사람이 판정할 칸)가 생긴다. 위 "사람 판정" 순서로 채운 뒤 다시 채점한다. `'`로 시작하는 칸은 AI 값이 수식으로 실행되지 않게 붙인 것이다. **판정은 메모장·VS Code 같은 편집기로 채운다** (엑셀로 저장하면 `'`가 빠져 다른 사람이 열 때 수식이 될 수 있다).
+
+**5. 올리기**
+- PR로 올리는 것: `eval/extraction/reports/`의 보고서, `eval/extraction/judgments/`의 판정. 각 실행 `meta.json`의 `totals`·`models_seen` 값은 PR 설명에 옮겨 적는다 (월 비용 환산에 쓴다).
+- **올리지 않는 것:** `eval/extraction/runs/`(AI 원본 출력에 공지 인용문·연락처), `pipeline/data/`. 둘 다 `.gitignore`에 있다.
+- `totals.cost_usd_estimate`는 공개 단가로 계산한 추정치다. 구독 로그인이면 실제 청구액이 아니다. 실패한 호출(`calls_failed`)·확인 호출(`probe_calls`)의 토큰도 들어간다.
+
+**지금 입력에 넣지 않는 것** (`meta.json`의 `inputs`): 포스터 이미지·첨부 글자(#12 전), 결과 공지 본문(수상자 명단이 AI로 가지 않게 제목만, 대회별로 `result_bodies_omitted`), 본문의 8자리 숫자(학번). 그래서 포스터에만 있는 정보는 놓치고, 결과 공지에만 있는 일정은 못 본다. #12 뒤에 다시 재면 숫자가 바뀐다.
+
+**남은 위험:** 결과 공지 판정은 제목으로 한다. 제목에 결과·수상·합격·명단 같은 말이 없는 공지에 이름이 나열돼 있으면 그대로 AI로 간다 (학번만 가린다).
+
 ## 남은 것
 
 - 규칙 기준선 실제 숫자: 수집을 돌려 `analysis.json`을 만들고 정답표(#41)가 머지된 뒤에.
-- 공개 API 단가로 월 비용 환산: 실행 기록의 토큰 수가 필요해 #14 실행 뒤에.
+- 공개 API 단가로 월 비용 환산: 위 실행의 `meta.json` `totals`(토큰 수) 뒤에.

@@ -3,7 +3,7 @@
     python eval/extraction/score.py eval/extraction/runs/<실행1> [<실행2> ...] --report eval/extraction/reports/<이름>.md
 
 실행 폴더 (모델 하나 × 프롬프트 하나):
-    meta.json            {"model": "...", "prompt_version": "v0.2", "ran_at": "2026-11-06T10:00:00+09:00"}
+    meta.json            {"model": "...", "prompt_version": "v0.2", ...}  (pipeline/extractor가 쓴다)
     outputs/<contest_id>.json   AI 출력 그대로 (schema.json 형식). 없거나 깨지면 그 대회는 "출력 실패"
 사람 판정 (뜻이 같으면 정답인 항목): eval/extraction/judgments/<실행 이름>.csv (run, contest_id, item, judgment=정답|오답).
     아직 판정하지 않은 줄은 실행 폴더의 judgments_todo.csv로 만들어 준다.
@@ -495,7 +495,7 @@ def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list |
             key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
             if key in judgments:
                 warnings.append(f"판정 파일 {reader.line_num}줄: {key[0]} {key[1]}이 두 번 나와 뒤 줄을 씀")
-            judgments[((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())] = (judgment, row.get("ai") or "")
+            judgments[((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())] = (judgment, _uncell(row.get("ai") or ""))
     return judgments
 
 
@@ -514,9 +514,21 @@ def write_judgment_todo(score: RunScore, run_dir: Path) -> int:
         writer = csv.writer(file)
         writer.writerow(["run", "contest_id", "item", "answer", "ai", "judgment"])
         for result in todo:
-            writer.writerow([score.name, result.contest_id, result.item, display(result.truth, limit=None),
-                             display(result.predicted, limit=None), ""])
+            writer.writerow([score.name, result.contest_id, result.item, _cell(display(result.truth, limit=None)),
+                             _cell(display(result.predicted, limit=None)), ""])
     return len(todo)
+
+
+FORMULA_START = ("=", "+", "-", "@", chr(9), chr(13))  # 탭·CR도 엑셀이 수식 시작으로 본다
+
+
+def _cell(text: str) -> str:
+    """판정표는 엑셀로 연다. AI가 낸 값이 =로 시작하면 수식으로 실행되므로 앞에 '를 붙인다 (읽을 때 뗀다)."""
+    return "'" + text if text.startswith(FORMULA_START) else text
+
+
+def _uncell(text: str) -> str:
+    return text[1:] if text.startswith("'") and text[1:].startswith(FORMULA_START) else text
 
 
 # ---- 집계·보고 ----

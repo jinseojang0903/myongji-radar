@@ -8,7 +8,7 @@
 
 | 파일 | 내용 | 누가 읽나 |
 |---|---|---|
-| `system.md` | AI에게 주는 지시 (규칙, 항목 정의) | AI. `--append-system-prompt`로 전달 (#14) |
+| `system.md` | AI에게 주는 지시 (규칙, 항목 정의) | AI. `--system-prompt-file`로 기본 시스템 프롬프트를 바꿔 전달 (#14, 에이전트용 지시·도구 설명이 섞이지 않게. `pipeline/extractor/claude.py`) |
 | `input_template.md` | 공지를 감싸는 입력 틀. 공지는 `<notice>` 경계 안에 데이터로 넣는다 | 파이프라인 코드가 채움 |
 | `schema.json` | 출력 형식. `claude -p --json-schema`로 강제하고 코드가 한 번 더 검사 | AI·코드 |
 | `build_schema.py` | `schema.json` 생성기. 형식을 바꿀 때는 이것을 고치고 다시 실행 | 개발자 |
