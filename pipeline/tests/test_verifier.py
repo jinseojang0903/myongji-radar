@@ -73,6 +73,24 @@ class NormalizeTests(unittest.TestCase):
         self.assertFalse(contains_quote(normalize("개인 참가는 불가능합니다."), normalize("가능합니다.")))
         self.assertFalse(contains_quote(normalize("신청서 미제출 시"), normalize("제출 시")))
         self.assertTrue(contains_quote(normalize("불가능합니다. 팀은 가능합니다."), normalize("가능합니다.")), "다른 곳에 맞으면 통과")
+        self.assertFalse(contains_quote(normalize("비대상자는 신청할 수 없음"), normalize("대상자는 신청할 수 없음")))
+        for source, quote in (("비전공자 대상", "전공자 대상"), ("미등록자 제외", "등록자 제외"), ("요건 미충족 시 선정 취소", "충족 시 선정 취소"),
+                              ("미이수자는 참가 불가", "이수자는 참가 불가"), ("비대면 진행", "대면 진행"), ("참가 횟수 무제한", "제한"),
+                              ("부적격자 제외", "적격자 제외"), ("미성년자 참가 불가", "성년자 참가 불가"),
+                              ("중복지원불가능", "가능"), ("개인참가불가능", "가능합니다"), ("서류미제출시 탈락", "제출시 탈락")):
+            self.assertFalse(contains_quote(normalize(source), normalize(quote)), f"{source} / {quote}: 부정 글자 바로 뒤 (#49)")
+        self.assertFalse(contains_quote("개인참가불가능합니다", "가능합니다"), "낱말 경계를 모르는 글은 모든 한글 인용을 본다")
+        for source, quote in (("참가비 지원 대상은 전 학년", "지원 대상은 전 학년"), ("업무 협약 기관 소속", "협약 기관 소속"),
+                              ("의미 있는 활동을 한 학생", "있는 활동을 한 학생"), ("등록비 납부 후 신청", "납부 후 신청"),
+                              ("참가비\n접수 기간: 10.21~10.25", "접수 기간: 10.21~10.25"), ("참가비 신청 방법", "신청 방법"),
+                              ("신청비 등록 방법", "등록 방법")):
+            self.assertTrue(contains_quote(normalize(source), normalize(quote)), f"{quote}: 앞 낱말 끝이 불·비·미·무여도 정상 인용 (#49)")
+
+    def test_fingerprint_sorts_mixed_file_values(self):
+        evidence = [{"quote": "본문 문장입니다", "notice": 1, "location": "본문", "file": None},
+                    {"quote": "포스터 문장입니다", "notice": 1, "location": "본문", "file": "poster.png"}]
+        self.assertEqual(len(evidence_fingerprint(evidence)), 2, "file이 None과 문자열로 섞여도 정렬된다 (#49)")
+        self.assertEqual(evidence_fingerprint(evidence), evidence_fingerprint(list(reversed(evidence))), "순서와 상관없이 같다")
 
 
 class EvidenceTests(unittest.TestCase):
