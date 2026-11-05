@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from collector.__main__ import main
-from collector.daily import SEOUL, run_daily
+from collector.daily import SEOUL, recover_state, run_daily
 from collector.locking import CollectorLock
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -186,6 +186,42 @@ except AlreadyRunning:
         result = subprocess.run([sys.executable, "-c", code, str(self.data)], cwd=ROOT, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.data / "collector.lock").exists())
+
+    def test_recovery_backs_up_bytes_blocks_today_and_resumes_tomorrow(self):
+        self.data.mkdir()
+        original = b'\xff{"broken":'
+        path = self.data / "daily_status.json"
+        path.write_bytes(original)
+        self.assertEqual(recover_state(self.data, clock=lambda: self.today), 0)
+        backup, = (self.data / "state_backups").glob("*.bin")
+        self.assertEqual(backup.read_bytes(), original)
+        self.assertEqual(self.state()["reason"], "manual_state_recovery_skip_today")
+        self.assertEqual(self.run_daily(), 0)
+        self.fetcher.get.assert_not_called()
+        self.today = self.today.replace(day=5)
+        self.assertEqual(self.run_daily(), 0)
+        self.assertEqual(self.state()["status"], "success")
+
+    def test_recovery_leaves_healthy_or_missing_state_unchanged(self):
+        self.assertEqual(recover_state(self.data, clock=lambda: self.today), 1)
+        self.assertFalse(self.data.exists())
+        self.assertEqual(self.run_daily(), 0)
+        before = (self.data / "daily_status.json").read_bytes()
+        self.assertEqual(recover_state(self.data, clock=lambda: self.today), 0)
+        self.assertEqual((self.data / "daily_status.json").read_bytes(), before)
+        self.assertFalse((self.data / "state_backups").exists())
+
+    def test_recovery_requires_lock_and_preserves_original_if_backup_fails(self):
+        self.data.mkdir()
+        path = self.data / "daily_status.json"
+        path.write_bytes(b"broken")
+        with CollectorLock(self.data):
+            self.assertEqual(recover_state(self.data, clock=lambda: self.today), 2)
+        self.assertEqual(path.read_bytes(), b"broken")
+        # 백업 폴더 자리에 파일이 있으면 백업 실패. 손상 상태도 그대로 보존해야 한다.
+        (self.data / "state_backups").write_bytes(b"not a directory")
+        self.assertEqual(recover_state(self.data, clock=lambda: self.today), 1)
+        self.assertEqual(path.read_bytes(), b"broken")
 
 
 if __name__ == "__main__":

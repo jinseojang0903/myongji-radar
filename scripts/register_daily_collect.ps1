@@ -13,13 +13,29 @@ $runner = Join-Path $PSScriptRoot 'run_daily_collect.ps1'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
 $actionArguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $runner
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+
+function Resolve-PrincipalSid {
+    param([string]$PrincipalId)
+    try {
+        if ($PrincipalId -match '^S-\d-') {
+            return ([System.Security.Principal.SecurityIdentifier]::new($PrincipalId)).Value
+        }
+        $account = [System.Security.Principal.NTAccount]::new($PrincipalId)
+        return ($account.Translate([System.Security.Principal.SecurityIdentifier])).Value
+    }
+    catch {
+        # 해석할 수 없는 계정을 이름 일부만 비교해 본인으로 간주하지 않는다.
+        return $null
+    }
+}
+
 $existing = Get-ScheduledTask -TaskPath '\' -ErrorAction Stop |
     Where-Object { $_.TaskName -eq $TaskName }
 if ($existing) {
     $owned = ($existing.Actions.Count -eq 1 -and
         $existing.Actions[0].Execute -eq $powershellPath -and
         $existing.Actions[0].Arguments -eq $actionArguments -and
-        $existing.Principal.UserId -in @($identity.Name, $identity.User.Value))
+        (Resolve-PrincipalSid $existing.Principal.UserId) -eq $identity.User.Value)
     if (-not $owned) { throw '같은 이름의 다른 작업이 있습니다. 덮어쓰거나 해제하지 않습니다.' }
 }
 if ($Remove) {

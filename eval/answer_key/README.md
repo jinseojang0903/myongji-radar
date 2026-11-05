@@ -76,6 +76,8 @@ AI 추출 결과를 채점하는 기준이다. **사람이 원문을 직접 보�
 
 ## 채점 방식 (#9가 구현)
 
+구현: `eval/extraction/score.py` (사용법 `eval/extraction/README.md`). 항목이 `found`인데 채점 단위 칸만 비어 있으면(문의처에 이메일이 없음 등) 그 칸은 `missing`으로 채점한다.
+
 - 읽을 때는 `utf-8-sig`(엑셀이 붙이는 BOM 처리), `example-id` 줄은 건너뛴다.
 - **자동 비교 항목:** scope, kind, apply, stages, campus, grades, enrollment, team, deliverables 태그, mileage 점수, contact 이메일. 표기를 정규화한 뒤 같으면 정답.
   - campus `인문,자연`과 `any`, grades `1,2,3,4`와 `any`는 **같은 값으로 본다** (누가 신청할 수 있는지가 같다).

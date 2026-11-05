@@ -57,3 +57,42 @@ catch {{ if ($_.Exception.Message -like '*같은 이름의 다른 작업*') {{ e
 """
         result = self.powershell(code)
         self.assertEqual(result.returncode, 24, result.stderr)
+
+    def test_same_user_short_full_and_sid_allow_reregistration_and_removal(self):
+        for form in ("short", "full", "sid"):
+            for remove in (False, True):
+                with self.subTest(form=form, remove=remove):
+                    code = rf"""
+if ((Get-TimeZone).Id -ne 'Korea Standard Time') {{ exit 77 }}
+$who=[System.Security.Principal.WindowsIdentity]::GetCurrent()
+$ids=@{{short=$who.Name.Split('\')[-1];full=$who.Name;sid=$who.User.Value}}
+$fixtureUser=$ids['{form}']
+$fixtureExe=Join-Path $PSHOME 'powershell.exe'
+$fixtureArgs='-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{(ROOT / 'scripts/run_daily_collect.ps1').as_posix().replace('/', chr(92))}"'
+function Get-ScheduledTask {{ param($TaskPath,$ErrorAction)
+    [pscustomobject]@{{TaskName='Test-Daily';Actions=@([pscustomobject]@{{Execute=$fixtureExe;Arguments=$fixtureArgs}});
+        Principal=[pscustomobject]@{{UserId=$fixtureUser}} }} }}
+function Register-ScheduledTask {{ throw 'No actual registration in tests' }}
+function Unregister-ScheduledTask {{ throw 'No actual removal in tests' }}
+. '{INSTALLER.as_posix()}' -TaskName Test-Daily -WhatIf {'-Remove' if remove else ''}
+"""
+                    result = self.powershell(code)
+                    if result.returncode == 77:
+                        self.skipTest("KST 환경에서 현재 사용자 표현별 예약 정의 검증")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_same_action_but_different_or_unresolved_user_is_refused(self):
+        for user in ("S-1-5-18", "invalid\\no-such-user"):
+            with self.subTest(user=user):
+                code = f"""
+$fixtureExe=Join-Path $PSHOME 'powershell.exe'
+$fixtureArgs='-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{(ROOT / 'scripts/run_daily_collect.ps1').as_posix().replace('/', chr(92))}"'
+function Get-ScheduledTask {{ param($TaskPath,$ErrorAction)
+    [pscustomobject]@{{TaskName='Test-Daily';Actions=@([pscustomobject]@{{Execute=$fixtureExe;Arguments=$fixtureArgs}});
+        Principal=[pscustomobject]@{{UserId='{user}'}} }} }}
+function Unregister-ScheduledTask {{ throw 'No removal of other tasks' }}
+try {{ . '{INSTALLER.as_posix()}' -TaskName Test-Daily -Remove -WhatIf }}
+catch {{ if ($_.Exception.Message -like '*같은 이름의 다른 작업*') {{ exit 24 }}; throw }}
+"""
+                result = self.powershell(code)
+                self.assertEqual(result.returncode, 24, result.stderr)

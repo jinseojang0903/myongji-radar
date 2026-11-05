@@ -28,6 +28,58 @@ def atomic_json(path, value):
     temporary.replace(path)
 
 
+def read_daily_state(path, today):
+    previous = json.loads(path.read_text(encoding="utf-8"))
+    if (not isinstance(previous, dict) or not isinstance(previous.get("local_date"), str)
+            or type(previous.get("collection_attempted")) is not bool
+            or previous.get("status") not in ("collecting", "success", "partial_failure", "failed")
+            or (previous.get("status") != "failed" and not previous["collection_attempted"])):
+        raise ValueError("invalid state")
+    previous_date = date.fromisoformat(previous["local_date"])
+    if previous["local_date"] != previous_date.isoformat() or previous_date > today:
+        raise ValueError("invalid daily date")
+    return previous
+
+
+def recover_state(data_dir, *, clock=current_time):
+    """손상 원본을 보존하고 오늘은 차단한다. 같은 날 재수집을 허용하는 초기화가 아니다."""
+    data_dir = Path(data_dir)
+    state_path = data_dir / "daily_status.json"
+    if not state_path.is_file():
+        return 1
+    now = clock().astimezone(SEOUL)
+    try:
+        with CollectorLock(data_dir):
+            try:
+                read_daily_state(state_path, now.date())
+                return 0  # 정상 상태는 변경하지 않는다.
+            except ValueError:
+                pass
+            original = state_path.read_bytes()
+            backups = data_dir / "state_backups"
+            backups.mkdir(exist_ok=True)
+            backup = backups / f"daily_status-{now.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex}.bin"
+            with backup.open("xb") as stream:
+                stream.write(original)
+            # 백업에 실패하면 여기까지 오지 않으므로 원본 상태를 덮어쓰지 않는다.
+            state = {"invocation_id": uuid.uuid4().hex, "local_date": now.date().isoformat(),
+                     "started_at": now.isoformat(), "finished_at": now.isoformat(), "status": "failed",
+                     "collection_attempted": True, "collection_run_id": None, "sources": [],
+                     "collection_exit_code": None, "analysis_exit_code": None, "exit_code": 1,
+                     "reason": "manual_state_recovery_skip_today", "recovery_backup": str(backup.relative_to(data_dir))}
+            atomic_json(state_path, state)
+            logs = data_dir / "logs"
+            logs.mkdir(exist_ok=True)
+            with (logs / f"{now.date().isoformat()}.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps({"timestamp": now.isoformat(), "event": "state_recovered",
+                    "reason": "skip_today_resume_next_day", "backup": state["recovery_backup"]}, ensure_ascii=False) + "\n")
+            return 0
+    except AlreadyRunning:
+        return 2
+    except OSError:
+        return 1
+
+
 def latest_run(data_dir):
     path = data_dir / "collector.sqlite3"
     if not path.exists():
@@ -68,19 +120,11 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
             # 손상된 상태를 '처음 실행'으로 간주하면 같은 날 다시 요청할 수 있다.
             if state_path.exists():
                 try:
-                    previous = json.loads(state_path.read_text(encoding="utf-8"))
-                    if (not isinstance(previous, dict) or not isinstance(previous.get("local_date"), str)
-                            or type(previous.get("collection_attempted")) is not bool
-                            or previous.get("status") not in ("collecting", "success", "partial_failure", "failed")
-                            or (previous.get("status") != "failed" and not previous["collection_attempted"])):
-                        raise ValueError("invalid state")
+                    previous = read_daily_state(state_path, started.date())
                     previous_date = date.fromisoformat(previous["local_date"])
-                    if previous["local_date"] != previous_date.isoformat():
-                        raise ValueError("daily date is not canonical")
-                    if previous_date > started.date():
-                        raise ValueError("daily state is in the future")
-                except (ValueError, OSError):
-                    emit("failed", reason="invalid_daily_state", exit_code=1)
+                except (ValueError, OSError) as exc:
+                    emit("failed", reason="invalid_daily_state", phase="state_check",
+                         error_type=type(exc).__name__, recovery="collector.daily --recover-state", exit_code=1)
                     return 1
                 if previous_date == started.date() and previous["collection_attempted"]:
                     emit("skipped", reason="already_attempted_today", exit_code=0)
@@ -91,6 +135,7 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
                      "collection_exit_code": None, "analysis_exit_code": None, "sources": []}
             emit("started")
             exit_code = 1
+            phase = "preflight"
             try:
                 # 요청 전에 설정 오류를 발견하면 날짜를 소모하지 않아 고친 뒤 실행할 수 있다.
                 load_sources(config)
@@ -102,8 +147,10 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
                 state.update(status="collecting", collection_attempted=True)
                 atomic_json(state_path, state)
                 # 네트워크 요청 전에 시도 시작을 저장한다. 비정상 종료 후 같은 날 재시도하지 않는다.
+                phase = "collection"
                 collected = call_collector(["run", "--config", str(config), "--data-dir", str(data_dir)])
                 state["collection_exit_code"] = collected
+                phase = "collection_result"
                 run = latest_run(data_dir)
                 if run and (before is None or run["id"] > before["id"]):
                     state["collection_run_id"] = run["id"]
@@ -111,25 +158,32 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
                         "unchanged": s["unchanged"], "errors": len(s["errors"])} for s in run["sources"]]
                 processed = sum(s["new"] + s["changed"] + s["unchanged"] for s in state["sources"])
                 emit("collection_finished", run_id=state["collection_run_id"], exit_code=collected, sources=state["sources"])
+                if collected:
+                    state.update(failure_phase="collection", diagnostic="collector.sqlite3:runs")
                 # main이 정상 반환했고 이번 실행이 끝났으며 1건 이상 저장한 경우만 분석한다.
                 if state["collection_run_id"] is not None and run["finished_at"] and processed > 0 and collected in (0, 1):
+                    phase = "analysis"
                     analyzed = call_collector(["analyze", "--rules", str(rules), "--data-dir", str(data_dir)])
                     state["analysis_exit_code"] = analyzed
                     emit("analysis_finished", exit_code=analyzed)
                     exit_code = 0 if collected == 0 and analyzed == 0 else 1
                     state["status"] = "success" if exit_code == 0 else "partial_failure"
+                    if analyzed:
+                        state.update(failure_phase="analysis", diagnostic="collector analyze (offline)")
                 else:
                     state["status"] = "failed"
                     emit("analysis_skipped", reason="no_completed_collection_with_saved_notices")
             except Exception as exc:
                 # 예외 문자열에는 원문이 들어갈 수 있어 종류만 남긴다.
-                state.update(status="failed", error_type=type(exc).__name__)
-                emit("failed", error_type=type(exc).__name__)
+                state.update(status="failed", error_type=type(exc).__name__, failure_phase=phase)
+                emit("failed", phase=phase, error_type=type(exc).__name__)
             finally:
                 state["finished_at"] = clock().astimezone(SEOUL).isoformat()
                 state["exit_code"] = exit_code
                 atomic_json(state_path, state)
-                emit("finished", status=state["status"], exit_code=exit_code)
+                emit("finished", status=state["status"], exit_code=exit_code,
+                     failure_phase=state.get("failure_phase"), run_id=state["collection_run_id"],
+                     diagnostic=state.get("diagnostic"))
             return exit_code
     except AlreadyRunning:
         emit("skipped", reason="another_operation_running", exit_code=0)
@@ -143,8 +197,14 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
-    parser.add_argument("--dry-run", action="store_true", help="설정만 확인. 수집·DB·날짜 상태 변경 없음")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help="설정만 확인. 수집·DB·날짜 상태 변경 없음")
+    mode.add_argument("--recover-state", action="store_true", help="손상 상태 백업·복구. 오늘 수집은 차단하고 다음 날 재개")
     args = parser.parse_args()
+    if args.recover_state:
+        code = recover_state(args.data_dir)
+        print(f"상태 복구 종료 코드: {code}. 정상 상태는 유지하며, 손상 상태 복구 시 오늘 재수집은 차단됩니다.")
+        return code
     if args.dry_run:
         try:
             sources = load_sources(args.config)

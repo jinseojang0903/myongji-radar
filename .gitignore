@@ -8,6 +8,9 @@ site/data/*
 !site/data/cards.sample.json
 !site/data/log.json
 
+# AI 추출 원본 출력: 공지 인용문·정리 전 연락처가 들어 있어 올리지 않는다 (보고서·사람 판정만 올림)
+eval/extraction/runs/
+
 # 비밀값
 .env
 .env.*

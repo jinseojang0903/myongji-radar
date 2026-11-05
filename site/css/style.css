@@ -1,16 +1,17 @@
 /* 명지레이더 공통 스타일 (#21). 화면 설계 목업(docs/ui/mockups/style.css, #20)에서 옮겼다.
    외부 글꼴·라이브러리를 쓰지 않는다: 행사장 인터넷 없이 열려야 한다.
-   색은 모두 아래 변수로 쓴다. 글자 대비는 WCAG 4.5:1 이상으로 맞췄다 (--muted on --muted-bg 5.0:1). */
+   색은 모두 아래 변수로 쓴다. 글자 대비는 WCAG 4.5:1 이상으로 맞췄다 (tests/a11y.test.js가 확인). */
 :root {
   --navy: #0b2a5b; --blue: #1f5fbf; --blue-soft: #e8effb;
   --bg: #f3f5f9; --card: #ffffff; --line: #dde2eb;
   --text: #1d2433; --sub: #566174;
-  --ok: #13804b; --ok-bg: #e3f5eb;
+  --ok: #12784a; --ok-bg: #e3f5eb;  /* #13804b는 배경 위 4.39:1이라 진하게 (#27) */
   --warn: #8f5200; --warn-bg: #fff0d4;
   --team: #3d4fb8; --team-bg: #e6e9fb;
   --no: #b3261e; --no-bg: #fde8e6;
   --muted: #5f6673; --muted-bg: #eef0f3;
   --line-strong: #b9c4d6; --line-dashed: #9aa3b2;
+  --input-line: #7d8799;  /* 입력창 경계는 흰 배경과 3:1 이상 (WCAG 1.4.11, #27) */
   --demo-bg: #fff7d6; --demo-text: #6b4e00; --demo-line: #f0dc8c;
   --tag-bg: #e9edf4; --tag-text: #3b4a63;
   --ev-bg: #f6f9ff; --note-bg: #fffaf0;
@@ -22,6 +23,7 @@ html, body { margin: 0; }
 body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
 a { color: var(--blue); }
 :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+header :focus-visible { outline-color: var(--on-dark); }  /* 남색 머리글 위 파란 테두리는 대비가 3:1에 못 미친다 (#27) */
 
 /* 상단 */
 header { background: var(--navy); color: var(--on-dark); }
@@ -34,6 +36,8 @@ nav a[aria-current="page"] { opacity: 1; font-weight: 700; background: rgba(255,
 .demo { background: var(--demo-bg); color: var(--demo-text); font-size: 13px; text-align: center; padding: 4px 12px; margin: 0; border-bottom: 1px solid var(--demo-line); }
 
 main { max-width: 1120px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+/* 격자 칸은 기본으로 내용보다 좁아지지 않는다. 넓은 표 하나가 화면 전체를 가로로 밀지 않게 (#27) */
+main > *, .split > *, .side > *, .panel > * { min-width: 0; }
 h1 { font-size: 21px; margin: 0; letter-spacing: -0.3px; }
 h2 { font-size: 16.5px; margin: 0; }
 .lead { color: var(--sub); margin: 2px 0 0; font-size: 14px; }
@@ -139,13 +143,15 @@ h2 { font-size: 16.5px; margin: 0; }
 
 /* 입력 */
 .ask { display: flex; gap: 8px; }
-.ask input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; }
+.ask input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--input-line); border-radius: 8px; }
 
 /* 수치 표 */
 .metrics { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
 .metrics th, .metrics td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; }
 .metrics th { color: var(--sub); font-weight: 400; }
 .pending { color: var(--muted); }
+/* 표는 표 그대로 두고(화면 읽기 프로그램의 표 탐색 유지) 감싼 영역에서만 가로로 민다. 모든 폭에서 (#27) */
+.table-scroll { overflow-x: auto; }
 .metrics td.pending { white-space: nowrap; }
 
 /* 휴대폰: 한 열, 항목 표는 라벨 위·값 아래 */
@@ -157,6 +163,9 @@ h2 { font-size: 16.5px; margin: 0; }
   .fields tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; }
   .fields td.st { text-align: left; }
   .ask { flex-direction: column; }
+  /* 좁은 화면: 열이 많은 표는 표 안에서만 가로로 밀어 본다 (화면 전체 가로 스크롤 없음, #27) */
+  .metrics th, .metrics td { min-width: 6em; }  /* 칸이 한 글자 폭으로 짓눌리지 않게 (넘치면 .table-scroll 안에서 민다) */
+  .btn { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 

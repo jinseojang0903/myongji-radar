@@ -15,6 +15,7 @@
 ```
 
 - `boards[].list_url`: 게시판 목록 주소. 모르면 `null` (화면은 이름만 보여 준다).
+- **오래된 정보 경고:** 실제 데이터의 `generated_at`이 36시간보다 오래됐으면(매일 갱신이 하루 넘게 멈춤) 화면 맨 위에 "대회 정보가 N일 전(시각) 기준"이라는 경고와 원문 확인 안내를 띄운다 (`site/js/cards.js` `bannerText`, #19). 파이프라인이 멈추면 어제 cards.json이 그대로 공개되기 때문이다.
 - **예시 데이터** `site/data/cards.sample.json`은 같은 형식에 `"sample": true`와 `"sample_note"`(무엇이 예시인지)를 더한다. 화면은 `cards.json`이 없을 때만 예시를 읽고, 예시임을 상단에 표시하며, 기준일을 오늘 대신 `generated_at`의 날짜로 쓴다 (예시 대회가 이미 마감돼 목록이 비지 않도록).
 
 ### Card
@@ -32,7 +33,7 @@
 
 **Source:** `{ "board_id", "url", "title", "posted_at": "YYYY-MM-DD" }`
 
-화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
+파이프라인은 `pipeline/exporter`가 이 형식으로 내보낸다(#17: 계약 키만, 근거 200자·값 300자·항목당 근거 5개·카드당 근거 1,500자 상한, 링크는 화면 `safeUrl`과 같은 https·허용 도메인만, 개인 연락처 가림. 상세는 `pipeline/README.md`). 화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 더 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
 
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
@@ -62,7 +63,7 @@
 | 키 | value 형식 | 예 |
 |---|---|---|
 | `apply` | `{ "start": "YYYY-MM-DD HH:MM" \| null, "end": ..., "time_given": bool }` | 시각이 없으면 `time_given: false`이고 값은 `"YYYY-MM-DD"`만. 시각을 임의로 채우지 않는다. `time_given`은 `end`의 시각 기준 |
-| `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용) |
+| `stages` | `[ { "name": "신청" \| "출품" \| "발표" \| ..., "end": "YYYY-MM-DD HH:MM", "time_given": bool } ]` | 마감이 여러 단계인 대회 (캘린더 분리 등록용). `end`는 신청·출품이면 마감, 그 밖(예선·본선·발표·시상·기타)이면 그 일정의 날짜(기간이면 끝나는 날) |
 | `campus` | `["인문", "자연"]` 또는 `"any"` | `"any"`는 대상 문장이 있는데 캠퍼스로 나누지 않거나 "제한 없음"이 명시된 경우 (11/3 보완, 근거는 그 대상 문장). 대상 문장 자체가 없으면 `missing` |
 | `grades` | `[1, 2, 3, 4]` 또는 `"any"` | `campus`와 같은 규칙. 예: "정규학기 학부 재학생" → `"any"` |
 | `enrollment` | `{ "allowed": ["재학"], "excluded": ["휴학", "수료", "초과학기", "졸업유예"] }` | 대상 문장은 있는데 학적 언급이 없으면 두 목록 모두 빈 배열 (= 제한 문구 없음). 대상 문장이 없으면 `missing` |
@@ -71,7 +72,7 @@
 | `benefits` | string | 상금·상장 |
 | `mileage` | `{ "text": "예선 참가자 전원 창의 10점", "area": "창의" \| null, "points": 10 \| null }` | `points`는 참가자 기준. 수상자 추가 점수는 `text`에만 |
 | `how_to_apply` | `{ "text": "신청 방법 요약", "url": "https://..." \| null }` | 링크는 http·https만 |
-| `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만 |
+| `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만. `email`은 사람이 검수한 문의처만 채운다 (학생도 `mju.ac.kr`을 써서 부서 메일과 구분할 수 없음) |
 
 ## 2. 조건 (자연어 해석기 출력, 버튼 입력과 같은 형식)
 
