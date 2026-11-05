@@ -1,4 +1,4 @@
-"""AI 추출 실행 (#14). 지금은 모델 비교(#9)용 "정답표 대회 추출"만 있다. 매일 실행용 추출은 #13(분석 저장) 뒤에 붙인다.
+"""AI 추출 실행 (#14). 두 가지: 모델 비교(#9)용 "정답표 대회 추출"(eval)과 매일 실행용 추출(daily, `extractor/daily.py`).
 
     python -m extractor eval --model haiku --run-dir ../eval/extraction/runs/2026-11-06_haiku_v0.2
 
@@ -28,60 +28,21 @@ import json
 import os
 import re
 import sys
-import tempfile
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from extractor import claude as claude_cli
+from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
+                              write_json)
+from extractor.daily import DEFAULT_MAX_NEW, run_daily
 from extractor.prompt import PROMPT_VERSION, InputNotice, build_input
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
-KST = timezone(timedelta(hours=9))
 DEFAULT_MAX_CALLS = 60  # 정답표 17건 × 모델 3개 = 51번에 여유
-REPEATED_FAILURES = 3
 EXAMPLE_ID = "example-id"
 CONTEST_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # 파일 이름이 된다 (경로 문자 금지)
-
-
-class StopRun(Exception):
-    """실행 도중 멈춤 (같은 실패 반복). 그때까지의 기록은 저장한다."""
-
-
-class CallLedger:
-    """하루 호출 수. 날짜(한국)별로 센다. 상한은 실수로 수백 번 부르는 것을 막는 안전장치다."""
-
-    def __init__(self, path: Path, limit: int):
-        self.path, self.limit = path, limit
-        self.counts = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-        if not isinstance(self.counts, dict):
-            raise ValueError(f"{path} 형식이 다름")
-
-    @property
-    def today(self) -> str:
-        return datetime.now(KST).date().isoformat()
-
-    def remaining(self) -> int:
-        return self.limit - int(self.counts.get(self.today, 0))
-
-    def add(self) -> None:
-        self.counts[self.today] = int(self.counts.get(self.today, 0)) + 1
-        write_json(self.path, self.counts)
-
-
-def write_json(path: Path, data) -> None:
-    """임시 파일에 다 쓴 뒤 바꿔 끼운다 (중간에 끊긴 반쪽 파일이 "이미 뽑음"으로 남지 않게)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as file:
-            file.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-        os.replace(temporary, path)
-    except BaseException:
-        Path(temporary).unlink(missing_ok=True)
-        raise
 
 
 def normalize_url(url: str) -> str:
@@ -122,15 +83,6 @@ def read_originals(path: Path) -> tuple[dict[str, dict], set[str]]:
             duplicated.add(url)
         by_url[url] = notice
     return {url: notice for url, notice in by_url.items() if url not in duplicated}, duplicated
-
-
-def posted_day(value, fallback: str) -> str:
-    """게시 시각 → 한국 날짜. 못 읽으면 정답표에 적힌 게시일."""
-    try:
-        moment = datetime.fromisoformat(str(value))
-        return (moment.astimezone(KST) if moment.tzinfo else moment).date().isoformat()
-    except ValueError:
-        return fallback
 
 
 def contest_input(rows: list[dict], originals: dict[str, dict], duplicated: set[str]) -> tuple[list[InputNotice], list[str]]:
@@ -187,7 +139,7 @@ def run_eval(args) -> int:
     meta["account"] = "env" if in_use else "login"
     try:
         if _needs_calls(args, selected, outputs, originals, duplicated):
-            _probe(args, claude, ledger, meta)
+            probe(claude, args.model, args.timeout, args.use_env_account, ledger, meta)
         failed = _extract_all(args, selected, originals, duplicated, claude, ledger, meta, outputs, logs)
     except StopRun as stop:
         print(f"[멈춤] {stop}", file=sys.stderr)
@@ -206,20 +158,6 @@ def _needs_calls(args, selected, outputs, originals, duplicated) -> bool:
     """실제로 부를 대회가 있는지 (출력이 없거나 --force이고, 수집 원문 문제가 없는 대회). 없으면 확인 호출도 하지 않는다."""
     return any((args.force or not (outputs / f"{contest_id}.json").exists()) and not contest_input(rows, originals, duplicated)[1]
                for contest_id, rows in selected.items())
-
-
-def _probe(args, claude, ledger, meta) -> None:
-    """공지를 보내기 전에 한 번: 도구가 모두 꺼졌는지, 로그인 계정으로 도는지 (주입된 공지가 열린 환경으로 가지 않게)."""
-    if ledger.remaining() <= 0:
-        raise StopRun(f"오늘 호출 상한 {ledger.limit}번에 닿음")
-    ledger.add()
-    try:
-        usage, cost = claude_cli.probe(claude, args.model, args.timeout, args.use_env_account)
-    except claude_cli.ClaudeError as error:
-        _add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
-        raise StopRun(f"공지를 보내기 전 확인에서 멈춤: {error} (격리 옵션을 빼지 말고 claude update 뒤 다시, 안 되면 팀에 알리기)") from None
-    _add_usage(meta, usage, cost, [], succeeded=True, counter="probe_calls")
-    print("[확인] 도구가 모두 꺼진 채 로그인 계정으로 도는 것을 확인함", file=sys.stderr)
 
 
 def _extract_all(args, selected, originals, duplicated, claude, ledger, meta, outputs, logs) -> int:
@@ -246,26 +184,23 @@ def _extract_all(args, selected, originals, duplicated, claude, ledger, meta, ou
         try:
             result = claude_cli.call(text, claude, args.model, args.timeout, args.use_env_account)
         except claude_cli.ClaudeError as error:
-            _add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
+            add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
             write_json(logs / f"{contest_id}.json", _log({"error": str(error), "usage": error.usage, "cost_usd": error.cost_usd,
                                                           "result_bodies_omitted": omitted}))
             _write_meta(args.run_dir, meta)
             print(f"[실패] {contest_id}: {error}", file=sys.stderr)
             failed += 1
-            if error.kind == "isolation":
-                raise StopRun(f"{error} (격리 옵션을 빼지 말고 팀에 알리기)") from None
-            # 모델이 형식에 맞게 못 답한 것은 비교 대상이라 다음 대회로 간다. 실행·설정 문제가 반복되면 멈춘다
-            last_errors = (last_errors + [str(error)])[-REPEATED_FAILURES:] if error.kind == "setup" else []
-            if len(last_errors) == REPEATED_FAILURES and len(set(last_errors)) == 1:
-                raise StopRun(f"같은 이유로 {REPEATED_FAILURES}번 연달아 실패: {last_errors[0]} "
-                              "(격리 옵션을 빼지 말고 Claude Code를 업데이트하거나 팀에 알리기)") from None
+            last_errors = after_failure(error, last_errors)
             continue
         last_errors = []
         write_json(target, result.output)
         write_json(logs / f"{contest_id}.json", _log({"seconds": round(result.seconds, 1), "usage": result.usage,
                                                       "cost_usd": result.cost_usd, "notices": len(notices),
                                                       "result_bodies_omitted": omitted, "input_chars": len(text)}))
-        _add_usage(meta, result.usage, result.cost_usd, result.models, succeeded=True)
+        add_usage(meta, result.usage, result.cost_usd, result.models, succeeded=True)
+        if result.from_text:
+            # 매일 추출은 이런 결과를 받지 않는다: 0이 아니면 daily를 돌리기 전에 알 수 있게 센다
+            meta["totals"]["text_results"] = meta["totals"].get("text_results", 0) + 1
         _write_meta(args.run_dir, meta)  # 호출마다 저장: 중간에 끊겨도 합계가 남는다
         print(f"[뽑음] {contest_id} ({result.seconds:.0f}초)", file=sys.stderr)
     return failed
@@ -281,34 +216,20 @@ def _load_meta(run_dir: Path, model: str) -> dict:
             raise ValueError(f"{run_dir}는 {meta.get('model')} / {meta.get('prompt_version')} 실행이라 섞지 않음 (새 이름을 쓰기)")
         return meta
     return {"model": model, "prompt_version": PROMPT_VERSION, "run_type": "ai_extraction",
-            "started_at": datetime.now(KST).isoformat(timespec="seconds"),
+            "started_at": now_text(),
             # 지금 AI에게 넣는 것. 이미지·첨부는 #12 뒤에 넣는다 (그 전 점수는 포스터에만 있는 정보를 놓친다)
             "inputs": {"body": True, "images": False, "attachments": False, "result_notice_bodies": False,
                        "student_ids_masked": True},
-            "totals": {"calls": 0, "calls_failed": 0, "cost_usd_estimate": 0.0, **{key: 0 for key in claude_cli.USAGE_KEYS}}}
-
-
-def _add_usage(meta: dict, usage: dict, cost_usd, models: list[str], succeeded: bool, counter: str | None = None) -> None:
-    """실패한 호출·확인 호출의 토큰·비용도 더한다 (재시도가 많은 모델이 싸 보이지 않게)."""
-    totals = meta["totals"]
-    counter = counter or ("calls" if succeeded else "calls_failed")
-    totals[counter] = totals.get(counter, 0) + 1
-    for key, value in usage.items():
-        totals[key] = totals.get(key, 0) + value
-    if cost_usd is not None:
-        # 구독 로그인이면 실제 청구가 아니라 공개 단가로 계산한 추정치다 (월 비용 환산에 쓴다)
-        totals["cost_usd_estimate"] = round(totals.get("cost_usd_estimate", 0.0) + cost_usd, 6)
-    if models:
-        meta["models_seen"] = sorted(set(meta.get("models_seen", [])) | set(models))
+            "totals": new_totals()}
 
 
 def _write_meta(run_dir: Path, meta: dict) -> None:
-    meta["updated_at"] = datetime.now(KST).isoformat(timespec="seconds")
+    meta["updated_at"] = now_text()
     write_json(run_dir / "meta.json", meta)
 
 
 def _log(entry: dict) -> dict:
-    return {"at": datetime.now(KST).isoformat(timespec="seconds"), **entry}
+    return {"at": now_text(), **entry}
 
 
 def main(argv=None) -> int:
@@ -332,9 +253,24 @@ def main(argv=None) -> int:
     evaluate.add_argument("--dry-run", action="store_true", help="claude를 부르지 않고 공지가 다 수집됐는지·입력 길이만 본다")
     evaluate.add_argument("--use-env-account", action="store_true",
                           help="ANTHROPIC_API_KEY 등 환경변수의 계정으로 돌린다 (본인 키일 때만)")
+    daily = commands.add_parser("daily", help="수집 원문·규칙 분석에서 대회 후보를 뽑아 카드 묶음 파일을 만든다 (매일 실행)")
+    daily.add_argument("--model", required=True, help="claude --model 값 (모델 비교 #9로 정한 모델)")
+    daily.add_argument("--notices", type=Path, default=ROOT / "data" / "notices.json", help="수집 원문 (python -m collector export)")
+    daily.add_argument("--analysis", type=Path, default=ROOT / "data" / "analysis.json", help="규칙 분석 (python -m collector analyze)")
+    daily.add_argument("--out", type=Path, default=ROOT / "data" / "card_bundles.json", help="카드 묶음 (검증기·내보내기 입력)")
+    daily.add_argument("--cache", type=Path, default=ROOT / "data" / "extractions", help="공지 판별 추출 결과 (다시 부르지 않게)")
+    daily.add_argument("--config", type=Path, default=ROOT / "config" / "sources.toml", help=argparse.SUPPRESS)
+    daily.add_argument("--max-new", type=int, default=DEFAULT_MAX_NEW, help=f"이번 실행에서 새로 부를 공지 수 상한 (기본 {DEFAULT_MAX_NEW})")
+    daily.add_argument("--max-calls", type=int, default=DEFAULT_MAX_CALLS, help=f"하루 호출 상한 (기본 {DEFAULT_MAX_CALLS})")
+    daily.add_argument("--ledger", type=Path, default=ROOT / "data" / "extract_calls.json", help=argparse.SUPPRESS)
+    daily.add_argument("--claude", default="claude", help="claude 실행 파일 (기본: PATH의 claude)")
+    daily.add_argument("--timeout", type=int, default=300, help="호출 하나의 제한 시간(초)")
+    daily.add_argument("--force", action="store_true", help="뽑아 둔 결과가 있어도 다시 부른다")
+    daily.add_argument("--use-env-account", action="store_true",
+                       help="ANTHROPIC_API_KEY 등 환경변수의 계정으로 돌린다 (본인 키일 때만)")
     args = parser.parse_args(argv)
     try:
-        return run_eval(args)
+        return run_eval(args) if args.command == "eval" else run_daily(args)
     except (OSError, ValueError, KeyError, TypeError, csv.Error, claude_cli.ClaudeError) as error:
         print(f"[오류] 시작하지 못함 ({type(error).__name__}): {error}", file=sys.stderr)
         return 2
