@@ -32,7 +32,7 @@
 
 **Source:** `{ "board_id", "url", "title", "posted_at": "YYYY-MM-DD" }`
 
-화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
+파이프라인은 `pipeline/exporter`가 이 형식으로 내보낸다(#17: 계약 키만, 근거 200자·값 300자·항목당 근거 5개·카드당 근거 1,500자 상한, 링크는 화면 `safeUrl`과 같은 https·허용 도메인만, 개인 연락처 가림. 상세는 `pipeline/README.md`). 화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 더 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
 
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
