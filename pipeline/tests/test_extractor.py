@@ -77,7 +77,9 @@ class PromptTests(unittest.TestCase):
                       "OO 서포터즈 모집 최종 합격자 발표", "신입 부원 모집 결과(명단) 안내", "2025 공모전 수상자 발표 및 2026 참가자 모집",
                       "1차 합격자 발표 및 2차 발표 연기 안내", "작품발표 연기(演技)부문 수상자"):
             self.assertTrue(is_result_notice(title), title)
-        for title in ("공모전 모집 안내", "2026 공모전 모집 및 결과발표 일정 안내", "결과 발표 연기 안내"):
+        for title in ("OO 서포터즈 모집 결과 안내", "동아리 신입 모집 최종 결과", "멘토 모집 합격 안내", "멘토링 합격 발표"):
+            self.assertTrue(is_result_notice(title), f"{title}: 모집이라는 말만으로 본문을 넣지 않는다")
+        for title in ("공모전 모집 안내", "2026 공모전 모집 및 결과발표 일정 안내", "결과 발표 연기 안내", "예선 결과 발표일 안내"):
             self.assertFalse(is_result_notice(title), title)
         with self.assertRaises(ValueError):
             build_input([])
@@ -322,6 +324,11 @@ class EvalRunTests(unittest.TestCase):
         self.assertIn("[빠짐] gone-2026: 1/1개 공지 (중복: https://ctl.mju.ac.kr/9)", out, "끝의 /만 다른 주소도 같은 공지")
         self.assertNotIn(SECRET_BODY, out)
         self.assertFalse(self.run_dir.exists(), "실행 폴더를 만들지 않는다")
+
+    def test_no_probe_when_nothing_can_be_called(self):
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--contest", "gone-2026")
+        self.assertEqual((code, fake.calls), (1, []), "부를 대회가 없으면 확인 호출도 하지 않는다")
 
     def test_bad_setups_stop_before_calling(self):
         fake = FakeRun()
