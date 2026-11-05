@@ -43,7 +43,7 @@ def read_bundles(path: Path) -> tuple[list[CardBundle], str]:
     return bundles, raw.get("generated_at")
 
 
-def main() -> int:
+def main(argv=None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if hasattr(sys.stderr, "reconfigure"):
@@ -53,7 +53,7 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=ROOT.parent / "site/data/cards.json")
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--allow-empty", action="store_true", help="카드가 0장이어도 덮어쓴다 (기본은 상류 장애로 보고 멈춤)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         bundles, generated_at = read_bundles(args.bundles)
         boards = boards_from_sources(load_sources(args.config))
