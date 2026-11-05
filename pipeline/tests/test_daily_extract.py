@@ -143,6 +143,20 @@ class DailyExtractTests(unittest.TestCase):
         code, _ = self.run_cli(fake)
         self.assertEqual((code, len(fake.calls)), (0, 2), "원문 판 번호가 같아도 파서 입력이 바뀌면 확인 호출+재추출")
 
+    def test_parser_input_changes_reset_previous_failures(self):
+        for _ in range(3):
+            self.run_cli(FakeRun(stream(), stream(output=None), stream()))
+        fake = FakeRun()
+        self.run_cli(fake)
+        self.assertEqual(fake.calls, [], "같은 입력을 세 번 실패하면 더 부르지 않는다")
+        self.notices[0]["body_text"] += " 파서가 새로 복원한 신청 조건"
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake)
+        self.assertEqual((code, len(fake.calls)), (0, 2), "판 번호가 같아도 입력이 바뀌면 이전 실패를 넘기지 않는다")
+        failures = json.loads((self.folder / "extractions" / daily.FAILURES_FILE).read_text(encoding="utf-8"))
+        self.assertNotIn(CTL + "100", failures, "새 입력의 추출 성공은 예전 실패 기록을 지운다")
+
     def test_broken_failure_records_are_ignored(self):
         cache = self.folder / "extractions"
         cache.mkdir()

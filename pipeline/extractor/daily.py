@@ -13,7 +13,7 @@
 - **모델·프롬프트만 바꿨을 때는 다시 뽑는 동안 옛 결과로 카드를 남긴다** (원문이 같으므로).
   **공지가 바뀌면(새 판) 다시 뽑을 때까지 그 카드를 내린다:** 내보내기는 근거 대조에 실패한 항목의 값은 남기므로,
   옛 판의 값(지워진 연락처, 바뀌기 전 마감)이 "확인 필요"를 달고 계속 공개될 수 있기 때문이다.
-- 같은 판을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판이 바뀌면 다시.
+- 같은 판·입력을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판·입력이 바뀌면 다시.
 - 묶음 파일에는 뽑아 둔 결과가 있는 후보만 넣는다. 사람 검수 기록(statuses)은 아직 없어 비워 둔다.
 - 호출 조건은 모델 비교(eval)와 같다: 확인 호출, 격리 실측, 계정 환경변수 차단, 하루 상한 (`extractor/claude.py`).
   스키마 강제를 거치지 않은 모델 글은 받지 않는다 (공개 경로라서).
@@ -247,6 +247,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
             if error.kind == "model":
                 failures[card_id] = {"version_id": notice.get("version_id"), "model": args.model, "prompt_fingerprint": fingerprint,
+                                     "input_hash": content_hash(notice),
                                      "count": _failure_count(failures, card_id, notice, args.model, fingerprint) + 1,
                                      "last_error": str(error)[:120]}
             print(f"[실패] {card_id}: {error}", file=sys.stderr)
@@ -280,12 +281,12 @@ def _persist_entry(data_dir: Path, notice: dict, entry: dict) -> None:
 
 
 def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str) -> int:
-    """같은 판·같은 모델·같은 프롬프트로 실패한 횟수 (어느 하나라도 바뀌면 0부터)."""
+    """같은 판·입력·모델·프롬프트로 실패한 횟수 (어느 하나라도 바뀌면 0부터)."""
     record = failures.get(card_id)
     if not isinstance(record, dict):
         return 0
     same = (record.get("version_id") == notice.get("version_id") and record.get("model") == model
-            and record.get("prompt_fingerprint") == fingerprint)
+            and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice))
     count = record.get("count")
     return count if same and isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
 
