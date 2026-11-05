@@ -90,7 +90,7 @@ LONG_NUMBER_IN_TEXT = re.compile(r"(?<!\d)\d{8,}(?!\d)", re.ASCII)  # 학번(8�
 PHONE = re.compile(r"^[\s0-9A-Za-z()+\-.~,/:가-힣]*$")
 URL_HOST = re.compile(r"^[a-z0-9.-]+$", re.ASCII)
 GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$", re.ASCII)  # 사이트 Date.parse가 읽는 꼴
-SOURCE_ID_PATTERN = re.compile(r"^[a-z0-9_]{1,40}$", re.ASCII)
+SOURCE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$", re.ASCII)
 
 PROBLEM_TEXT = {
     "pii": "개인 연락처로 보이는 부분을 가림",
@@ -190,7 +190,8 @@ def build_card(bundle: CardBundle, warnings: list[str] | None = None) -> dict:
         "title": title,
         "organizer": organizer,
         "scope": scope,
-        "sources": [{"board_id": notice["board_id"], "url": notice["url"], "title": notice["title"], "posted_at": notice["posted_at"]}
+        "sources": [{"board_id": notice["board_id"], "url": notice["url"], "title": notice["title"],
+                     "posted_at": notice["posted_at"], "last_seen_at": notice["last_seen_at"]}
                     for notice in reversed(notices)],  # 계약: 첫 번째가 최신
         "fields": card_fields,
         "deadline_history": _deadline_history(bundle.deadline_history, warnings),
@@ -235,8 +236,20 @@ def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at
 
 def boards_from_sources(sources) -> list[dict]:
     """수집 출처 설정(pipeline/config/sources.toml) → 계약 boards. 게시판 목록 주소가 없으면 null."""
-    return [{"id": source.id, "name": _clean(source.name, MAX_SHORT_CHARS)[0], "list_url": _safe_url(source.list_url)}
-            for source in sources]
+    result, seen = [], set()
+    for source in sources:
+        board_id = _public_source_id(source.id)
+        if board_id in seen:
+            raise ValueError("하이픈으로 바꾼 공개 출처 ID가 중복됩니다")
+        seen.add(board_id)
+        result.append({"id": board_id, "name": _clean(source.name, MAX_SHORT_CHARS)[0], "list_url": _safe_url(source.list_url)})
+    return result
+
+
+def _public_source_id(value: str) -> str:
+    if not isinstance(value, str) or not SOURCE_ID_PATTERN.fullmatch(value):
+        raise CardExportError("출처 id 형식이 다름")
+    return value.replace("_", "-")
 
 
 def write_cards_json(path: Path, data: dict) -> None:
@@ -679,7 +692,7 @@ def _evidence(raw, notices: list[dict], context: _CardContext) -> tuple[list[dic
 
 def _checked_notices(raw: list) -> list[dict]:
     """출처 공지 검사. 근거 번호가 이 순서를 가리키므로, 하나라도 틀리거나 순서가 어긋나면 카드를 뺀다."""
-    notices = []
+    notices, board_ids = [], {}
     for number, notice in enumerate(raw, start=1):
         if not isinstance(notice, dict):
             raise CardExportError(f"출처 공지 {number}번 형식")
@@ -688,9 +701,20 @@ def _checked_notices(raw: list) -> list[dict]:
         source_id = notice.get("source_id")
         if not _is_real_date(posted) or not url or not isinstance(source_id, str) or not SOURCE_ID_PATTERN.fullmatch(source_id):
             raise CardExportError(f"출처 공지 {number}번의 게시일·주소·출처 id")
+        board_id = _public_source_id(source_id)
+        if board_id in board_ids and board_ids[board_id] != source_id:
+            raise CardExportError("하이픈으로 바꾼 공개 출처 ID가 중복됩니다")
+        board_ids[board_id] = source_id
+        last_seen = notice.get("last_seen_at")
+        if last_seen is not None:
+            try:
+                _check_generated_at(last_seen)
+            except (ValueError, TypeError):
+                raise CardExportError(f"출처 공지 {number}번의 마지막 확인 시각") from None
         files = notice.get("files") if isinstance(notice.get("files"), list) else []
-        notices.append({"board_id": source_id, "url": url, "title": _clean(notice.get("title"), MAX_TITLE_CHARS)[0],
-                        "posted_at": posted, "files": {_clean(name, MAX_SHORT_CHARS)[0] for name in files if isinstance(name, str)}})
+        notices.append({"board_id": board_id, "url": url, "title": _clean(notice.get("title"), MAX_TITLE_CHARS)[0],
+                        "posted_at": posted, "last_seen_at": last_seen,
+                        "files": {_clean(name, MAX_SHORT_CHARS)[0] for name in files if isinstance(name, str)}})
     order = [(notice["posted_at"], notice["board_id"]) for notice in notices]
     if order != sorted(order):
         raise CardExportError("출처 공지 순서가 AI 입력 순서(게시일 이른 것부터, 같은 날이면 출처 id순)와 다름")

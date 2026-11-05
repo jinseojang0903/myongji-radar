@@ -13,6 +13,8 @@ from unittest import mock
 
 from collector.config import load_sources
 from collector.rules import analyze_notice
+from collector.models import Notice
+from collector.repository import Repository
 from exporter.__main__ import read_bundles
 from exporter.cards import boards_from_sources, build_cards_json
 from extractor import claude as claude_cli
@@ -109,6 +111,37 @@ class DailyExtractTests(unittest.TestCase):
             fake = FakeRun()
             self.run_cli(fake, "--model", "opus")
         self.assertEqual(len(fake.calls), 3, "프롬프트 파일이 바뀌면 다시 뽑는다")
+
+    def test_daily_persists_models_before_cache_is_overwritten(self):
+        repo = Repository(self.folder)
+        try:
+            for original in self.notices:
+                repo.save(Notice(**{key: original[key] for key in
+                                   ("source_id", "external_id", "url", "title", "published_at", "body_text", "images", "attachments")}),
+                          b"original")
+            repo.export(self.folder / "notices.json")
+            self.notices = json.loads((self.folder / "notices.json").read_text(encoding="utf-8"))["notices"]
+            self.write_inputs()
+            self.assertEqual(self.run_cli(FakeRun())[0], 0)
+            self.assertEqual(self.run_cli(FakeRun(), "--model", "opus")[0], 0)
+            fake = FakeRun()
+            self.assertEqual(self.run_cli(fake, "--model", "opus")[0], 0)
+            self.assertEqual(fake.calls, [])
+            self.assertEqual(repo.db.execute("SELECT model, COUNT(*) FROM analyses GROUP BY model ORDER BY model").fetchall(),
+                             [("opus", 2), ("sonnet", 2)])
+            self.assertEqual({row[0] for row in repo.db.execute("SELECT DISTINCT model_id FROM analyses")}, {"claude-haiku-test"})
+            exported = self.bundles()[0]["notices"][0]
+            self.assertIsNotNone(exported["last_seen_at"])
+        finally:
+            repo.close()
+
+    def test_same_version_with_changed_parser_input_is_extracted_again(self):
+        self.run_cli(FakeRun())
+        self.notices[0]["body_text"] += " 신청마감 변경"
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake)
+        self.assertEqual((code, len(fake.calls)), (0, 2), "원문 판 번호가 같아도 파서 입력이 바뀌면 확인 호출+재추출")
 
     def test_broken_failure_records_are_ignored(self):
         cache = self.folder / "extractions"

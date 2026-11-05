@@ -39,7 +39,10 @@
 | `deadline_history` | Change[] | 마감 변경 이력 (없으면 빈 배열) |
 | `meta` | object | `prompt_version`, `extract_model`, `cross_model`, `checked_at` |
 
-**Source:** `{ "board_id", "url", "title", "posted_at": "YYYY-MM-DD" }`
+**Source:** `{ "board_id", "url", "title", "posted_at": "YYYY-MM-DD", "last_seen_at": "시간대 있는 ISO 8601 시각 | null" }`
+
+- 공개 `boards[].id`와 `sources[].board_id`는 영문 소문자·숫자·하이픈 1~40자다. 기존 수집 설정·DB의 `mju_ctl` 같은 ID는 보존하고 공개 시 `mju-ctl`로 바꾼다. 두 내부 ID가 같은 공개 ID가 되면 설정을 고쳐야 한다.
+- `last_seen_at`은 해당 공지를 마지막으로 성공적으로 확인한 시각이다. 원문 변경·분석 시각과 다르며, 과거 JSON만 있어 확인 시각을 모르면 `null`이다. 화면은 선택 정보로 취급한다.
 
 파이프라인은 `pipeline/exporter`가 이 형식으로 내보낸다(#17: 계약 키만, 근거 200자·값 300자·항목당 근거 5개·카드당 근거 1,500자 상한, 링크는 화면 `safeUrl`과 같은 https·허용 도메인만, 개인 연락처 가림. 상세는 `pipeline/README.md`). 화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 더 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
 
@@ -63,6 +66,14 @@
 | `needs_check` | 원문 확인 필요 | 검증 실패, 정보 충돌, 해석 애매 |
 | `human_verified` | 검수 완료 | 팀이 원문과 대조 |
 | `missing` | 정보 없음 | 공지에 없음 (`value`는 null) |
+
+### 내부 분석 저장 (`pipeline/data/collector.sqlite3`, 비공개)
+
+`analyses`는 `notice_versions.id`를 외래 키로 갖는 분석 이력이다. 생성기 종류(`rule`/`ai`), 생성기 버전, 요청 모델과 실제 모델, 프롬프트 버전·지문, 입력 본문 해시, 결과 JSON, 실행 시각을 저장한다. 같은 원문 판·생성기·설정·결과를 다시 저장하면 중복을 만들지 않는다. 모델·프롬프트·규칙·원문이 바뀐 분석과 같은 설정으로 다시 추출한 다른 결과는 함께 남긴다. 파서 재해석으로 같은 원문 버전의 텍스트가 바뀌어도 입력 해시로 구분한다. 기존 DB는 버전·원문을 지우지 않고 스키마 v3로 자동 이전한다.
+
+규칙 엔진의 내부 상태는 호환성을 위해 유지한다. `extracted`는 계약의 `ai`(자동 추출·검증 전), `needs_review`는 `needs_check`, `not_stated`는 `missing`으로 대응한다. 규칙 필드에는 이를 `contract_status`로 함께 기록한다. 이 대응은 **상태만** 바꾼다. 규칙의 `mentions`를 허용 조건으로 바꾸거나 필드 이름·값 형식을 AI 카드와 같다고 보지 않는다. 규칙 분석만으로 공개 카드를 만들지 않는다.
+
+AI v0.2의 `found`는 검증 전 `ai`, `needs_check`·`conflict`는 `needs_check`, `missing`은 `missing`이다. 검증기·사람 검수만 `auto_verified`·`human_verified`로 올릴 수 있다. 기존 `analysis.json`·추출 캐시는 실행 호환용으로 계속 만들며, DB가 없는 JSON 전용 시험 입력은 DB를 새로 만들지 않는다. 모델 비교용 `extractor eval`의 다중 공지 결과는 기존 평가 폴더에 남긴다(공지 하나에 잘못 연결하지 않는다).
 
 **핵심 항목 규칙:** `apply`(신청기간)와 자격 항목(`campus`, `grades`, `enrollment`, `team`)은 `human_verified`가 아니면 화면에 **확인 전**으로 표시한다.
 

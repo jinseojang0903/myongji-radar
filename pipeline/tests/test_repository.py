@@ -210,7 +210,7 @@ class RepositoryTests(unittest.TestCase):
             before = db.execute("SELECT id, payload_json, raw_path, collected_at FROM notice_versions ORDER BY id").fetchall()
         repo = Repository(self.data)
         try:
-            self.assertEqual(repo.db.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(repo.db.execute("PRAGMA user_version").fetchone()[0], 3)
             self.assertEqual(repo.db.execute("SELECT id, payload_json, raw_path, collected_at FROM notice_versions ORDER BY id").fetchall(), before)
             rows = repo.db.execute("SELECT content_hash, payload_json FROM notice_versions ORDER BY id").fetchall()
             self.assertEqual([row[0] for row in rows], [content_hash(json.loads(row[1])) for row in rows])

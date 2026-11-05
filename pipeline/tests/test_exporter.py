@@ -105,9 +105,9 @@ def fixture_bundles():
 
 
 FIXTURE_BOARDS = [
-    {"id": "mju_ctl", "name": "명지대학교 교수학습센터", "list_url": None},
-    {"id": "mju_general", "name": "명지대학교 일반공지", "list_url": None},
-    {"id": "mju_innovation", "name": "대학혁신지원사업", "list_url": "https://innov.mju.ac.kr/innovation/1/subview.do"},
+    {"id": "mju-ctl", "name": "명지대학교 교수학습센터", "list_url": None},
+    {"id": "mju-general", "name": "명지대학교 일반공지", "list_url": None},
+    {"id": "mju-innovation", "name": "대학혁신지원사업", "list_url": "https://innov.mju.ac.kr/innovation/1/subview.do"},
 ]
 
 
@@ -120,7 +120,7 @@ class ExporterContractTests(unittest.TestCase):
             self.assertLessEqual(set(item), CONTRACT_FIELD_KEYS, name)
         self.assertEqual(card["title"], EXAMPLE["fields"]["title"]["value"])
         self.assertEqual(card["scope"], "교내")
-        self.assertEqual(card["sources"], [{"board_id": "mju_ctl", "url": NOTICE["url"], "title": NOTICE["title"], "posted_at": "2026-09-29"}])
+        self.assertEqual(card["sources"], [{"board_id": "mju-ctl", "url": NOTICE["url"], "title": NOTICE["title"], "posted_at": "2026-09-29", "last_seen_at": None}])
         self.assertEqual(card["fields"]["apply"]["value"], {"start": "2026-10-01", "end": "2026-10-21 15:00", "time_given": True})
         self.assertEqual(card["fields"]["apply"]["status"], "ai", "검증 전 항목은 ai")
         evidence = card["fields"]["apply"]["evidence"][0]
@@ -515,6 +515,19 @@ class ExporterSafetyTests(unittest.TestCase):
             with self.assertRaises(CardExportError, msg=source_id):
                 build_card(bundle(notices=[dict(NOTICE, source_id=source_id)]))
 
+    def test_last_seen_is_preserved_and_public_source_ids_are_hyphenated(self):
+        last_seen = "2026-11-05T12:00:00+00:00"
+        card = build_card(bundle(notices=[dict(NOTICE, last_seen_at=last_seen)]))
+        self.assertEqual(card["sources"][0]["last_seen_at"], last_seen)
+        self.assertEqual(card["sources"][0]["board_id"], "mju-ctl")
+        for invalid in ("2026-11-05", "2026-11-05T12:00:00", "not-a-time", 2026):
+            with self.subTest(invalid=invalid), self.assertRaises(CardExportError):
+                build_card(bundle(notices=[dict(NOTICE, last_seen_at=invalid)]))
+        sources = [type("Source", (), {"id": source_id, "name": "시험", "list_url": ""})
+                   for source_id in ("mju_ctl", "mju-ctl")]
+        with self.assertRaisesRegex(ValueError, "중복"):
+            boards_from_sources(sources)
+
     def test_broken_bundles_are_rejected_one_by_one(self):
         no_title = example_fields()
         no_title["title"]["value"] = ""
@@ -581,8 +594,8 @@ class ExporterSafetyTests(unittest.TestCase):
                           title_selector="", body_selector="", attachment_selector=""),
                    Source(id="mju_innovation", name="혁신", adapter="k2web", rss_url="", allowed_hosts=[], title_selector="",
                           body_selector="", attachment_selector="", list_url="https://innov.mju.ac.kr/list")]
-        self.assertEqual(boards_from_sources(sources), [{"id": "mju_general", "name": "일반공지", "list_url": None},
-                                                        {"id": "mju_innovation", "name": "혁신", "list_url": "https://innov.mju.ac.kr/list"}])
+        self.assertEqual(boards_from_sources(sources), [{"id": "mju-general", "name": "일반공지", "list_url": None},
+                                                        {"id": "mju-innovation", "name": "혁신", "list_url": "https://innov.mju.ac.kr/list"}])
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "site" / "data" / "cards.json"
             write_cards_json(path, {"cards": []})

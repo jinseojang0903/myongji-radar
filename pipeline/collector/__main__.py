@@ -1,5 +1,6 @@
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -48,7 +49,7 @@ def main(argv=None, *, lock_held=False):
     if args.command == "analyze":
         try:
             summary = analyze_file(args.data_dir / "notices.json", args.rules, args.data_dir)
-        except (ValueError, OSError, KeyError) as exc:
+        except (ValueError, OSError, KeyError, sqlite3.Error) as exc:
             parser.exit(1, f"분석 실패: {exc}\n")
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         print(f"검수용 JSON: {args.data_dir / 'analysis.json'}")

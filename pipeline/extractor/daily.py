@@ -6,7 +6,7 @@
 - 후보: 규칙 분석이 활동 후보(candidate)로 보고 유형에 대회·해커톤이 있는 공지. 결과·취소 공지는 뺀다 (결과 공지는
   명단이 AI로 가지 않게 #14 완료 기준. 내보내기도 결과·취소 공지로는 카드를 만들지 않는다). 취소 공지는 사람이 원래
   모집 카드를 확인하도록 목록으로 알린다. 분석과 원문의 판이 다르거나 게시일이 없는 공지는 부르기 전에 뺀다.
-- **공지 하나 = 카드 하나:** 같은 대회의 여러 공지를 묶는 일(#16)과 분석 저장(#13) 전까지의 임시 방식 (#29의 대안).
+- **공지 하나 = 카드 하나:** 같은 대회의 여러 공지를 묶는 일(#16) 전까지의 임시 방식 (#29의 대안).
   카드 id는 출처 id + 게시판 글 번호라 날마다 같다. 연장 공지는 원래 모집 카드와 별도 카드가 된다 (#16에서 묶는다).
 - 같은 공지 판(version_id)을 같은 모델·프롬프트(지문)로 이미 뽑았으면 다시 부르지 않는다 (`data/extractions/<카드 id>.json`).
   새 글·바뀐 글만 부르고, 한 번에 `--max-new`(기본 30)개까지.
@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 from collector.config import load_sources
+from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
                               write_json)
@@ -117,12 +118,13 @@ def read_cache(cache_dir: Path, card_id: str, notice: dict) -> dict | None:
 
 def is_same_version(entry: dict | None, notice: dict) -> bool:
     """지금 원문과 같은 판에서 뽑은 결과인지 (모델·프롬프트는 달라도). 묶음에는 같은 판의 결과만 넣는다."""
-    return entry is not None and entry.get("version_id") is not None and entry.get("version_id") == notice.get("version_id")
+    return (entry is not None and entry.get("version_id") is not None
+            and entry.get("version_id") == notice.get("version_id") and entry.get("input_hash") == content_hash(notice))
 
 
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str) -> bool:
     """같은 판을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
-    return (entry is not None and entry.get("version_id") == notice.get("version_id") and entry.get("model") == model
+    return (is_same_version(entry, notice) and entry.get("model") == model
             and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint)
 
 
@@ -131,6 +133,7 @@ def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
     return {"card_id": card_id,
             "notices": [{"source_id": notice.get("source_id"), "url": notice.get("url"), "title": notice.get("title"),
                          "published_at": notice.get("published_at"),
+                         "last_seen_at": notice.get("last_seen_at"),
                          "files": []}],  # 이미지·첨부를 AI에 넣지 않으므로(#12 전) 근거 파일 이름도 없다
             "extraction": entry["output"],
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)
@@ -181,6 +184,8 @@ def run_daily(args) -> int:
             if completed and stopped is None:  # 멈추거나 예외로 끝나면 묶음을 덮어쓰지 않는다 (어제 묶음이 남는다)
                 entries = [(item, read_cache(args.cache, item["card_id"], item["notice"])) for item in candidates]
                 kept = [(item, entry) for item, entry in entries if is_same_version(entry, item["notice"])]
+                for item, entry in kept:
+                    _persist_entry(args.notices.parent, item["notice"], entry)
                 meta["bundles"] = len(kept)
                 meta["stale_bundles"] = sum(not is_current(entry, item["notice"], args.model, fingerprint) for item, entry in kept)
                 meta["waiting_new_version"] = sum(entry is not None and not is_same_version(entry, item["notice"]) for item, entry in entries)
@@ -250,12 +255,28 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
         last_errors = []
         failures.pop(card_id, None)
         add_usage(meta, result.usage, result.cost_usd, result.models, succeeded=True)
-        write_json(args.cache / f"{card_id}.json",
-                   {"source_id": notice.get("source_id"), "external_id": notice.get("external_id"),
+        entry = {"source_id": notice.get("source_id"), "external_id": notice.get("external_id"),
                     "version_id": notice.get("version_id"), "model": args.model,
                     "model_id": result.models[0] if result.models else None, "prompt_version": PROMPT_VERSION,
-                    "prompt_fingerprint": fingerprint, "extracted_at": now_text(), "output": result.output})
+                    "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice),
+                    "extracted_at": now_text(), "output": result.output}
+        _persist_entry(args.notices.parent, notice, entry)
+        write_json(args.cache / f"{card_id}.json", entry)
         print(f"[뽑음] {card_id} ({result.seconds:.0f}초)", file=sys.stderr)
+
+
+def _persist_entry(data_dir: Path, notice: dict, entry: dict) -> None:
+    """운영 DB가 있으면 성공한 분석을 캐시 덮어쓰기 전에 보관한다. JSON 전용 시험은 DB를 만들지 않는다."""
+    if not (data_dir / "collector.sqlite3").exists():
+        return
+    repo = Repository(data_dir)
+    try:
+        repo.save_analyses([{"notice": notice, "generator_kind": "ai", "generator_version": entry["prompt_version"],
+                             "model": entry.get("model"), "model_id": entry.get("model_id"),
+                             "prompt_version": entry["prompt_version"], "prompt_fingerprint": entry["prompt_fingerprint"],
+                             "result": entry["output"], "created_at": entry.get("extracted_at")}])
+    finally:
+        repo.close()
 
 
 def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str) -> int:

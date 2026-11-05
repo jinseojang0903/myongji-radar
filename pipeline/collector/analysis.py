@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .rules import analyze_notice
+from .repository import Repository
 
 
 def analyze_file(input_path: Path, rules_path: Path, output_dir: Path):
@@ -27,6 +28,16 @@ def analyze_file(input_path: Path, rules_path: Path, output_dir: Path):
               "engine_sha256": hashlib.sha256(Path(__file__).with_name("rules.py").read_bytes()).hexdigest(),
               "input_sha256": hashlib.sha256(input_bytes).hexdigest(),
               "analyzed_at": datetime.now(timezone.utc).isoformat(), "summary": summary, "notices": result}
+    # DB를 가진 운영 입력만 버전에 연결한다. JSON만으로 돌리는 오프라인 시험은 그대로 허용한다.
+    if (input_path.parent / "collector.sqlite3").exists():
+        repo = Repository(input_path.parent)
+        try:
+            repo.save_analyses([{"notice": notice, "generator_kind": "rule",
+                                 "generator_version": ":".join((config["version"], output["rules_sha256"], output["engine_sha256"])),
+                                 "result": analysis, "created_at": output["analyzed_at"]}
+                                for notice, analysis in zip(notices, result)])
+        finally:
+            repo.close()
     output_dir.mkdir(parents=True, exist_ok=True)
     target = output_dir / "analysis.json"
     temp = target.with_suffix(".json.tmp")

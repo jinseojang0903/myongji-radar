@@ -5,7 +5,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_VERSION = 2
+DB_VERSION = 3
 
 
 def now() -> str:
@@ -46,8 +46,10 @@ class Repository:
                     id INTEGER PRIMARY KEY, started_at TEXT NOT NULL,
                     finished_at TEXT, result_json TEXT);
             """)
-            if version < DB_VERSION:
+            if version < 2:
                 self._migrate_content_hashes()
+            if version < 3:
+                self._migrate_analyses()
         except Exception:
             self.db.close()
             raise
@@ -67,7 +69,54 @@ class Repository:
                 ORDER BY v.id DESC LIMIT 1)
                 WHERE EXISTS (SELECT 1 FROM notice_versions v WHERE v.source_id=notices.source_id
                     AND v.external_id=notices.external_id)""")
-            self.db.execute(f"PRAGMA user_version={DB_VERSION}")
+            self.db.execute("PRAGMA user_version=2")
+
+    def _migrate_analyses(self):
+        with self.db:
+            self.db.execute("BEGIN")
+            self.db.execute("""CREATE TABLE IF NOT EXISTS analyses (
+                id INTEGER PRIMARY KEY,
+                notice_version_id INTEGER NOT NULL REFERENCES notice_versions(id),
+                generator_kind TEXT NOT NULL CHECK(generator_kind IN ('rule', 'ai')),
+                generator_version TEXT NOT NULL, model TEXT NOT NULL, model_id TEXT NOT NULL,
+                prompt_version TEXT NOT NULL, prompt_fingerprint TEXT NOT NULL,
+                input_hash TEXT NOT NULL, result_hash TEXT NOT NULL,
+                result_json TEXT NOT NULL, created_at TEXT NOT NULL,
+                UNIQUE(notice_version_id, generator_kind, generator_version, model, model_id,
+                       prompt_version, prompt_fingerprint, input_hash, result_hash))""")
+            self.db.execute("CREATE INDEX IF NOT EXISTS idx_analyses_version ON analyses(notice_version_id, id DESC)")
+            self.db.execute("PRAGMA user_version=3")
+
+    def save_analyses(self, records: list[dict]) -> list[int]:
+        """분석 묶음을 같은 트랜잭션에 보존한다. 다른 공지·본문 판에 연결하면 전부 거절한다."""
+        ids = []
+        with self.db:
+            for record in records:
+                notice = record["notice"]
+                version_id = notice["version_id"]
+                if type(version_id) is not int or version_id < 1:
+                    raise ValueError("분석할 공지 버전 ID가 올바르지 않습니다")
+                row = self.db.execute("SELECT source_id, external_id, payload_json FROM notice_versions WHERE id=?",
+                                      (version_id,)).fetchone()
+                input_hash = content_hash(notice)
+                if (row is None or row[:2] != (notice["source_id"], notice["external_id"])
+                        or content_hash(json.loads(row[2])) != input_hash):
+                    raise ValueError("분석 입력과 저장된 공지 버전이 다릅니다. export와 analyze를 다시 실행하세요.")
+                kind, version = record["generator_kind"], record["generator_version"]
+                if kind not in ("rule", "ai") or not isinstance(version, str) or not version:
+                    raise ValueError("분석 생성기 종류 또는 버전이 올바르지 않습니다")
+                encoded = json.dumps(record["result"], ensure_ascii=False, sort_keys=True, allow_nan=False)
+                result_hash = hashlib.sha256(encoded.encode()).hexdigest()
+                key = (version_id, kind, version, record.get("model") or "", record.get("model_id") or "",
+                       record.get("prompt_version") or "", record.get("prompt_fingerprint") or "", input_hash, result_hash)
+                self.db.execute("""INSERT INTO analyses(notice_version_id, generator_kind, generator_version,
+                    model, model_id, prompt_version, prompt_fingerprint, input_hash, result_hash, result_json, created_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING""",
+                                (*key, encoded, record.get("created_at") or now()))
+                ids.append(self.db.execute("""SELECT id FROM analyses WHERE notice_version_id=? AND generator_kind=?
+                    AND generator_version=? AND model=? AND model_id=? AND prompt_version=? AND prompt_fingerprint=?
+                    AND input_hash=? AND result_hash=?""", key).fetchone()[0])
+        return ids
 
     def start_run(self):
         with self.db:
@@ -151,11 +200,12 @@ class Repository:
         return "new" if previous is None else "changed" if changed else "unchanged"
 
     def export(self, path: Path):
-        rows = self.db.execute("""SELECT v.payload_json, v.id, v.collected_at FROM notice_versions v
+        rows = self.db.execute("""SELECT v.payload_json, v.id, v.collected_at, n.last_seen_at FROM notice_versions v
+            JOIN notices n ON n.source_id=v.source_id AND n.external_id=v.external_id
             WHERE v.id=(SELECT MAX(v2.id) FROM notice_versions v2
                 WHERE v2.source_id=v.source_id AND v2.external_id=v.external_id)
             ORDER BY v.source_id, v.external_id""")
-        result = [{**json.loads(row[0]), "version_id": row[1], "collected_at": row[2]} for row in rows]
+        result = [{**json.loads(row[0]), "version_id": row[1], "collected_at": row[2], "last_seen_at": row[3]} for row in rows]
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps({"schema_version": 1, "notices": result}, ensure_ascii=False, indent=2), encoding="utf-8")

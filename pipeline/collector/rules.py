@@ -19,7 +19,9 @@ class TextView:
 
 
 def field(value=None, evidence=None, status=None, reason=None):
-    return {"value": value, "status": status or ("extracted" if value is not None else "not_stated"),
+    state = status or ("extracted" if value is not None else "not_stated")
+    return {"value": value, "status": state,
+            "contract_status": {"extracted": "ai", "needs_review": "needs_check", "not_stated": "missing"}[state],
             "evidence": evidence or [], "reason": reason}
 
 
