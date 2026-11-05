@@ -117,7 +117,9 @@ class CardBundle:
     extraction: AI 출력 그대로. 글은 AI 입력처럼 HTML 이스케이프(&amp; 등)된 상태여도 되고, 내보낼 때 되돌린다.
         사람이 값을 고쳤으면 고친 값을 extraction에 반영해서 넘긴다.
     statuses: 항목 이름 → 검증 결과. {"status": "auto_verified" | "human_verified" | "needs_check",
-        "checked_value": 검증한 v0.2 값, "note": 이유, "evidence_failed": 근거를 원문에서 못 찾았으면 true}.
+        "checked_value": 검증한 v0.2 값, "note": 이유, "evidence_failed": 근거를 원문에서 못 찾았으면 true,
+        "by": 쓴 도구 (검증기는 "verifier"), "checked_evidence": 사람이 검수한 근거 (verifier.checks.evidence_fingerprint)}.
+        사람 검수 기록만 이 밖에서 넣는다 (AI 출력에서 채우지 않는다).
         검증 통과는 checked_value가 지금 extraction 값과 같을 때만 쓴다 (재추출로 값이 바뀌면 "ai"로 내림).
         "needs_check" 문자열만 줘도 된다. 항목이 없으면 "ai"(검증 전).
     deadline_history: #16의 마감 변경 이력 (계약 Change). 형식이 틀린 항목은 빼고 경고한다.
@@ -168,6 +170,10 @@ def build_card(bundle: CardBundle, warnings: list[str] | None = None) -> dict:
         if flag != "found":
             # 계약상 최상위 값이라 원문 확인 필요를 표시할 자리가 없어 보고로 알린다
             warnings.append(f"{name}의 flag가 {_short(flag)}인데 확정 값처럼 공개됨")
+        verification = bundle.statuses.get(name)
+        if isinstance(verification, dict) and verification.get("evidence_failed") is True:
+            # 최상위 값은 근거를 공개하지 않지만, 근거를 지어냈다면 값도 의심스럽다 (#15)
+            warnings.append(f"{name}의 근거를 원문에서 찾지 못했는데 확정 값처럼 공개됨")
 
     has_warnings = isinstance(extraction.get("warnings"), list) and len(extraction["warnings"]) > 0
     context = _CardContext()
