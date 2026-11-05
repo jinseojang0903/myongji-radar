@@ -39,8 +39,8 @@ python -m venv .venv
 
 수집하려면 `.\launcher.bat run`, 저장된 공지를 규칙으로 분석하려면 `.\launcher.bat analyze`를 실행한다. 수집은 발견한 목록에서 출처별 최대 50건을 처리하며 새 글을 우선한다. 빠른 시험은 BAT 메뉴 1번(3건) 또는 `.\.venv\Scripts\python.exe -m collector run --limit 3`으로 제한한다. 전체 실행은 출처·응답 속도에 따라 몇 분이 걸릴 수 있다.
 
-현재 등록 출처는 7곳이며 전체 목표 11곳으로 확장 중이다. 예약 실행은 아직 구현 전이다. RSS 최근 목록과 HTML 첫 페이지 밖의 과거 공지까지 탐색하는 기능은 아직 없다.
+현재 목표로 한 공개 게시판 11곳을 모두 등록했고, 추가한 4곳은 각각 5건의 상세 파싱을 확인했다. 예약 실행은 아직 구현 전이다. RSS 최근 목록과 HTML 첫 페이지 밖의 과거 공지까지 탐색하는 기능은 아직 없다.
 
-자세한 실행법과 기존 환경 이동 방법은 [pipeline/README.md](pipeline/README.md), 추가할 4곳은 [출처 추가 대상](docs/collector/출처_추가대상.md)을 참고한다. 출처 설정은 `pipeline/config/sources.toml` 한 곳에서만 관리한다.
+자세한 실행법과 기존 환경 이동 방법은 [pipeline/README.md](pipeline/README.md), 추가한 4곳의 등록·검증 결과는 [출처 추가 기록](docs/collector/출처_추가대상.md)을 참고한다. 출처 설정은 `pipeline/config/sources.toml` 한 곳에서만 관리한다.
 
 사이트 JS 테스트는 저장소 루트에서 `node --test "tests/*.test.js"`로 실행할 수 있다. 데이터 형식은 [데이터 계약](docs/api-contract.md)을 따른다.
