@@ -186,7 +186,7 @@ def run_eval(args) -> int:
     meta["claude_version"] = claude_cli.version(claude)
     meta["account"] = "env" if in_use else "login"
     try:
-        if _needs_calls(args, selected, outputs):
+        if _needs_calls(args, selected, outputs, originals, duplicated):
             _probe(args, claude, ledger, meta)
         failed = _extract_all(args, selected, originals, duplicated, claude, ledger, meta, outputs, logs)
     except StopRun as stop:
@@ -202,8 +202,10 @@ def run_eval(args) -> int:
     return 1 if failed else 0
 
 
-def _needs_calls(args, selected, outputs) -> bool:
-    return any(args.force or not (outputs / f"{contest_id}.json").exists() for contest_id in selected)
+def _needs_calls(args, selected, outputs, originals, duplicated) -> bool:
+    """실제로 부를 대회가 있는지 (출력이 없거나 --force이고, 수집 원문 문제가 없는 대회). 없으면 확인 호출도 하지 않는다."""
+    return any((args.force or not (outputs / f"{contest_id}.json").exists()) and not contest_input(rows, originals, duplicated)[1]
+               for contest_id, rows in selected.items())
 
 
 def _probe(args, claude, ledger, meta) -> None:
