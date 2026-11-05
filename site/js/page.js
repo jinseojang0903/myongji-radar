@@ -1,7 +1,7 @@
-// 화면 공통: 데이터 읽기 → 형식 검사 → 기준일 → 예시 안내, 읽기 실패 표시, 배지·D-day 요소.
+// 화면 공통: 데이터 읽기 → 형식 검사 → 기준일 → 예시 안내·오래된 정보 경고, 읽기 실패 표시, 배지·D-day 요소.
 // 홈(#21)·추천(#24)·상세(#25)·제작 기록(#26)이 같이 쓴다.
 import { el } from './html.js';
-import { validateCardData, referenceDate, ddayLabel, cardBadges } from './cards.js';
+import { validateCardData, referenceDate, ddayLabel, cardBadges, bannerText } from './cards.js';
 import { loadCardData } from './data.js';
 import { readSavedConditions, describeConditions } from './conditions.js';
 
@@ -24,8 +24,10 @@ export async function loadPage({ errorTarget, bannerTarget = document.getElement
     if (rejected.length > 0) console.warn('형식이 맞지 않아 뺀 카드·게시판', rejected);
     // 예시 파일을 읽었으면 파일 안의 표시와 상관없이 예시로 다룬다 (예시가 실제 데이터처럼 보이지 않게)
     const isSample = loaded.source === 'sample' || data.sample === true;
-    if (isSample && bannerTarget) {
-      bannerTarget.textContent = typeof data.sample_note === 'string' && data.sample_note !== '' ? data.sample_note : '예시 데이터입니다.';
+    // 예시 안내, 또는 실제 데이터가 오래됐으면(갱신이 멈춤) 경고
+    const banner = bannerText(data, new Date(), isSample);
+    if (banner && bannerTarget) {
+      bannerTarget.textContent = banner;
       bannerTarget.hidden = false;
     }
     return { data, now: referenceDate(data, new Date(), isSample), rejected, isSample };
