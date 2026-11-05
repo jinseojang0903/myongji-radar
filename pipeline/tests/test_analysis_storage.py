@@ -95,6 +95,26 @@ class AnalysisStorageTests(unittest.TestCase):
         self.assertEqual(current["version_id"], self.original["version_id"])
         self.assertEqual(current["collected_at"], self.original["collected_at"])
 
+    def test_download_metadata_refresh_reuses_analysis_but_file_changes_do_not(self):
+        image = {"url": "https://ctl.mju.ac.kr/poster.png", "alt": "포스터", "sha256": "a" * 64,
+                 "local_path": "assets/poster.png", "download_status": "downloaded", "text_status": "not_supported"}
+
+        def save_image(payload):
+            status = self.repo.save(replace(self.notice, images=[payload]), b"poster markup")
+            self.repo.export(self.data / "notices.json")
+            return status, json.loads((self.data / "notices.json").read_text(encoding="utf-8"))["notices"][0]
+
+        _, original = save_image(image)
+        analysis_id = self.repo.save_analyses([self.record(notice=original)])[0]
+        status, metadata_only = save_image({**image, "local_path": "assets/recovered.png", "text_status": "needs_review"})
+        self.assertEqual(status, "unchanged")
+        self.assertEqual(metadata_only["version_id"], original["version_id"])
+        self.assertEqual(self.repo.save_analyses([self.record(notice=metadata_only)]), [analysis_id])
+        status, new_file = save_image({**image, "sha256": "b" * 64})
+        self.assertEqual(status, "changed")
+        self.assertNotEqual(new_file["version_id"], original["version_id"])
+        self.assertNotEqual(self.repo.save_analyses([self.record(notice=new_file)])[0], analysis_id)
+
 
 if __name__ == "__main__":
     unittest.main()
