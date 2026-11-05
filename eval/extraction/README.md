@@ -4,7 +4,7 @@ AI 추출 결과(프롬프트 v0.2 형식)를 사람이 만든 정답표(`eval/a
 
 ```
 python eval/extraction/score.py eval/extraction/runs/<실행1> [<실행2> ...] --report eval/extraction/reports/<이름>.md
-python -m unittest discover -s eval/extraction    # 채점기 시험
+python -m unittest discover -s eval/extraction    # 채점기·기준선 변환기 시험
 ```
 
 ## 실행 폴더 (모델 하나 × 프롬프트 하나)
@@ -53,7 +53,29 @@ eval/extraction/runs/2026-11-06_sonnet_v0.2/
    - 판정은 판정할 때의 `ai` 값과 함께 저장된다. 다시 추출해 AI 값이 바뀌면 옛 판정을 쓰지 않고 다시 판정 전으로 돌린다.
 3. 판정자는 그 대회 정답표를 쓰지 않은 사람이 좋다. 판정 기준은 "학생이 이 값을 보고 같은 행동을 하는가".
 
+## 규칙 분석기 기준선
+
+"AI 없이 수집기 규칙만 쓰면 몇 점인가"를 AI 실행과 같은 표로 잰다.
+
+```
+.\pipeline\launcher.bat analyze   # 수집기가 pipeline/data/analysis.json을 만든다 (pipeline/README.md)
+python eval/extraction/rule_baseline.py pipeline/data/analysis.json eval/extraction/runs/<날짜>_rules
+python eval/extraction/score.py eval/extraction/runs/<날짜>_rules eval/extraction/runs/<AI 실행> --report ...
+```
+
+- 정답표 `sources.csv`의 URL로 대회와 공지를 잇는다. 대회의 공지 중 하나라도 `analysis.json`에 없거나 두 번 있으면(어느 판인지 모름) 그 대회는 출력하지 않는다 (출력 실패로 채점. 규칙 성능이 아니라 수집 누락을 재게 되므로).
+- 규칙 결과를 그대로 옮기고 없는 능력을 더하지 않는다.
+  - 참가 조건(campus·grades·enrollment·team): 규칙이 단어 언급만 찾고 허용·제외를 정하지 않으므로 값 없이 확인 필요.
+  - 신청 기간: 가장 늦게 기간을 적은 공지가 연장·변경 공지이고 규칙이 확정했으면 그 값(system.md 4절 (가)). 규칙이 확정하지 못한 공지(연도 없음·복수 일정)가 있으면 확인 필요. 같은 성격 공지끼리 다르면 conflict.
+  - kind: 가장 늦은 공지의 규칙 분류. 결과 발표 연기·미분류는 확인 필요.
+  - 이미지가 있는 공지에서 본문에 없으면 missing이 아니라 확인 필요 (이미지에 있을 수 있음).
+  - `is_contest`는 규칙 유형에 대회·해커톤이 있을 때만 true.
+- **규칙이 다루는 항목만 채점한다:** kind, apply, campus, grades, enrollment, team (`meta.json`의 `scored_items`). 다루지 않는 항목을 missing으로 내면 정답도 missing인 칸에서 공짜 정답을 얻어 기준선이 부풀기 때문이다. stages도 뺀다(규칙은 일정표를 읽지 못해 단계 목록이 완전한지 모른다). 그래서 전체 정확도는 분모가 달라 비교하지 않고, 중요 항목 줄과 항목별 줄로 비교한다.
+- **확인 필요 비율과 같이 읽는다:** 값 없이 확인 필요로 두면 정답이 missing·확인 필요인 칸은 정답이 된다(AI도 같은 규칙). 규칙 기준선은 조건을 거의 다 보류하므로 정확도만 보면 안 된다.
+- 출력은 채점용 부분 형식이다: 규칙이 다루는 항목만 있고, 근거 인용은 공백을 정리해 원문과 글자 단위로 같지 않다. 스키마 검증이나 내보내기 입력으로 쓰지 않는다.
+- 같은 실행 폴더로 다시 변환하면 옛 출력을 지운다. 규칙 기준선 폴더가 아니면(AI 실행 등) 덮어쓰지 않고 멈춘다.
+
 ## 남은 것
 
-- 규칙 분석기 기준선(#9 완료 기준): 수집기 규칙 분석 결과(`analysis.json`)를 같은 형식으로 바꾸는 변환기. 실제 추출을 돌릴 때 붙인다.
+- 규칙 기준선 실제 숫자: 수집을 돌려 `analysis.json`을 만들고 정답표(#41)가 머지된 뒤에.
 - 공개 API 단가로 월 비용 환산: 실행 기록의 토큰 수가 필요해 #14 실행 뒤에.

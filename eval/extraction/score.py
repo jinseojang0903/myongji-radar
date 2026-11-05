@@ -431,6 +431,7 @@ def score_run(run_dir: Path, answer_key: AnswerKey, judgments: dict | None = Non
         except ValueError:
             warnings.append("meta.json을 읽지 못함 (모델 이름 없이 채점)")
     judgments = judgments if judgments is not None else read_judgments(run_dir.name, warnings=warnings)
+    scored_items = _scored_items(meta, warnings)
     results, failed = [], []
     for contest_id, truths in sorted(answer_key.contests.items()):
         if not truths:
@@ -439,7 +440,7 @@ def score_run(run_dir: Path, answer_key: AnswerKey, judgments: dict | None = Non
         if predicted is None:
             failed.append(contest_id)
             warnings.append(f"{contest_id}: 출력 실패 ({failure})")
-        for item in ITEMS:
+        for item in scored_items:
             if item not in truths:
                 continue
             guess = predicted.get(item) if predicted is not None else None
@@ -456,6 +457,23 @@ def score_run(run_dir: Path, answer_key: AnswerKey, judgments: dict | None = Non
     outputs = run_dir / "outputs"
     extra = sorted(path.stem for path in outputs.glob("*.json") if path.stem not in answer_key.contests) if outputs.exists() else []
     return RunScore(run_dir.name, meta, results, failed, extra, warnings)
+
+
+def _scored_items(meta: dict, warnings: list) -> list[str]:
+    """meta.json의 scored_items(규칙 기준선처럼 일부 항목만 다루는 실행)가 있으면 그 항목만 채점한다."""
+    requested = meta.get("scored_items")
+    if requested is None:
+        return ITEMS
+    if not isinstance(requested, list):
+        warnings.append("meta.json scored_items가 목록이 아니라 모든 항목을 채점")
+        return ITEMS
+    unknown = [item for item in requested if item not in ITEMS]
+    if unknown:
+        warnings.append(f"meta.json scored_items의 모르는 항목은 버림: {unknown}")
+    scored = [item for item in ITEMS if item in requested]
+    if not scored:
+        warnings.append("meta.json scored_items에 채점할 항목이 없음")
+    return scored
 
 
 def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list | None = None) -> dict:
@@ -553,6 +571,11 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey) -> str:
             str(summary["overall_auto"]["counts"].get(category, 0) + summary["overall_human"]["counts"].get(category, 0)) for summary in summaries) + " |")
     lines.append("| 확인 필요 비율 (자동 비교, 정답 found 중 과잉 보류) | " + " | ".join(
         _percent(summary["overall_auto"]["hold_ratio"]) for summary in summaries) + " |")
+    for summary in summaries:
+        scored = summary["meta"].get("scored_items")
+        if isinstance(scored, list):
+            lines.append(f"\n{_run_label(summary)}은 {', '.join(item for item in ITEMS if item in scored)}만 채점했다 "
+                         "(나머지 항목은 \"-\"). 전체 정확도는 다른 실행과 분모가 달라 항목별·중요 항목 줄로 비교한다.")
     lines += ["", "## 항목별 정확도", "", header, "|---|" + "---|" * len(summaries)]
     for item in ITEMS:
         marker = " (중요)" if item in KEY_ITEMS else (" (사람 판정)" if item in HUMAN_ITEMS else "")
