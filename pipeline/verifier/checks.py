@@ -30,7 +30,14 @@ YEAR_MARGIN = 1  # 게시 연도 ±1년 밖이면 의심 (연말 공지의 이�
 MIN_QUOTE_CHARS = 4  # 정규화 뒤 이보다 짧은 인용("3명", "전 학년")은 어디에나 들어맞아 코드로 확인했다고 볼 수 없다
 MAX_QUOTE_CHARS = 500  # 이보다 긴 인용은 정상 출력이 아니다 (내보내기는 200자까지 공개). 대조 비용도 막는다
 # 한글 인용이 이 글자 바로 뒤에서 시작하면 낱말 중간이다 ("가능합니다"가 "불가능합니다"에 맞지 않게)
-NEGATION_PREFIXES = set("불비미무")
+NEGATION_PREFIXES = set("불비미무부")
+# 부정 접두로 뜻이 뒤집히는 인용("가능합니다" ← "불가능합니다", "전공자 대상" ← "비전공자 대상")을 두 가지로 막는다 (#49):
+# 1) 낱말 경계: 부정 글자가 낱말의 첫 글자이고 인용이 그 바로 뒤에서 시작하면 (원문의 공백 위치로 판단. "참가비 지원"의
+#    "비"는 앞 낱말의 끝이라 해당 없음)
+# 2) 붙여 쓴 글("참가불가", "중복지원불가"): 낱말 경계로는 안 보이므로, 뜻이 뒤집히는 흔한 낱말로 시작하는 인용은
+#    부정 글자 바로 뒤면 막는다
+NEGATABLE_STARTS = ("가능", "필요", "해당", "허용", "참가", "참여", "제출", "신청", "인정", "지급", "포함", "대상", "선발", "공개",
+                    "합격", "선정", "등록", "접수", "승인", "충족", "완료", "동의", "필수", "이수", "적격", "적합", "제한")
 MAX_EVIDENCE = 50  # 항목당 근거 수 상한 (넘으면 실패: 대조 비용이 커지고 정상 출력이 아니다)
 KST = timezone(timedelta(hours=9))
 
@@ -44,11 +51,15 @@ FOLD = ({code: "~" for code in TILDE_CODES} | {code: "-" for code in DASH_CODES}
         | {code: '"' for code in DOUBLE_QUOTE_CODES} | {code: "'" for code in SINGLE_QUOTE_CODES}
         | {code: chr(0x00B7) for code in (DOT_CODES - PERIOD_CODES) | EXTRA_DOT_CODES}
         | {code: "." for code in PERIOD_CODES})
-SPACE_NOT_BETWEEN_DIGITS = re.compile(r"(?<!\d) | (?!\d)")
 DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def normalize(text: str) -> str:
+class Normalized(str):
+    """정규화한 글. word_starts[i]: i번째 글자가 원문에서 낱말의 첫 글자였는지 (공백을 지운 뒤에도 낱말 경계를 알 수 있게)."""
+    word_starts: tuple = ()
+
+
+def normalize(text: str) -> Normalized:
     """대조용 정규화. HTML 이스케이프를 풀고 NFKC, 보이지 않는 글자 제거, 기호 변형 통일, 영문 소문자.
 
     공백은 지우되 숫자와 숫자 사이의 공백은 하나 남긴다 ("10월 2\\n1." 이 "10월21."로 붙어 "10월 21"과 맞지 않게).
@@ -61,37 +72,58 @@ def normalize(text: str) -> str:
             kept.append(" ")
         elif ord(char) not in EXTRA_INVISIBLE_CODES and unicodedata.category(char) not in REMOVED_CATEGORIES:
             kept.append(char)
-    collapsed = re.sub(" +", " ", "".join(kept)).strip()
-    return SPACE_NOT_BETWEEN_DIGITS.sub("", collapsed).casefold()
+    collapsed = re.sub(" +", " ", "".join(kept)).strip().casefold()
+    chars, starts, previous = [], [], None
+    for index, char in enumerate(collapsed):
+        if char == " ":
+            if collapsed[index - 1].isdigit() and index + 1 < len(collapsed) and collapsed[index + 1].isdigit():
+                chars.append(" ")
+                starts.append(False)
+            previous = " "
+            continue
+        chars.append(char)
+        starts.append(previous is None or not previous.isalnum())  # 공백·문장부호 뒤면 낱말의 첫 글자
+        previous = char
+    result = Normalized("".join(chars))
+    result.word_starts = tuple(starts)
+    return result
 
 
 def contains_quote(source: str, quote: str) -> bool:
     """정규화한 원문에 정규화한 인용이 낱말을 자르지 않고 있는지.
 
     숫자로 시작·끝나는 인용은 숫자 경계를 지킨다 ("3명"이 "13명"에, "3"이 "3.5"·"100"이 "100,000"에 맞지 않게).
-    한글로 시작하는 인용은 부정 접두 글자 바로 뒤에서 시작하지 않는다 ("가능합니다"가 "불가능합니다"에 맞지 않게).
+    한글 인용은 낱말 첫머리의 부정 글자(불·비·미·무·부) 바로 뒤에서 시작하지 않는다 ("전공자 대상"이 "비전공자 대상"에).
+    붙여 쓴 글에서도 뜻이 뒤집히는 흔한 낱말로 시작하는 인용은 부정 글자 바로 뒤에서 시작하지 않는다 ("가능"이 "참가불가능"에).
+    source가 normalize()의 결과가 아니면(낱말 경계를 모름) 모든 한글 인용에 부정 글자 검사를 한다 (안전한 쪽).
     값과 인용이 맞는지는 보지 않는다 (교차 검증 몫).
     """
+    word_starts = getattr(source, "word_starts", None)
     start = source.find(quote)
     while start != -1:
         end = start + len(quote)
         before, after = source[max(0, start - 2):start], source[end:end + 2]
         is_cut_before = quote[0].isdigit() and _continues_number(before[::-1])
         is_cut_after = quote[-1].isdigit() and _continues_number(after)
-        is_mid_word = _is_hangul(quote[0]) and before[-1:] in NEGATION_PREFIXES
+        after_negation = before[-1:] in NEGATION_PREFIXES and _is_hangul(quote[0])
+        knows_words = word_starts is not None and len(word_starts) == len(source)
+        prefix_starts_word = not knows_words or word_starts[start - 1]
+        # 붙여 쓴 글 대비 규칙은 인용이 원문에서 낱말 중간에서 시작할 때만 ("참가비 접수 기간"의 "접수"는 띄어 쓴 새 낱말)
+        quote_starts_mid_word = not knows_words or not word_starts[start]
+        is_mid_word = after_negation and (prefix_starts_word or (quote_starts_mid_word and quote.startswith(NEGATABLE_STARTS)))
         if not (is_cut_before or is_cut_after or is_mid_word):
             return True
         start = source.find(quote, start + 1)
     return False
 
 
+def _is_hangul(char: str) -> bool:
+    return 0xAC00 <= ord(char) <= 0xD7A3
+
+
 def _continues_number(neighbor: str) -> bool:
     """인용 바로 옆(가까운 글자부터)이 숫자를 이어 가는지: 숫자, 또는 소수점·자릿점 뒤 숫자."""
     return bool(neighbor) and (neighbor[0].isdigit() or (neighbor[0] in ".," and neighbor[1:2].isdigit()))
-
-
-def _is_hangul(char: str) -> bool:
-    return 0xAC00 <= ord(char) <= 0xD7A3
 
 
 @dataclass
@@ -273,10 +305,12 @@ def _parse(text) -> date | None:
 def evidence_fingerprint(evidence) -> list:
     """사람 검수 기록(checked_evidence)과 비교할 근거 모양: (공지 번호, 위치, 파일, 정규화한 인용)을 정렬한 목록."""
     items = evidence if isinstance(evidence, list) else []
-    return sorted([item.get("notice"), item.get("location"), item.get("file"), normalize(item["quote"])]
+    # file이 None인 근거와 문자열인 근거가 섞여도 정렬되게 키에서 None을 ""로 본다 (#49)
+    return sorted(([item.get("notice"), item.get("location"), item.get("file"), normalize(item["quote"])]
                   for item in items if isinstance(item, dict) and isinstance(item.get("quote"), str)
                   and isinstance(item.get("notice"), int) and isinstance(item.get("location"), str)
-                  and (item.get("file") is None or isinstance(item.get("file"), str)))
+                  and (item.get("file") is None or isinstance(item.get("file"), str))),
+                  key=lambda entry: (entry[0], entry[1], entry[2] or "", entry[3]))
 
 
 def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) -> dict:
