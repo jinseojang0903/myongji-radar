@@ -312,3 +312,24 @@ JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 첨�
 5. 새 위치에서 `launcher.bat test`, `launcher.bat export`를 실행해 테스트와 기존 DB 내보내기를 확인한다. 기존 데이터가 있다면 이전 건수와 비교한다.
 
 기본 저장 위치는 `pipeline/data/`이며 `.gitignore`로 제외한다. `--data-dir`로 다른 비공개 경로를 지정할 수도 있다. 원문·DB·분석 결과는 저장소나 공개 사이트에 올리지 않는다.
+
+## 이미지·첨부 저장 (#12)
+
+기존 `collector run`과 BAT 수집 메뉴에서 이미지·첨부도 함께 내려받는다. 먼저 가상환경에서 `python -m pip install -r requirements.lock.txt`로 PDF·HWP 변환 의존성을 설치한다.
+
+```powershell
+# 저장소 루트가 아닌 pipeline 폴더에서 실행. 시험 데이터도 비공개 data 아래에 둔다.
+.\.venv\Scripts\python.exe -m collector run --source mju_general --limit 1 --data-dir data/asset-smoke
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_assets.py -v
+```
+
+`data/asset-smoke/notices.json`에서 `images`·`attachments`를 확인한다. `local_path` 파일은 지정한 data 폴더를 기준으로 열고, `text_status: extracted`이면 `text_path`를 열어 원문과 비교한다. `mju_general`이 설정에 없는 경우 `config/sources.toml`의 ID를 사용한다. 같은 URL의 파일 바이트가 바뀌면 `changed`, 같으면 `unchanged`다. 처음 파일 해시를 추가하는 기존 공지는 한 번 `changed`가 된다.
+
+- 허용 호스트와 리다이렉트 검증·호스트별 간격은 기존 `Fetcher.get`을 그대로 사용한다. 파일당 5MiB, 공지당 20개·총 20MiB 상한이다. 실행 내 중복 URL은 한 번 요청하며 다음 실행에는 다시 내려받아 변경을 확인한다.
+- 파일명이나 URL 경로를 로컬 경로에 쓰지 않는다. 원본은 `assets/<sha256>.bin`, 텍스트는 `asset_text/<sha256>.txt`에 원자적으로 저장한다. 파일 확장자를 믿지 않고 바이트 헤더로 변환 형식을 판별한다.
+- PDF(텍스트 문서), HWP 5(일반 본문), HWPX(본문 XML)를 지원한다. 변환은 빈 임시 폴더의 별도 Python 프로세스에서 15초 제한으로 실행한다. PDF 100쪽, HWP/HWPX 본문 확장 10MiB, 출력 20만 글자 상한이다. Windows에서 변환 프로세스의 메모리 상한은 별도로 강제하지 않는다.
+- 이미지 OCR, 스캔 PDF, 암호·배포용 HWP, 구형 HWP, 표·수식의 레이아웃 복원은 지원하지 않는다. `needs_review`와 사유를 남기므로 정보가 없다고 단정하면 안 된다. 추출 텍스트도 원문 검수 전이다.
+- 다운로드 실패는 본문/다른 첨부 저장 후 실행 오류로 보고한다(종료 코드 1, 일일 수집 후속 분석은 실행하지 않음). 이전 성공 파일을 보존하더라도 `download_status: failed`라면 현재 파일을 확인하지 못한 것이다. 다음 날 다시 확인하며 동일 실행은 기존 일일 1회 정책을 따른다.
+- 파일·텍스트·변환 임시 파일은 모두 data 아래이며 Git에 올리지 않는다. 이 변경은 AI 입력·첨부 근거 대조에 아직 연결하지 않는다. 수집 뒤 `notices.json`으로 로컬 확인하는 단계다. 기존 AI는 본문만 사용하므로 첨부 전용 공지는 계속 확인 필요다.
+
+변환 구현 참고: [pypdf 텍스트 추출과 한계](https://pypdf.readthedocs.io/en/stable/user/extract-text.html), [olefile API](https://olefile.readthedocs.io/en/stable/olefile.html), [한컴 HWP 5 공개 명세](https://cdn.hancom.com/link/docs/%ED%95%9C%EA%B8%80%EB%AC%B8%EC%84%9C%ED%8C%8C%EC%9D%BC%ED%98%95%EC%8B%9D_5.0_revision1.2.pdf).

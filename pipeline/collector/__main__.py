@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .adapters import ADAPTERS
 from .analysis import analyze_file
+from .assets import AssetCollector
 from .config import load_sources
 from .fetcher import Fetcher
 from .models import NoticeRef
@@ -55,6 +56,7 @@ def main(argv=None, *, lock_held=False):
         return 0
     repo = Repository(args.data_dir)
     fetcher = Fetcher()
+    assets = AssetCollector(args.data_dir, fetcher)
     failed = False
     try:
         if args.command == "run":
@@ -74,6 +76,9 @@ def main(argv=None, *, lock_held=False):
                         try:
                             html = fetcher.get(ref.url, source.allowed_hosts)
                             notice = adapter.parse_detail(html, ref, source)
+                            asset_errors = assets.enrich(notice, source.allowed_hosts,
+                                                         repo.latest_payload(source.id, ref.external_id))
+                            stats["errors"].extend(asset_errors)
                             def reparse_previous(old_html, old_payload):
                                 old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
                                                     old_payload["title"], old_payload["published_at"])

@@ -5,7 +5,7 @@ import requests
 
 
 class Fetcher:
-    """순차 요청, 호스트별 간격, 제한적 재시도. 첨부는 아직 다운로드하지 않는다."""
+    """HTML·첨부 공통: 순차 요청, 호스트별 간격, 제한적 재시도, 응답 5MB 상한."""
 
     def __init__(self, interval: float = 1.0):
         self.session = requests.Session()
