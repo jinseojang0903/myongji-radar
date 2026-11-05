@@ -528,6 +528,13 @@ class ExporterSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "중복"):
             boards_from_sources(sources)
 
+    def test_source_order_uses_original_ids_before_public_normalization(self):
+        originals = [dict(NOTICE, source_id="mju-b"), dict(NOTICE, source_id="mju_a", url=NOTICE["url"] + "?second=1")]
+        card = build_card(bundle(notices=originals))
+        self.assertEqual([source["board_id"] for source in card["sources"]], ["mju-a", "mju-b"])
+        with self.assertRaisesRegex(CardExportError, "순서"):
+            build_card(bundle(notices=list(reversed(originals))))
+
     def test_broken_bundles_are_rejected_one_by_one(self):
         no_title = example_fields()
         no_title["title"]["value"] = ""

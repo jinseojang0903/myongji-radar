@@ -692,7 +692,7 @@ def _evidence(raw, notices: list[dict], context: _CardContext) -> tuple[list[dic
 
 def _checked_notices(raw: list) -> list[dict]:
     """출처 공지 검사. 근거 번호가 이 순서를 가리키므로, 하나라도 틀리거나 순서가 어긋나면 카드를 뺀다."""
-    notices, board_ids = [], {}
+    notices, board_ids, order = [], {}, []
     for number, notice in enumerate(raw, start=1):
         if not isinstance(notice, dict):
             raise CardExportError(f"출처 공지 {number}번 형식")
@@ -701,6 +701,8 @@ def _checked_notices(raw: list) -> list[dict]:
         source_id = notice.get("source_id")
         if not _is_real_date(posted) or not url or not isinstance(source_id, str) or not SOURCE_ID_PATTERN.fullmatch(source_id):
             raise CardExportError(f"출처 공지 {number}번의 게시일·주소·출처 id")
+        # 근거 번호는 AI에 넣은 원래 ID 순서다. 공개 ID로 바꾼 뒤에는 정렬 관계가 달라질 수 있다.
+        order.append((posted, source_id))
         board_id = _public_source_id(source_id)
         if board_id in board_ids and board_ids[board_id] != source_id:
             raise CardExportError("하이픈으로 바꾼 공개 출처 ID가 중복됩니다")
@@ -715,7 +717,6 @@ def _checked_notices(raw: list) -> list[dict]:
         notices.append({"board_id": board_id, "url": url, "title": _clean(notice.get("title"), MAX_TITLE_CHARS)[0],
                         "posted_at": posted, "last_seen_at": last_seen,
                         "files": {_clean(name, MAX_SHORT_CHARS)[0] for name in files if isinstance(name, str)}})
-    order = [(notice["posted_at"], notice["board_id"]) for notice in notices]
     if order != sorted(order):
         raise CardExportError("출처 공지 순서가 AI 입력 순서(게시일 이른 것부터, 같은 날이면 출처 id순)와 다름")
     return notices
