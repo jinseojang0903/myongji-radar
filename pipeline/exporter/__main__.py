@@ -10,8 +10,12 @@
 종료 코드 (#19는 0과 1일 때만 배포한다. 1이면 로그를 사람이 확인한다):
     0  모두 내보냄 (대회가 아닌 추출 결과를 건너뛴 것은 문제가 아님)
     1  내보냈지만 뺀 카드나 확인할 일이 있음
-    2  cards.json을 바꾸지 않음: 묶음 파일을 읽을 수 없음, generated_at 형식, 내보낼 카드가 0장(--allow-empty 없이)
+    2  cards.json을 바꾸지 않음: 묶음 파일을 읽을 수 없음, generated_at 형식, 내보낼 카드가 0장(--allow-empty 없이),
+       수동 차단 목록(--blocked)을 읽을 수 없거나 형식이 틀림 (차단 없이 내보내면 내려야 할 카드가 공개되므로)
     3  cards.json 쓰기 실패 (기존 파일은 그대로)
+
+수동 차단 목록(#65, `config/blocked_cards.toml`)의 카드는 빼고 내보낸다. 뺀 카드는 [차단]으로 찍고(이유는 찍지 않는다),
+목록에 있는데 이번 묶음에 없는 id는 [확인]으로 찍는다 (종료 코드 1).
 """
 
 import argparse
@@ -20,6 +24,7 @@ import sys
 from pathlib import Path
 
 from collector.config import load_sources
+from exporter.blocklist import BlocklistError, load_blocked
 from exporter.cards import CardBundle, boards_from_sources, build_cards_json, write_cards_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,15 +58,23 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, default=ROOT.parent / "site/data/cards.json")
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--allow-empty", action="store_true", help="카드가 0장이어도 덮어쓴다 (기본은 상류 장애로 보고 멈춤)")
+    parser.add_argument("--blocked", type=Path, default=ROOT / "config/blocked_cards.toml", help="수동 차단 목록 (#65)")
     args = parser.parse_args(argv)
+    try:
+        blocked = load_blocked(args.blocked)
+    except (OSError, BlocklistError) as error:  # 차단 없이 내보내지 않는다
+        print(f"[오류] 수동 차단 목록을 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
+        return 2
     try:
         bundles, generated_at = read_bundles(args.bundles)
         boards = boards_from_sources(load_sources(args.config))
-        data, report = build_cards_json(bundles, boards, generated_at)
+        data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
     except Exception as error:  # 예상 못 한 오류도 1(배포 가능)로 끝나지 않게 2로
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
 
+    for item in report["blocked"]:
+        print(f"[차단] {item['id']}", file=sys.stderr)
     for label, key in (("[뺌]", "rejected"), ("[건너뜀]", "skipped"), ("[확인]", "warnings")):
         for item in report[key]:
             print(f"{label} {item['id']}: {item['reason']}", file=sys.stderr)
@@ -73,7 +86,8 @@ def main(argv=None) -> int:
     except Exception as error:
         print(f"[오류] cards.json 쓰기 실패, 기존 파일 그대로: {type(error).__name__}: {error}", file=sys.stderr)
         return 3
-    print(f"[내보냄] 카드 {len(data['cards'])}장 → {args.out} (뺌 {len(report['rejected'])}, 건너뜀 {len(report['skipped'])}, 확인 {len(report['warnings'])})",
+    print(f"[내보냄] 카드 {len(data['cards'])}장 → {args.out} (뺌 {len(report['rejected'])}, 건너뜀 {len(report['skipped'])}, "
+          f"확인 {len(report['warnings'])}, 차단 {len(report['blocked'])})",
           file=sys.stderr)
     return 1 if report["rejected"] or report["warnings"] else 0
 
