@@ -12,7 +12,8 @@ from exporter.cards import CardBundle, build_card
 from verifier import __main__ as verifier_main
 from verifier.__main__ import main as cli_main
 from verifier.__main__ import read_originals, verify_bundles
-from verifier.checks import check_extraction, contains_quote, evidence_fingerprint, merge_statuses, normalize
+from verifier.checks import (NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote, evidence_fingerprint,
+                             merge_statuses, normalize)
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = json.loads((ROOT / "prompts/extract_v0.2/example_output.json").read_text(encoding="utf-8"))
@@ -85,6 +86,39 @@ class NormalizeTests(unittest.TestCase):
                               ("참가비\n접수 기간: 10.21~10.25", "접수 기간: 10.21~10.25"), ("참가비 신청 방법", "신청 방법"),
                               ("신청비 등록 방법", "등록 방법")):
             self.assertTrue(contains_quote(normalize(source), normalize(quote)), f"{quote}: 앞 낱말 끝이 불·비·미·무여도 정상 인용 (#49)")
+
+    def test_negation_right_after_the_quote(self):
+        for source, quote in (("개인 참가 불가", "개인 참가"), ("제출 서류 없음", "제출 서류"), ("장학금은 지급하지 않음", "장학금은 지급하지"),
+                              ("휴학생은 신청 대상 아님", "휴학생은 신청 대상"), ("재학생 참여 제외", "재학생 참여"),
+                              ("증빙 서류 미제출 시 탈락", "증빙 서류"), ("대리 신청은 안 됨", "대리 신청은"), ("온라인 접수 불가능", "온라인 접수"),
+                              ("중복 신청 금지", "중복 신청"), ("추가 모집은 하지 않습니다", "추가 모집은 하지"), ("현장 접수불가", "현장 접수")):
+            self.assertFalse(contains_quote(normalize(source), normalize(quote)), f"{source} / {quote}: 인용 뒤 부정 (#49)")
+        for source, quote in (("개인 참가 불가. 팀 참가 가능", "팀 참가 가능"), ("신청 기간: 10.21~10.25", "신청 기간"),
+                              ("참가 가능합니다. 불가 사유는 아래", "참가 가능합니다."), ("온라인 신청 안내문", "온라인 신청"),
+                              ("서류 제출 기한 엄수", "서류 제출"), ("상금 100만원 지급", "상금 100만원")):
+            self.assertTrue(contains_quote(normalize(source), normalize(quote)), f"{source} / {quote}: 뒤가 부정이 아님")
+
+    def test_every_trailing_negation_and_particle(self):
+        for negation in TRAILING_NEGATIONS:
+            for between in (" ", "", "는 ", "이 "):
+                source = f"개인 참가{between}{negation}"
+                self.assertFalse(contains_quote(normalize(source), normalize("개인 참가")), f"{source}: 목록의 모든 부정 (#49)")
+        for prefix in NEGATION_PREFIXES:
+            self.assertFalse(contains_quote(normalize(f"증빙 서류 {prefix}대상"), normalize("증빙 서류")), f"{prefix}대상")
+        for source, quote in (("부득이한 사유로 불가피한 경우 연장", "부득이한 사유로"),
+                              ("교육과 연구는 불가분의 관계", "교육과 연구는"), ("TOEIC 700 불가", "TOEIC 700")):
+            self.assertTrue(contains_quote(normalize(source), normalize(quote)), f"{source}: 부정이 아님 / 한글로 끝나지 않음")
+
+    def test_trailing_negation_stays_on_the_same_line(self):
+        for source, quote in (("대상: 재학생\n제외 대상: 휴학생", "대상: 재학생"), ("참가 자격\r\n없음 처리 기준은 아래", "참가 자격"),
+                              ("신청 방법\n\n  불가 사유", "신청 방법")):
+            self.assertTrue(contains_quote(normalize(source), normalize(quote)), f"{source!r}: 다음 줄은 인용의 뒷말이 아니다")
+        self.assertFalse(contains_quote(normalize("대상: 재학생 제외\n휴학생"), normalize("대상: 재학생")), "같은 줄이면 막는다")
+        self.assertFalse(contains_quote("대상:재학생제외대상", "대상:재학생"), "줄 정보를 모르는 글은 막는 쪽")
+
+    def test_trailing_negation_tries_the_next_match(self):
+        self.assertTrue(contains_quote(normalize("개인 참가 불가. 팀은 개인 참가 가능"), normalize("개인 참가")), "두 번째 위치가 정상")
+        self.assertFalse(contains_quote(normalize("개인 참가 불가. 팀은 개인 참가 없음"), normalize("개인 참가")))
 
     def test_fingerprint_sorts_mixed_file_values(self):
         evidence = [{"quote": "본문 문장입니다", "notice": 1, "location": "본문", "file": None},
