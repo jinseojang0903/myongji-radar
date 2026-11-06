@@ -547,6 +547,18 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertEqual([card["id"] for card in data["cards"]], ["ai-literacy-2026"])
         self.assertEqual(report["rejected"], [{"id": "broken", "reason": "처리 중 오류 (TypeError)"}], "AI 값은 이유에 넣지 않는다")
 
+    def test_blocked_cards_are_left_out(self):
+        bundles = [bundle(), bundle(card_id="keep-me"), bundle(card_id="keep-me"), bundle(card_id="block-me"), bundle(card_id="block-me")]
+        data, report = build_cards_json(bundles, [], GENERATED_AT, blocked={"ai-literacy-2026", "block-me", "gone-card"})
+        self.assertEqual([card["id"] for card in data["cards"]], ["keep-me"], "차단한 카드는 만들지 않는다")
+        self.assertEqual([item["id"] for item in report["blocked"]], ["ai-literacy-2026", "block-me"], "같은 id가 두 번 와도 한 번")
+        self.assertEqual([item["id"] for item in report["warnings"]], ["gone-card"],
+                         "목록에 있는데 이번 묶음에 없는 id는 조용히 넘어가지 않는다")
+        self.assertEqual([item["id"] for item in report["rejected"]], ["keep-me"], "차단과 상관없는 중복은 그대로 뺀다")
+        self.assertNotIn("block-me", json.dumps(data, ensure_ascii=False), "차단한 카드는 cards.json 어디에도 없다")
+        data, report = build_cards_json([bundle()], [], GENERATED_AT)
+        self.assertEqual((len(data["cards"]), report["blocked"]), (1, []), "목록이 없으면 그대로")
+
     def test_non_contest_and_result_notices_are_skipped(self):
         results = example_fields()
         results["kind"]["value"] = "결과"
@@ -672,7 +684,7 @@ class ExporterCliTests(unittest.TestCase):
 class ExporterFixtureTests(unittest.TestCase):
     def test_fixture_matches_exporter_output(self):
         data, report = build_cards_json(fixture_bundles(), FIXTURE_BOARDS, GENERATED_AT)
-        self.assertEqual(report, {"rejected": [], "skipped": [], "warnings": []})
+        self.assertEqual(report, {"rejected": [], "skipped": [], "warnings": [], "blocked": []})
         if os.environ.get("UPDATE_FIXTURES") == "1":
             write_cards_json(FIXTURE, data)
         self.assertEqual(json.loads(FIXTURE.read_text(encoding="utf-8")), data, "결과가 바뀌었으면 UPDATE_FIXTURES=1로 다시 만든다")
