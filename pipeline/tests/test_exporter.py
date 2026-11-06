@@ -615,6 +615,10 @@ class ExporterCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             bundles_path = Path(folder) / "bundles.json"
             bundles_path.write_text(bundles_text, encoding="utf-8")
+            if "--blocked" not in extra:  # 저장소의 실제 차단 목록이 바뀌어도 시험이 흔들리지 않게 빈 목록으로
+                empty = Path(folder) / "blocked.toml"
+                empty.write_text("blocked = []\n", encoding="utf-8")
+                extra = [*extra, "--blocked", str(empty)]
             argv = ["exporter", "--bundles", str(bundles_path), "--out", str(out_path), *extra]
             stderr = io.StringIO()
             with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
@@ -640,6 +644,47 @@ class ExporterCliTests(unittest.TestCase):
             code, errors = self.run_cli(self.bundle_json([*fixture_bundles(), not_contest]), out)
             self.assertEqual(code, 0, "대회가 아닌 결과를 건너뛴 것은 문제가 아님")
             self.assertIn("[건너뜀] not-contest", errors)
+
+    def test_cli_applies_the_blocklist(self):
+        with tempfile.TemporaryDirectory() as folder:
+            out, blocked = Path(folder) / "cards.json", Path(folder) / "blocked.toml"
+            card_ids = [item.card_id for item in fixture_bundles()]
+            blocked.write_text(f'[[blocked]]\ncard_id = "{card_ids[0]}"\nreason = "비밀 이유 문구"\nsince = 2026-11-06\n', encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 0, "차단은 의도한 것이라 경고가 아니다")
+            self.assertEqual([card["id"] for card in json.loads(out.read_text(encoding="utf-8"))["cards"]], card_ids[1:])
+            self.assertIn(f"[차단] {card_ids[0]}", errors)
+            self.assertIn("차단 1", errors)
+            self.assertNotIn("비밀 이유 문구", errors + out.read_text(encoding="utf-8"), "이유는 기록·cards.json 어디에도 없다")
+            blocked.write_text('[[blocked]]\ncard_id = "gone-card"\nreason = "사라진 카드"\nsince = 2026-11-06\n', encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 1, "목록에만 있는 id는 확인할 일")
+            self.assertIn("[확인] gone-card", errors)
+
+    def test_cli_stops_when_the_blocklist_is_unreadable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            out, blocked = Path(folder) / "cards.json", Path(folder) / "blocked.toml"
+            out.write_text('{"keep": true}', encoding="utf-8")
+            for content in ("blocked = [", '[[blocked]]\ncard_id = "Bad Id"\nreason = "x"\nsince = 2026-11-06\n', None):
+                if content is None:
+                    blocked.unlink()
+                else:
+                    blocked.write_text(content, encoding="utf-8")
+                code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+                self.assertEqual(code, 2, f"차단 없이 내보내지 않는다: {content!r}")
+                self.assertIn("수동 차단 목록을 읽지 못해", errors)
+                self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
+
+    def test_cli_default_blocklist_is_the_repository_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bundles_path, out = Path(folder) / "bundles.json", Path(folder) / "cards.json"
+            bundles_path.write_text(self.bundle_json(fixture_bundles()), encoding="utf-8")
+            argv = ["exporter", "--bundles", str(bundles_path), "--out", str(out)]
+            with mock.patch.object(sys, "argv", argv), mock.patch("exporter.__main__.load_blocked", return_value={}) as loaded, \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                cli_main()
+            self.assertEqual(loaded.call_args.args[0].resolve(), (ROOT / "pipeline" / "config" / "blocked_cards.toml").resolve(),
+                             "기본값이 저장소의 차단 목록 (매일 공개는 --blocked를 넘기지 않는다)")
 
     def test_cli_null_keys_use_defaults(self):
         with tempfile.TemporaryDirectory() as folder:
