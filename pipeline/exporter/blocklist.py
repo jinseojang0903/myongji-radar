@@ -1,7 +1,7 @@
 """수동 차단 목록 읽기 (#65). 형식은 `config/blocked_cards.toml` 머리 주석.
 
 형식이 조금이라도 틀리면 BlocklistError: 차단이 조용히 무시돼 내려야 할 카드가 공개되는 일이 없게 한다.
-내보내기에 연결하는 것은 #65의 다음 PR이다 (그 전에는 목록에 넣어도 카드가 빠지지 않는다).
+`python -m exporter`가 기본으로 이 파일을 읽어 목록의 카드를 뺀다 (`build_cards_json(blocked=...)`).
 """
 import tomllib
 from datetime import date
