@@ -558,6 +558,11 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertNotIn("block-me", json.dumps(data, ensure_ascii=False), "차단한 카드는 cards.json 어디에도 없다")
         data, report = build_cards_json([bundle()], [], GENERATED_AT)
         self.assertEqual((len(data["cards"]), report["blocked"]), (1, []), "목록이 없으면 그대로")
+        not_contest = bundle(card_id="not-contest", extraction={"is_contest": {"value": False, "reason": ""}})
+        data, report = build_cards_json([not_contest, bundle()], [], GENERATED_AT,
+                                        blocked={"not-contest"})
+        self.assertEqual(([item["id"] for item in report["blocked"]], report["skipped"]), (["not-contest"], []),
+                         "건너뛸 묶음이었어도 차단으로만 남는다")
 
     def test_non_contest_and_result_notices_are_skipped(self):
         results = example_fields()
@@ -660,6 +665,12 @@ class ExporterCliTests(unittest.TestCase):
             code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
             self.assertEqual(code, 1, "목록에만 있는 id는 확인할 일")
             self.assertIn("[확인] gone-card", errors)
+            before = out.read_text(encoding="utf-8")
+            blocked.write_text("".join(f'[[blocked]]\ncard_id = "{card_id}"\nreason = "모두"\nsince = 2026-11-06\n'
+                                       for card_id in card_ids), encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 2, "모두 차단하면 0장이라 기존 규칙대로 멈춘다 (README에 적음)")
+            self.assertEqual(out.read_text(encoding="utf-8"), before)
 
     def test_cli_stops_when_the_blocklist_is_unreadable(self):
         with tempfile.TemporaryDirectory() as folder:
