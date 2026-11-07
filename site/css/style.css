@@ -28,7 +28,8 @@ header :focus-visible { outline-color: var(--on-dark); }  /* 남색 머리글 �
 /* 상단 */
 header { background: var(--navy); color: var(--on-dark); }
 .bar { max-width: 1120px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.logo { font-size: 19px; font-weight: 700; letter-spacing: -0.5px; color: var(--on-dark); text-decoration: none; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; letter-spacing: -0.5px; color: var(--on-dark); text-decoration: none; }
+.logo img { display: block; width: 36px; height: 36px; border-radius: 8px; }
 nav { display: flex; gap: 4px; }
 nav a { color: var(--on-dark); text-decoration: none; padding: 4px 10px; border-radius: 6px; opacity: .85; font-size: 14.5px; }
 nav a[aria-current="page"] { opacity: 1; font-weight: 700; background: rgba(255,255,255,.16); }

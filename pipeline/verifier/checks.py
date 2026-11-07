@@ -38,6 +38,15 @@ NEGATION_PREFIXES = set("불비미무부")
 #    부정 글자 바로 뒤면 막는다
 NEGATABLE_STARTS = ("가능", "필요", "해당", "허용", "참가", "참여", "제출", "신청", "인정", "지급", "포함", "대상", "선발", "공개",
                     "합격", "선정", "등록", "접수", "승인", "충족", "완료", "동의", "필수", "이수", "적격", "적합", "제한")
+# 인용 바로 뒤에 오면 뜻이 뒤집히는 말 ("개인 참가 불가"에서 "개인 참가"만 인용, #49). 정규화가 공백을 지우므로
+# 띄어 쓴 것도 바로 이어 붙은 것으로 본다. 조사 한 글자는 건너뛴다 ("개인 참가는 불가"). 막는 쪽으로 넓게 잡는다.
+# 인용이 문장부호로 끝나거나 뒤가 다음 줄이면(줄 단위 목록 "대상: 재학생⏎제외 대상: 휴학생") 보지 않는다
+TRAILING_NEGATIONS = ("불가", "불필요", "불허", "불참", "금지", "제외", "제한", "없", "아니", "아님", "아닙", "않", "못", "안됨",
+                      "안됩", "안돼", "안되", "어렵", "곤란", "거부", "거절", "반려", "취소")
+NOT_NEGATIONS = ("불가피", "불가분")  # "불가"로 시작하지만 부정이 아님
+TRAILING_PARTICLES = set("은는이가도만을를")
+TRAILING_WINDOW = 8  # 인용 뒤에서 볼 글자 수: 조사 1 + 가장 긴 표현(부정 글자 1 + 낱말 최대 3)보다 넉넉히
+LINE_BREAKS = set("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")  # str.splitlines()가 줄을 나누는 글자
 MAX_EVIDENCE = 50  # 항목당 근거 수 상한 (넘으면 실패: 대조 비용이 커지고 정상 출력이 아니다)
 KST = timezone(timedelta(hours=9))
 
@@ -55,8 +64,10 @@ DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class Normalized(str):
-    """정규화한 글. word_starts[i]: i번째 글자가 원문에서 낱말의 첫 글자였는지 (공백을 지운 뒤에도 낱말 경계를 알 수 있게)."""
+    """정규화한 글. word_starts[i]: i번째 글자가 원문에서 낱말의 첫 글자였는지 (공백을 지운 뒤에도 낱말 경계를 알 수 있게).
+    line_starts[i]: i번째 글자 앞에 원문 줄바꿈이 있었는지 (줄 단위 목록에서 다음 줄을 인용의 뒷말로 보지 않게)."""
     word_starts: tuple = ()
+    line_starts: tuple = ()
 
 
 def normalize(text: str) -> Normalized:
@@ -68,24 +79,30 @@ def normalize(text: str) -> Normalized:
     text = unicodedata.normalize("NFKC", html.unescape(text).translate(FOLD)).translate(FOLD)
     kept = []
     for char in text:
-        if char.isspace():
+        if char in LINE_BREAKS:
+            kept.append("\n")
+        elif char.isspace():
             kept.append(" ")
         elif ord(char) not in EXTRA_INVISIBLE_CODES and unicodedata.category(char) not in REMOVED_CATEGORIES:
             kept.append(char)
-    collapsed = re.sub(" +", " ", "".join(kept)).strip().casefold()
-    chars, starts, previous = [], [], None
+    collapsed = re.sub(" +", " ", re.sub(r"[ \n]*\n[ \n]*", "\n", "".join(kept))).strip().casefold()
+    chars, starts, lines, previous, after_newline = [], [], [], None, False
     for index, char in enumerate(collapsed):
-        if char == " ":
+        if char in " \n":
             if collapsed[index - 1].isdigit() and index + 1 < len(collapsed) and collapsed[index + 1].isdigit():
                 chars.append(" ")
                 starts.append(False)
+                lines.append(False)
             previous = " "
+            after_newline = after_newline or char == "\n"
             continue
         chars.append(char)
         starts.append(previous is None or not previous.isalnum())  # 공백·문장부호 뒤면 낱말의 첫 글자
-        previous = char
+        lines.append(after_newline)
+        previous, after_newline = char, False
     result = Normalized("".join(chars))
     result.word_starts = tuple(starts)
+    result.line_starts = tuple(lines)
     return result
 
 
@@ -95,6 +112,7 @@ def contains_quote(source: str, quote: str) -> bool:
     숫자로 시작·끝나는 인용은 숫자 경계를 지킨다 ("3명"이 "13명"에, "3"이 "3.5"·"100"이 "100,000"에 맞지 않게).
     한글 인용은 낱말 첫머리의 부정 글자(불·비·미·무·부) 바로 뒤에서 시작하지 않는다 ("전공자 대상"이 "비전공자 대상"에).
     붙여 쓴 글에서도 뜻이 뒤집히는 흔한 낱말로 시작하는 인용은 부정 글자 바로 뒤에서 시작하지 않는다 ("가능"이 "참가불가능"에).
+    한글로 끝나는 인용 바로 뒤에 부정 표현(불가·없음·않음·제외·미제출 등)이 오면 맞지 않는다 ("개인 참가"가 "개인 참가 불가"에).
     source가 normalize()의 결과가 아니면(낱말 경계를 모름) 모든 한글 인용에 부정 글자 검사를 한다 (안전한 쪽).
     값과 인용이 맞는지는 보지 않는다 (교차 검증 몫).
     """
@@ -111,10 +129,34 @@ def contains_quote(source: str, quote: str) -> bool:
         # 붙여 쓴 글 대비 규칙은 인용이 원문에서 낱말 중간에서 시작할 때만 ("참가비 접수 기간"의 "접수"는 띄어 쓴 새 낱말)
         quote_starts_mid_word = not knows_words or not word_starts[start]
         is_mid_word = after_negation and (prefix_starts_word or (quote_starts_mid_word and quote.startswith(NEGATABLE_STARTS)))
-        if not (is_cut_before or is_cut_after or is_mid_word):
+        if not (is_cut_before or is_cut_after or is_mid_word or _negated_after(source, quote, end)):
             return True
         start = source.find(quote, start + 1)
     return False
+
+
+def _negated_after(source: str, quote: str, end: int) -> bool:
+    """인용이 한글로 끝나고 원문에서 바로 뒤(정규화로 공백이 지워진 다음 글자부터, 조사 한 글자는 건너뜀)가 부정 표현인지.
+
+    예 (정규화 뒤): "개인참가" + "불가…", "개인참가" + "는불가…", "서류" + "미제출…". 뒤가 다음 줄이면 보지 않는다.
+    """
+    if not _is_hangul(quote[-1]):
+        return False
+    line_starts = getattr(source, "line_starts", None)
+    if line_starts and len(line_starts) == len(source) and end < len(source) and line_starts[end]:
+        return False
+    following = source[end:end + TRAILING_WINDOW]
+    if following[:1] in TRAILING_PARTICLES and _is_negation(following[1:]):
+        return True
+    return _is_negation(following)
+
+
+def _is_negation(text: str) -> bool:
+    if text.startswith(NOT_NEGATIONS):
+        return False
+    if text.startswith(TRAILING_NEGATIONS):
+        return True
+    return text[:1] in NEGATION_PREFIXES and text[1:].startswith(NEGATABLE_STARTS)
 
 
 def _is_hangul(char: str) -> bool:

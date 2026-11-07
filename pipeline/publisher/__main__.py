@@ -10,14 +10,18 @@
 **한 단계라도 실패하면 거기서 멈춘다** (앞 단계가 0이 아니면 다음을 돌리지 않는다. 옛 묶음을 오늘 원문으로 내보내면
 바뀐 공지의 옛 값이 공개될 수 있다). 그래서 멈추면 cards.json은 어제 그대로다.
 예약 등록·동시 실행 잠금은 매일 수집(#31, `scripts/`)이 맡는다: 수집 → 규칙 분석 → 이 명령을 **같은 잠금 안에서** 부른다
-(확인과 사용 사이에 다음 수집이 원문을 바꾸지 않게). cards.json을 커밋·푸시하는 배포(Pages)는 인증을 정한 뒤 붙인다.
+(확인과 사용 사이에 다음 수집이 원문을 바꾸지 않게). cards.json을 main에 올리는 배포는 아래 `--push`.
 
 단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약. 공지 내용·오류 메시지 없음).
 
+`--push`면 새로 쓴 cards.json 한 파일만 main에 커밋·푸시한다 (`publisher/push.py`. 시작 전에 main에서 원격에
+맞춘다). 사이트는 Vercel이 main을 배포한다.
+
 종료 코드 (부르는 쪽 계약: 0과 1은 정상 종료):
-    0  cards.json을 새로 씀
+    0  cards.json을 새로 씀 (--push면 올림까지)
     1  새로 썼지만 내보내기가 뺀 카드·확인할 일이 있음 (실행 로그 확인. 실패로 다루지 않는다)
     2  멈춤 (cards.json은 그대로)
+    3  --push: cards.json은 새로 썼지만 올리지 못함 (실패로 알린다. 로컬 커밋은 남고 다음 실행이 정리해 올린다)
 """
 import argparse
 import hashlib
@@ -29,6 +33,7 @@ from pathlib import Path
 from exporter.__main__ import main as export_main
 from extractor.__main__ import main as extract_main
 from extractor.common import now_text
+from publisher.push import CARDS, PushError, prepare, push_cards
 from verifier.__main__ import main as verify_main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +81,20 @@ def publish(args) -> int:
         # 추출 묶음·캐시에는 정리 전 인용문·연락처가 있다. 검증기의 site 검사보다 먼저 막는다
         print("[멈춤] --data-dir이 공개 폴더 site/ 안이라 시작하지 않음", file=sys.stderr)
         return 2
+    repo = ROOT.parent
+    if args.push:
+        if args.out.resolve() != (repo / CARDS).resolve():
+            print(f"[멈춤] --push는 저장소의 {CARDS.as_posix()}만 올린다 (--out을 바꾸지 않기)", file=sys.stderr)
+            return 2
+        try:
+            prepare(repo)  # 돌리기 전에: main에서 원격에 맞춘다 (안 되면 아무 단계도 돌리지 않는다)
+        except PushError as error:
+            print(f"[멈춤] 올리기 준비 실패: {error}", file=sys.stderr)
+            try:
+                _write_log(data, now_text(), [], {"stopped": f"올리기 준비 실패: {error}"})  # 며칠째 실패해도 기록에 보이게
+            except OSError as log_error:  # 기록을 못 써도 결과(2)는 그대로 알린다
+                print(f"[주의] 단계 기록을 쓰지 못함 ({type(log_error).__name__})", file=sys.stderr)
+            return 2
     notices, analysis = data / "notices.json", data / "analysis.json"
     bundles, verified = data / "card_bundles.json", data / "card_bundles.verified.json"
     log: list[dict] = []
@@ -103,6 +122,15 @@ def publish(args) -> int:
         outcome.update(stopped=None, cards=_count(args.out, "cards"), bundles=_count(bundles, "bundles"))
         print(f"[공개 준비] cards.json 새로 씀 → {args.out}" + (" (내보내기 경고 있음, 로그 확인)" if code == 1 else ""),
               file=sys.stderr)
+        if args.push:
+            try:
+                outcome["push"] = push_cards(repo, f"사이트 카드 갱신 ({started_at[:16].replace('T', ' ')})")
+            except PushError as error:
+                outcome["push"] = f"실패: {error}"
+                print(f"[올리기 실패] {error} — cards.json은 로컬에 있음 (다음 실행이 함께 올린다)", file=sys.stderr)
+                return 3
+            print("[올림] cards.json을 main에 올림" if outcome["push"] == "pushed" else "[올림] 바뀐 카드가 없어 올리지 않음",
+                  file=sys.stderr)
         return code
     finally:
         try:
@@ -152,6 +180,7 @@ def main(argv=None) -> int:
     parser.add_argument("--max-calls", type=int, default=60, help="하루 호출 상한")
     parser.add_argument("--timeout", type=int, default=300, help="호출 하나의 제한 시간(초)")
     parser.add_argument("--use-env-account", action="store_true", help="ANTHROPIC_API_KEY 등 환경변수 계정으로 (본인 키일 때만)")
+    parser.add_argument("--push", action="store_true", help="새로 쓴 cards.json 한 파일만 main에 커밋·푸시 (사이트 배포)")
     args = parser.parse_args(argv)
     try:
         return publish(args)
