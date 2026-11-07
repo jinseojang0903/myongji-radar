@@ -49,7 +49,7 @@ def classify(title, body, config):
     for name, pattern in [
         ("cancellation", r"(?:개최|행사|모집|대회|프로그램)취소|취소안내"),
         ("result_delayed", r"결과발표연기|결과.*연기"),
-        ("results", r"결과발표|결과안내|진출팀|선정결과|수상자|입상자|시상식|매칭결과"),
+        ("results", r"결과발표|결과안내|모집결과|심사결과|선발결과|선정결과|합격자|합격안내|합격발표|진출팀|수상자|입상자|시상식|매칭결과"),
         ("extension", r"(?:모집|신청|접수|기간).*연장|연장안내"),
         ("change", r"변경|정정"),
         ("recruitment", r"모집|참가안내|신청안내|개최안내|프로그램안내|참여안내|공모전안내"),
@@ -69,11 +69,66 @@ def classify(title, body, config):
 # 공백을 제거한 TextView 전용. 연도 없는 날짜는 후보로만 남긴다.
 DATE = re.compile(r"(?<![\d.])(?:(?P<year>20\d{2})[.년/-])?(?P<month>\d{1,2})[.월/-](?P<day>\d{1,2})(?!\d)(?:일|\.)?")
 TIME = re.compile(r"^(?:\([월화수목금토일](?:요일)?\))?[,，]?(?P<hour>\d{1,2})(?::(?P<minute>\d{2})|시(?:(?P<minute_kr>\d{1,2})분)?)(?!\d)")
+TIME_SIGNAL = re.compile(
+    r"^(?:\([월화수목금토일](?:요일)?\))?[,，]?"
+    r"(?:(?:오전|오후)?\d{1,3}(?::\d{0,3}|시(?:\d{1,3}분)?(?:반)?)"
+    r"|오전|오후|정오|자정|[Nn]시|(?:한|두|세|네|다섯|여섯|일곱|여덟|아홉|열(?:한|두)?)시)")
+TIME_TRAILER = re.compile(r"^(?:반|오전|오후|[ap]m|:\d*|\d+(?:분|초)?|분|초)", re.I)
+TIME_CUE = re.compile(r"오전|오후|정오|자정|\d{1,3}:\d{1,3}|(?:\d{1,3}|[Nn]|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열(?:한|두)?)시")
 DATE_LABELS = re.compile(
     r"(?P<application>신청기간|접수기간|모집기간|신청기한|접수기한|신청마감|접수마감|모집마감|접수(?=[:：]))"
     r"|(?P<submission>제출기간|제출기한|제출마감|출품작제출기한|작품제출기한)"
     r"|(?P<event>행사일시|교육일시|운영일시|행사기간|교육기간|개최일시|일시(?=[:：]))")
 STOP = re.compile(r"(?<![\d.])\d{1,2}\.(?=[가-힣A-Za-z])|[가-하]\.|신청방법|접수처|신청서배포|제출서류|프로그램일정|교육시간표|문의|장소[:：]")
+
+
+def unread_clock_end(text):
+    """괄호·안내 문구 뒤의 시각도 버리지 않는다. 호출부가 다음 날짜 전에서 자른다."""
+    cue = TIME_CUE.search(text)
+    if not cue:
+        return 0
+    signal = TIME_SIGNAL.match(text[cue.start():])
+    end = cue.start() + signal.end() if signal else cue.end()
+    return end + 1 if text[end:end + 1] == ")" else end
+
+
+def read_time(suffix):
+    """24시간 표기만 읽고, 해석하지 못한 시각 신호와 근거 길이를 함께 보존한다."""
+    tm = TIME.match(suffix)
+    if not tm:
+        consumed = unread_clock_end(suffix)
+        return None, None, "해석하지 못한 시각 표기" if consumed else None, consumed
+    hour = int(tm.group("hour"))
+    minute = int(tm.group("minute") or tm.group("minute_kr") or 0)
+    time_value = f"{hour:02}:{minute:02}" if hour < 24 and minute < 60 else None
+    issue = None if time_value else "유효하지 않은 시각"
+    end_time, consumed = None, tm.end()
+    tail = suffix[consumed:]
+    # 3시반·17:00pm 등을 3:00·17:00으로 조용히 잘라 읽지 않는다.
+    extra = TIME_TRAILER.match(tail)
+    if extra:
+        return time_value, None, "해석하지 못한 시각 표기", consumed + extra.end()
+    time_range = re.match(r"^[~∼～-](\d{1,2}):(\d{2})(?!\d)", tail)
+    if time_range:
+        hour_end, minute_end = map(int, time_range.groups())
+        consumed += time_range.end()
+        if hour_end < 24 and minute_end < 60:
+            end_time = f"{hour_end:02}:{minute_end:02}"
+            if time_value and end_time < time_value:
+                issue = "시간 범위 역전 또는 익일 여부 확인 필요"
+        else:
+            issue = "유효하지 않은 종료 시각"
+        extra = TIME_TRAILER.match(suffix[consumed:])
+        if extra:
+            issue, consumed = "해석하지 못한 종료 시각 표기", consumed + extra.end()
+    elif tail.startswith(("~", "∼", "～", "-")):
+        signal_end = unread_clock_end(tail[1:])
+        if signal_end:
+            issue, consumed = "해석하지 못한 종료 시각 표기", consumed + 1 + signal_end
+    signal_end = unread_clock_end(suffix[consumed:])
+    if signal_end:
+        issue, consumed = issue or "해석하지 못한 추가 시각 표기", consumed + signal_end
+    return time_value, end_time, issue, consumed
 
 
 def extract_dates(view):
@@ -88,14 +143,18 @@ def extract_dates(view):
         segment = view.text[label.end():end]
         # 표의 열 이름 다음에 다른 단계 날짜가 이어지는 경우를 단일 마감으로 오인하지 않는다.
         if not segment.startswith((":", "：")):
+            buckets[label.lastgroup].append(field(evidence=[view.evidence(label.start(), label.end(), "date_label_without_separator")],
+                status="needs_review", reason="일정 라벨 뒤 구분자 없음: 원문 확인 필요"))
             continue
         matches = [m for m in DATE.finditer(segment) if not (
             m.start() > 1 and segment[m.start() - 1] == ":" and segment[m.start() - 2].isdigit())]
         if not matches:
+            buckets[label.lastgroup].append(field(evidence=[view.evidence(label.start(), label.end(), "unread_date_label")],
+                status="needs_review", reason="일정 라벨은 있으나 날짜를 해석하지 못함"))
             continue
         # 이후 표·다른 일정까지 끌어오지 않도록 세 날짜 이상이면 확정하지 않는다.
-        entries = []
-        for m in matches:
+        entries, time_ends = [], []
+        for index, m in enumerate(matches):
             y, month, day = m.group("year"), int(m.group("month")), int(m.group("day"))
             iso, issue = None, None
             try:
@@ -106,26 +165,11 @@ def extract_dates(view):
                     issue = "연도 미기재"
             except ValueError:
                 issue = "유효하지 않은 날짜"
-            suffix = segment[m.end():]
-            tm = TIME.match(suffix)
-            time_value = None
-            if tm:
-                hour = int(tm.group("hour"))
-                minute = int(tm.group("minute") or tm.group("minute_kr") or 0)
-                if hour < 24 and minute < 60:
-                    time_value = f"{hour:02}:{minute:02}"
-                else:
-                    issue = "유효하지 않은 시각"
-            end_time = None
-            time_range = re.match(r"^[~∼～-](\d{1,2}):(\d{2})(?!\d)", suffix[tm.end():]) if tm else None
-            if time_range:
-                hour_end, minute_end = map(int, time_range.groups())
-                if hour_end < 24 and minute_end < 60:
-                    end_time = f"{hour_end:02}:{minute_end:02}"
-                    if time_value and end_time < time_value:
-                        issue = "시간 범위 역전 또는 익일 여부 확인 필요"
-                else:
-                    issue = "유효하지 않은 종료 시각"
+            next_date = matches[index + 1].start() if index + 1 < len(matches) else len(segment)
+            time_value, end_time, time_issue, time_end = read_time(segment[m.end():next_date])
+            if time_issue:
+                issue = time_issue
+            time_ends.append(time_end)
             entries.append({"date": iso, "time": time_value, "precision": "minute" if time_value else "date",
                             "end_time": end_time, "raw": m.group(), "issue": issue})
         # 같은 명시적 범위 안의 2026.10.1 ~ 10.5는 두 번째 연도만 공유한다.
@@ -135,29 +179,30 @@ def extract_dates(view):
                 try:
                     second = date(int(matches[0].group("year")), int(matches[1].group("month")), int(matches[1].group("day")))
                     if second.isoformat() >= entries[0]["date"]:
-                        entries[1].update(date=second.isoformat(), issue=None, year_basis="same_explicit_range")
+                        entries[1].update(date=second.isoformat(), year_basis="same_explicit_range")
+                        if entries[1]["issue"] == "연도 미기재":
+                            entries[1]["issue"] = None
                 except ValueError:
                     pass
         is_range = len(matches) == 2 and bool(re.search(r"[~∼～]|부터", segment[matches[0].end():matches[1].start()]))
         valid = all(e["date"] and not e["issue"] for e in entries) and (len(entries) == 1 or is_range)
         if is_range and entries[0]["date"] and entries[1]["date"] and entries[0]["date"] > entries[1]["date"]:
             valid = False
+        if (is_range and entries[0]["date"] == entries[1]["date"] and entries[0]["time"] and entries[1]["time"]
+                and entries[0]["time"] > entries[1]["time"]):
+            valid = False
+            entries[1]["issue"] = entries[1]["issue"] or "같은 날의 기간 시각 역전"
         # '접수: 날짜'는 시작인지 마감인지 단정할 수 없으므로 후보만 보존한다.
         explicit_deadline = bool(re.search(r"마감|기한|까지", label.group() + segment))
         boundary = "range" if is_range else "deadline" if explicit_deadline else "event_date" if label.lastgroup == "event" else "unspecified"
         last = matches[-1]
-        tm = TIME.match(segment[last.end():])
-        evidence_end = label.end() + last.end() + (tm.end() if tm else 0)
-        if tm:
-            time_range = re.match(r"^[~∼～-](\d{1,2}):(\d{2})(?!\d)", segment[last.end() + tm.end():])
-            if time_range:
-                evidence_end += time_range.end()
+        evidence_end = label.end() + last.end() + time_ends[-1]
         value = {"start": entries[0] if is_range else None,
                  "end": entries[-1] if is_range or explicit_deadline else None,
                  "dates": entries, "boundary": boundary, "timezone": "Asia/Seoul"}
         buckets[label.lastgroup].append(field(value, [view.evidence(label.start(), evidence_end, "labeled_date")],
             status="extracted" if valid and boundary != "unspecified" else "needs_review",
-            reason=None if valid and boundary != "unspecified" else "연도·날짜·기간 역할 확인 필요"))
+            reason=None if valid and boundary != "unspecified" else "연도·날짜·시각·기간 역할 확인 필요"))
     for kind, name in (("application", "application_period"), ("submission", "submission_period"), ("event", "event_period")):
         candidates = buckets[kind]
         if len(candidates) == 1:
