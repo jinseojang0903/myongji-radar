@@ -27,6 +27,7 @@ import csv
 import json
 import os
 import re
+import sqlite3
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -271,7 +272,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         return run_eval(args) if args.command == "eval" else run_daily(args)
-    except (OSError, ValueError, KeyError, TypeError, csv.Error, claude_cli.ClaudeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, csv.Error, sqlite3.Error, claude_cli.ClaudeError) as error:
         print(f"[오류] 시작하지 못함 ({type(error).__name__}): {error}", file=sys.stderr)
         return 2
 

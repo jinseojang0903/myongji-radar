@@ -3,17 +3,17 @@
   "generated_at": "2026-11-05T09:00:00+09:00",
   "boards": [
     {
-      "id": "mju_ctl",
+      "id": "mju-ctl",
       "name": "명지대학교 교수학습센터",
       "list_url": null
     },
     {
-      "id": "mju_general",
+      "id": "mju-general",
       "name": "명지대학교 일반공지",
       "list_url": null
     },
     {
-      "id": "mju_innovation",
+      "id": "mju-innovation",
       "name": "대학혁신지원사업",
       "list_url": "https://innov.mju.ac.kr/innovation/1/subview.do"
     }
@@ -26,10 +26,11 @@
       "scope": "교내",
       "sources": [
         {
-          "board_id": "mju_ctl",
+          "board_id": "mju-ctl",
           "url": "https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do",
           "title": "2026학년도 AI 리터러시 경진대회 개최 안내",
-          "posted_at": "2026-09-29"
+          "posted_at": "2026-09-29",
+          "last_seen_at": null
         }
       ],
       "fields": {
@@ -246,16 +247,18 @@
       "scope": "교내",
       "sources": [
         {
-          "board_id": "mju_innovation",
+          "board_id": "mju-innovation",
           "url": "https://innov.mju.ac.kr/bbs/innovation/56/2/artclView.do",
           "title": "공지 2",
-          "posted_at": "2026-11-02"
+          "posted_at": "2026-11-02",
+          "last_seen_at": null
         },
         {
-          "board_id": "mju_general",
+          "board_id": "mju-general",
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/1/artclView.do",
           "title": "공지 1",
-          "posted_at": "2026-10-30"
+          "posted_at": "2026-10-30",
+          "last_seen_at": null
         }
       ],
       "fields": {
