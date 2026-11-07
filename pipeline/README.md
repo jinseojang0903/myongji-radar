@@ -368,3 +368,16 @@ JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 이�
 - 파일·텍스트·변환 임시 파일은 모두 data 아래이며 Git에 올리지 않는다. 이 변경은 AI 입력·첨부 근거 대조에 아직 연결하지 않는다. 수집 뒤 `notices.json`으로 로컬 확인하는 단계다. 기존 AI는 본문만 사용하므로 첨부 전용 공지는 계속 확인 필요다.
 
 변환 구현 참고: [pypdf 텍스트 추출과 한계](https://pypdf.readthedocs.io/en/stable/user/extract-text.html), [olefile API](https://olefile.readthedocs.io/en/stable/olefile.html), [한컴 HWP 5 공개 명세](https://cdn.hancom.com/link/docs/%ED%95%9C%EA%B8%80%EB%AC%B8%EC%84%9C%ED%8C%8C%EC%9D%BC%ED%98%95%EC%8B%9D_5.0_revision1.2.pdf).
+
+## 항목 단위 오류 격리와 수집 보안 (#11)
+
+- RSS·HTML 목록의 날짜/링크가 잘못된 항목만 건너뛰고 같은 목록의 정상 글은 계속 저장한다. 항목 URL과 고정 오류 코드(`invalid_rss_item`, `invalid_html_item`)를 `runs.result_json`의 출처별 `errors`에 남긴다. 오류가 있으면 종료1이며 일일 실행은 저장한 글이 있으면 분석 후 `partial_failure`로 보고한다. XML 전체가 깨졌거나 목록 구조가 맞지 않으면 출처 단위 실패는 유지한다. RSS 미지원 안내만 있는 목록도 오류0으로 성공 처리하지 않는다.
+- 시작 시 `allowed_hosts`는 소문자 DNS 형식의 정확한 `.mju.ac.kr` 하위 호스트만 허용한다. 와일드카드·IP·외부 도메인·접미사 위장·학교 최상위 `mju.ac.kr`는 허용하지 않는다. RSS/목록 URL도 인증정보 없는 HTTPS·허용 호스트·443이어야 하며 잘못된 설정은 DB 생성·네트워크 전에 거부한다. 단위 시험도 실제 요청 대신 가짜 학교 호스트 응답을 사용한다.
+- Fetcher의 단일 `get`은 기본60초 전체 예산을 갖는다. 프로세스 생성·호스트 대기·재시도·리다이렉트·본문과 IPC 수신이 같은 예산을 사용한다. 별도 HTTP 프로세스를 부모가 감독해 DNS/응답 수신이 멈춰도 종료하며 프로세스/통신 스레드 정리에 최대 약1.5초가 추가될 수 있다. 모든 재시도 상태(429/500/502/503/504)의 `Retry-After` 숫자·HTTP-date를 최대30초로 제한한다. 같은 호스트 간격1초·리다이렉트마다 HTTPS/허용 호스트 재검사·5MiB 상한은 유지한다.
+- 요청마다 새 HTTP 세션을 만들기 때문에 호출 간 연결 풀은 재사용하지 않는다. 익명 쿠키의 domain/path/secure/expiry는 부모와 작업자 사이에서 보존하며 로그·DB에 기록하지 않는다. 부모 Session의 개인 auth/adapters/proxies 사용자확장은 지원 범위가 아니다. 기본 CLI/BAT는 그대로 실행하고, 사용자 Python 스크립트에서 직접 호출한다면 `if __name__ == '__main__':` 안에서 실행해야 한다(spawn 방식).
+- 작업자 메타데이터는64KiB 상한이다. 아주 많은 쿠키가 누적되어 이 상한을 넘으면 IPC 오류로 해당 요청을 실패 처리한다.
+- 제목·본문·이미지 alt·첨부 이름에서 ANSI/OSC/C1·방향 제어 등을 제거하고 본문 줄바꿈/탭은 유지한다. CLI의 외부 문자열 출력도 정제한다. 원문 HTML 바이트는 바꾸지 않고 비공개 raw에 보존한다. 제어문자만 반복한 입력이 정제 정규식을 느리게 만드는 경우도 회귀 시험으로 차단했다.
+- 정제 결과 변경을 반영해 파서는 `k2web-v1.1`이다. 다음 수집에서 기존 raw를 현재 파서로 다시 읽어 비교하므로 정제만 달라졌다고 새 원문 판을 만들지 않는다. 이후 `collector export` → `collector analyze`로 갱신된 payload를 분석한다. 파서가 바뀌어도 같은 원문 판의 입력 해시가 달라질 수 있으며 #13의 분석 이력·AI 캐시는 이를 구분한다.
+- 새 raw HTML은 data 안의 임시 파일에 완전히 쓴 다음 원자적으로 교체한다. 교체에 실패하면 DB 버전을 추가하지 않고 임시 파일을 정리한다. 기존 원문을 임의로 덮어써 복구하지 않는다. BAT는 `NoDefaultCurrentDirectoryInExePath=1`로 현재 폴더의 실행 파일이 기본 검색에 끼어드는 것을 막는다.
+
+학교·AI 호출 없이 `pipeline`에서 `.\.venv\Scripts\python.exe -m unittest discover -s tests -q`로 검증한다. 지연 작업자와 미완료 IPC는 짧은 가짜 예산으로 시험하므로 실제60초를 기다리지 않는다. 운영 PC의 실제 예약 실행·학교 네트워크 성공을 이 시험으로 확인한 것은 아니다.

@@ -24,8 +24,8 @@ attachment_selector = ".attfile a[href]"
 [[sources]]
 id = "test"
 name = "Test"
-rss_url = "https://example.com/rss"
-allowed_hosts = ["example.com"]
+rss_url = "https://test.mju.ac.kr/rss"
+allowed_hosts = ["test.mju.ac.kr"]
 '''
 
 
@@ -48,7 +48,7 @@ class DailyTests(unittest.TestCase):
         self.addCleanup(self.patcher.stop)
 
     def fetch(self, url, hosts):
-        self.assertEqual(hosts, ["example.com"])
+        self.assertEqual(hosts, ["test.mju.ac.kr"])
         if url.endswith("/rss"):
             items = ''.join(f'<item><title>Private title {n}</title><link>/bbs/test/1/{n}/artclView.do</link></item>' for n in self.numbers)
             return f'<rss><channel>{items}</channel></rss>'.encode()

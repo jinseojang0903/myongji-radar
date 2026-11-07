@@ -1,6 +1,8 @@
 """출처 설정의 공통 기본값을 적용하고 수집 전에 형식을 검증한다."""
 import tomllib
+import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .adapters import ADAPTERS
 from .models import Source
@@ -46,6 +48,20 @@ def load_sources(path: Path) -> list[Source]:
         if (not isinstance(source.allowed_hosts, list) or not source.allowed_hosts
                 or any(not isinstance(host, str) or not host.strip() for host in source.allowed_hosts)):
             raise ValueError(f"{source.id}: allowed_hosts는 비어 있지 않은 문자열 목록이어야 합니다")
+        if any(not re.fullmatch(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+mju\.ac\.kr", host)
+               for host in source.allowed_hosts):
+            raise ValueError(f"{source.id}: allowed_hosts는 .mju.ac.kr 하위의 정확한 호스트만 허용합니다")
+        for field in ("rss_url", "list_url"):
+            if not getattr(source, field):
+                continue
+            try:
+                parts = urlsplit(getattr(source, field))
+                valid = (parts.scheme == "https" and parts.hostname in source.allowed_hosts
+                         and parts.username is None and parts.password is None and parts.port in (None, 443))
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError(f"{source.id}: {field}는 인증정보 없는 HTTPS·허용 호스트·443 주소여야 합니다")
         if type(source.priority) is not int:
             raise ValueError(f"{source.id}: priority는 정수여야 합니다")
         if not isinstance(source.repair_rss_ampersands, bool):

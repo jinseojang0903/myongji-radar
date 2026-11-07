@@ -12,6 +12,7 @@ from .fetcher import Fetcher
 from .models import NoticeRef
 from .locking import AlreadyRunning, CollectorLock
 from .repository import Repository
+from .text_safety import safe_terminal
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -69,6 +70,7 @@ def main(argv=None, *, lock_held=False):
                 discovery_url = source.list_url if source.discovery == "html" else source.rss_url
                 try:
                     refs = adapter.discover(fetcher.get(discovery_url, source.allowed_hosts), source)
+                    stats["errors"].extend(getattr(adapter, "discovery_errors", []))
                     stats["discovered"] = len(refs)
                     # 미수집 글을 먼저, 같은 그룹에서는 일반 글을 고정 글보다 먼저.
                     # stable sort로 각 그룹의 원래 발견 순서는 유지한다.
@@ -88,7 +90,7 @@ def main(argv=None, *, lock_held=False):
 
                             status = repo.save(notice, html, reparse_previous)
                             stats[status] += 1
-                            print(f"[{status}] {source.id} | {notice.title} | 본문 {len(notice.body_text)}자 / 이미지 {len(notice.images)} / 첨부 {len(notice.attachments)}")
+                            print(safe_terminal(f"[{status}] {source.id} | {notice.title} | 본문 {len(notice.body_text)}자 / 이미지 {len(notice.images)} / 첨부 {len(notice.attachments)}"))
                         except Exception as exc:
                             stats["errors"].append({"url": ref.url, "error": str(exc)})
                 except Exception as exc:
@@ -96,7 +98,7 @@ def main(argv=None, *, lock_held=False):
                 failed |= bool(stats["errors"])
                 results.append(stats)
             repo.finish_run(run_id, results)
-            print(json.dumps(results, ensure_ascii=False, indent=2))
+            print(safe_terminal(json.dumps(results, ensure_ascii=False, indent=2)))
         count = repo.export(args.data_dir / "notices.json")
         print(f"로컬 확인용 JSON: {args.data_dir / 'notices.json'} ({count}건)")
     finally:

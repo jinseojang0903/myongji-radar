@@ -34,16 +34,16 @@ attachment_selector = ".attfile a[href]"
 id = "audit_fixture"
 name = "Audit fixture"
 priority = 1
-rss_url = "https://example.com/rss"
-allowed_hosts = ["example.com"]
+rss_url = "https://test.mju.ac.kr/rss"
+allowed_hosts = ["test.mju.ac.kr"]
 '''
             config += '''
 [[sources]]
 id = "new_fixture"
 name = "New board fixture"
 priority = 6
-rss_url = "https://example.com/new/rss"
-allowed_hosts = ["example.com"]
+rss_url = "https://test.mju.ac.kr/new/rss"
+allowed_hosts = ["test.mju.ac.kr"]
 '''
             (root / "config/sources.toml").write_text(config, encoding="utf-8")
             repo = Repository(root / "data")
