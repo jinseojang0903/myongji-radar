@@ -267,7 +267,7 @@ python -m exporter --bundles data/card_bundles.json --out ../site/data/cards.jso
 - `data/analysis_review.md`: 사람이 읽는 분석 검수 목록. BAT 6번 분석 후 7번으로 열기.
 - `data/analysis_history/`: 입력·설정·엔진별 분석 결과 보관.
 
-JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 첨부파일 다운로드, OCR·AI 해석, HTML 과거 목록 탐색은 아직 구현하지 않았다. 예약 실행은 구현 후 실제 이틀 운영 확인이 남았다 (#31). 목표 11곳을 모두 등록했으며 새 4곳은 각각 5건의 상세 파싱을 확인했다. 수집 성공은 해당 공지가 모집 중이거나 대회라는 의미가 아니다. 규칙의 활동 후보 분류 역시 사람 검수 전이며 개인별 참가 가능 판정은 제공하지 않는다.
+JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 이미지·첨부 다운로드와 로컬 문서 텍스트 변환은 아래 #12를 따른다. OCR·첨부 AI 입력·HTML 과거 목록 탐색은 아직 연결하지 않았다. 예약 실행은 구현 후 실제 이틀 운영 확인이 남았다 (#31). 목표 11곳을 모두 등록했으며 새 4곳은 각각 5건의 상세 파싱을 확인했다. 수집 성공은 해당 공지가 모집 중이거나 대회라는 의미가 아니다. 규칙의 활동 후보 분류 역시 사람 검수 전이며 개인별 참가 가능 판정은 제공하지 않는다.
 
 직접 분류를 확인하려면 **6번 → 7번** 순서로 실행한다. 새 공지를 가져오려면 그 전에 1번 또는 2번을 실행한다. 자격 필드의 `mentions`는 조건에 등장한 단어로, 허용 대상 목록이 아니다. 예를 들어 휴학생 참가 불가 문장에서 휴학생을 발견한 경우도 포함하므로 근거를 함께 확인한다. `not_stated`와 null은 제한 없음을 의미하지 않는다. 규칙을 고칠 때는 `config/rules.toml`과 `collector/rules.py`를 수정하고 규칙 버전을 올린 뒤 6번으로 재분석한다.
 
@@ -330,3 +330,29 @@ JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 첨�
 5. 새 위치에서 `launcher.bat test`, `launcher.bat export`를 실행해 테스트와 기존 DB 내보내기를 확인한다. 기존 데이터가 있다면 이전 건수와 비교한다.
 
 기본 저장 위치는 `pipeline/data/`이며 `.gitignore`로 제외한다. `--data-dir`로 다른 비공개 경로를 지정할 수도 있다. 원문·DB·분석 결과는 저장소나 공개 사이트에 올리지 않는다.
+
+## 이미지·첨부 저장 (#12)
+
+기존 `collector run`과 BAT 수집 메뉴에서 이미지·첨부도 함께 내려받는다. 먼저 가상환경에서 `python -m pip install -r requirements.lock.txt`로 PDF·HWP 변환 의존성을 설치한다.
+
+```powershell
+# 저장소 루트가 아닌 pipeline 폴더에서 실행. 시험 데이터도 비공개 data 아래에 둔다.
+.\.venv\Scripts\python.exe -m collector run --source mju_general --limit 1 --data-dir data/asset-smoke
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_assets.py -v
+```
+
+`data/asset-smoke/notices.json`에서 `images`·`attachments`를 확인한다. `local_path` 파일은 지정한 data 폴더를 기준으로 열고, `text_status: extracted`이면 `text_path`를 열어 원문과 비교한다. `mju_general`이 설정에 없는 경우 `config/sources.toml`의 ID를 사용한다. 같은 URL의 파일 바이트가 바뀌면 `changed`, 같으면 `unchanged`다. 처음 파일 해시를 추가하는 기존 공지는 한 번 `changed`가 된다.
+
+- 허용 호스트와 리다이렉트 검증·호스트별 간격은 기존 `Fetcher.get`을 그대로 사용한다. 파일당 5MiB, 공지당 20개·총 20MiB 상한이다. 실행 내 중복 URL은 한 번 요청하며 다음 실행에는 다시 내려받아 변경을 확인한다.
+- 자산 URL 요청 1,000회·성공 응답 바이트 200MiB·수집 실행 시작 후 20분을 기준으로 새 첨부 처리를 중단한다. 시간에는 RSS/본문을 기다린 시간도 포함된다. 바이트 상한은 마지막 응답을 읽은 뒤 알 수 있으므로 한 응답만큼 더 받을 수 있고, 진행 중인 요청/변환을 즉시 취소하는 전체 시간 제한은 아니다. 한 URL의 Fetcher 내부 재시도는 URL 요청 횟수와 별개다. 상한 이후 첨부는 `skipped` 경고이며 본문 수집은 계속한다.
+- 파일명이나 URL 경로를 로컬 경로에 쓰지 않는다. 원본은 `assets/<sha256>.bin`, 텍스트는 `asset_text/<sha256>.txt`에 원자적으로 저장한다. 파일 확장자를 믿지 않고 바이트 헤더로 변환 형식을 판별한다.
+- PDF(텍스트 문서), HWP 5(일반 본문), HWPX(본문 XML)를 지원한다. 변환은 빈 임시 폴더의 별도 Python 프로세스에서 15초 제한으로 실행한다. PDF 100쪽, HWP/HWPX 본문 확장 10MiB, 출력 20만 글자 상한이다. Windows에서 변환 프로세스의 메모리 상한은 별도로 강제하지 않는다.
+- 이미지 OCR, 스캔 PDF, 암호·배포용 HWP, 구형 HWP, 표·수식의 레이아웃 복원은 지원하지 않는다. `needs_review`와 사유를 남기므로 정보가 없다고 단정하면 안 된다. 추출 텍스트도 원문 검수 전이다.
+- 주소 정책 위반·용량/개수/실행 예산 초과·HTTP 4xx(408/425/429 제외)는 `skipped`와 `warnings`로 보고하며 이것만 있으면 종료 코드 0이다. 타임아웃·연결/서버 오류·429·로컬 저장 오류는 `failed`와 `errors`, 코드 1이다. 본문/다른 첨부는 계속 저장하며 이전 파일이 있더라도 `skipped`/`failed`이면 현재 확인이 되지 않은 상태다.
+- 일일 실행은 완료된 이번 수집에서 한 건 이상 저장했으면 코드 1이어도 규칙 분석한다. 경고만 있으면 정상 완료, 실제 수집 오류가 있으면 분석 성공 후에도 `partial_failure`·최종 코드 1이다. 전체 실패·미완료 실행이면 분석하지 않고 이전 파일을 유지한다. publisher 자동 연결은 아직 없으며 연결 시 실제 오류가 있는 실행은 공개하지 않는 계약을 유지한다. 당일 재시도는 하지 않고 다음 날 기존 일일 1회 정책으로 다시 확인한다.
+- 같은 해시의 비어 있지 않은 변환 텍스트가 있으면 변환을 생략한다. 변환 실패는 다운로드 성공 바이트를 보존한 채 `text_status: needs_review`와 안전한 오류 종류/고정 코드만 남긴다. 변환기를 바꿔 다시 뽑으려면 중지·백업 후 `asset_text`의 해당 텍스트 캐시를 지우고 다음 수집에서 재생성한다. 파일 재다운로드를 없애면 같은 URL의 파일 교체를 놓칠 수 있어 매일 파일 확인은 유지한다. HTTP 조건부 요청은 후속 검토다.
+- 첫 수집에서 기존 이미지·첨부 공지에 파일 해시가 추가되면 새 원문 버전이 된다. 매일 AI 추출은 새 버전 재추출 전까지 해당 카드를 내려두므로 `--max-new` 기본 30건씩 복구될 수 있다. 아직 실제 추출을 하지 않았다면 기존 공개 카드에 미치는 영향은 없다.
+- 내려받은 사본에는 Mark-of-the-Web을 추가하지 않는다. 문서는 원문 사이트에서 확인하거나 샌드박스에서만 연다.
+- 파일·텍스트·변환 임시 파일은 모두 data 아래이며 Git에 올리지 않는다. 이 변경은 AI 입력·첨부 근거 대조에 아직 연결하지 않는다. 수집 뒤 `notices.json`으로 로컬 확인하는 단계다. 기존 AI는 본문만 사용하므로 첨부 전용 공지는 계속 확인 필요다.
+
+변환 구현 참고: [pypdf 텍스트 추출과 한계](https://pypdf.readthedocs.io/en/stable/user/extract-text.html), [olefile API](https://olefile.readthedocs.io/en/stable/olefile.html), [한컴 HWP 5 공개 명세](https://cdn.hancom.com/link/docs/%ED%95%9C%EA%B8%80%EB%AC%B8%EC%84%9C%ED%8C%8C%EC%9D%BC%ED%98%95%EC%8B%9D_5.0_revision1.2.pdf).

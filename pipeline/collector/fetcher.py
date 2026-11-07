@@ -3,9 +3,19 @@ from urllib.parse import urljoin, urlsplit
 
 import requests
 
+MAX_FILE_BYTES = 5 * 1024 * 1024
+
+
+class FetchPolicyError(ValueError):
+    """허용 주소·응답 크기 정책 위반. 첨부에서는 재시도 불필요 경고로 분리한다."""
+
+
+class ResponseTooLarge(FetchPolicyError):
+    pass
+
 
 class Fetcher:
-    """순차 요청, 호스트별 간격, 제한적 재시도. 첨부는 아직 다운로드하지 않는다."""
+    """HTML·첨부 공통: 순차 요청, 호스트별 간격, 제한적 재시도, 응답 5MB 상한."""
 
     def __init__(self, interval: float = 1.0):
         self.session = requests.Session()
@@ -15,9 +25,14 @@ class Fetcher:
 
     def get(self, url: str, allowed_hosts: list[str]) -> bytes:
         for _ in range(6):
-            parts = urlsplit(url)
-            if parts.scheme != "https" or parts.hostname not in allowed_hosts or parts.username or parts.port not in (None, 443):
-                raise ValueError(f"허용하지 않은 요청 주소: {url}")
+            try:
+                parts = urlsplit(url)
+                port = parts.port
+            except ValueError as exc:
+                raise FetchPolicyError("올바르지 않은 요청 주소") from exc
+            if (parts.scheme != "https" or parts.hostname not in allowed_hosts
+                    or parts.username is not None or parts.password is not None or port not in (None, 443)):
+                raise FetchPolicyError(f"허용하지 않은 요청 주소: {url}")
             for attempt in range(3):
                 delay = self.interval - (time.monotonic() - self.last_request.get(parts.hostname, 0))
                 if delay > 0:
@@ -39,8 +54,8 @@ class Fetcher:
                         content = bytearray()
                         for chunk in response.iter_content(65536):
                             content.extend(chunk)
-                            if len(content) > 5 * 1024 * 1024:
-                                raise ValueError("응답이 5MB 상한을 초과했습니다")
+                            if len(content) > MAX_FILE_BYTES:
+                                raise ResponseTooLarge("응답이 5MB 상한을 초과했습니다")
                         return bytes(content)
                 except (requests.Timeout, requests.ConnectionError):
                     if attempt == 2:
@@ -48,7 +63,7 @@ class Fetcher:
                     time.sleep(2 ** attempt)
             else:
                 raise RuntimeError("요청 재시도 소진")
-        raise ValueError("리다이렉트가 너무 많습니다")
+        raise FetchPolicyError("리다이렉트가 너무 많습니다")
 
     def close(self):
         self.session.close()

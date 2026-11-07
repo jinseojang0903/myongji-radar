@@ -14,6 +14,10 @@ def now() -> str:
 
 def content_hash(payload: dict) -> str:
     content = {key: payload[key] for key in ("title", "body_text", "images", "attachments")}
+    # 경로·변환 결과·일시적 오류는 원문 변경이 아니다. 실제 파일 바이트만 해시에 반영한다.
+    for kind, label in (("images", "alt"), ("attachments", "name")):
+        content[kind] = [{key: item[key] for key in ("url", label, "sha256") if key in item}
+                         for item in payload[kind]]
     return hashlib.sha256(json.dumps(content, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
 
@@ -78,6 +82,11 @@ class Repository:
         return self.db.execute("SELECT 1 FROM notices WHERE source_id=? AND external_id=?",
                                (source_id, external_id)).fetchone() is not None
 
+    def latest_payload(self, source_id: str, external_id: str) -> dict | None:
+        row = self.db.execute("""SELECT payload_json FROM notice_versions
+            WHERE source_id=? AND external_id=? ORDER BY id DESC LIMIT 1""", (source_id, external_id)).fetchone()
+        return json.loads(row[0]) if row else None
+
     def save(self, notice, html: bytes, reparse_previous=None) -> str:
         payload = asdict(notice)
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
@@ -100,6 +109,11 @@ class Repository:
                     raise ValueError("파서가 변경되어 저장된 원문을 다시 파싱해야 합니다")
                 old_html = (self.data_dir / current_version[2]).read_bytes()
                 reparsed = asdict(reparse_previous(old_html, previous_payload))
+                # 과거 HTML을 다시 읽어도 그 당시 파일 바이트는 현재 URL로 재요청하지 않는다.
+                # 링크가 같은 자산에 한해 저장돼 있던 메타데이터·해시를 이어 붙인다.
+                for kind in ("images", "attachments"):
+                    old_assets = {item["url"]: item for item in previous_payload.get(kind, [])}
+                    reparsed[kind] = [{**old_assets.get(item["url"], {}), **item} for item in reparsed[kind]]
                 if ((reparsed["source_id"], reparsed["external_id"]) != key
                         or reparsed["parser_version"] != payload["parser_version"]):
                     raise ValueError("저장된 원문의 재파싱 결과가 현재 공지 또는 파서와 다릅니다")
@@ -127,6 +141,13 @@ class Repository:
                 updated_hash = baseline_hash if changed else digest
                 self.db.execute("UPDATE notice_versions SET content_hash=?, payload_json=? WHERE id=?",
                                 (updated_hash, updated_payload, current_version[0]))
+            elif not changed:
+                # 자산 확인 메타데이터만 갱신한다. 과거 버전의 URL·게시일은 덮어쓰지 않는다.
+                current_payload = json.loads(current_version[1])
+                for kind in ("images", "attachments"):
+                    current_payload[kind] = payload[kind]
+                self.db.execute("UPDATE notice_versions SET payload_json=? WHERE id=?",
+                                (json.dumps(current_payload, ensure_ascii=False, sort_keys=True), current_version[0]))
             if changed:
                 self.db.execute("""INSERT INTO notice_versions
                     (source_id,external_id,content_hash,payload_json,raw_path,collected_at)

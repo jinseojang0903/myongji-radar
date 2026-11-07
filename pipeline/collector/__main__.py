@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .adapters import ADAPTERS
 from .analysis import analyze_file
+from .assets import AssetCollector
 from .config import load_sources
 from .fetcher import Fetcher
 from .models import NoticeRef
@@ -55,13 +56,14 @@ def main(argv=None, *, lock_held=False):
         return 0
     repo = Repository(args.data_dir)
     fetcher = Fetcher()
+    assets = AssetCollector(args.data_dir, fetcher)
     failed = False
     try:
         if args.command == "run":
             run_id = repo.start_run()
             results = []
             for source in sources:
-                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0, "errors": []}
+                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0, "errors": [], "warnings": []}
                 adapter = ADAPTERS[source.adapter]()
                 discovery_url = source.list_url if source.discovery == "html" else source.rss_url
                 try:
@@ -74,6 +76,10 @@ def main(argv=None, *, lock_held=False):
                         try:
                             html = fetcher.get(ref.url, source.allowed_hosts)
                             notice = adapter.parse_detail(html, ref, source)
+                            asset_errors = assets.enrich(notice, source.allowed_hosts,
+                                                         repo.latest_payload(source.id, ref.external_id))
+                            stats["errors"].extend(e for e in asset_errors if e["severity"] == "error")
+                            stats["warnings"].extend(e for e in asset_errors if e["severity"] == "warning")
                             def reparse_previous(old_html, old_payload):
                                 old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
                                                     old_payload["title"], old_payload["published_at"])
