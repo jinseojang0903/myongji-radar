@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import requests
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -76,7 +77,7 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(len(current), 2)
         self.assertEqual(current[0]["version_id"], old["version_id"])
         self.assertEqual(self.state()["status"], "success")
-        self.assertEqual(self.state()["sources"], [{"source": "test", "new": 1, "changed": 0, "unchanged": 1, "errors": 0}])
+        self.assertEqual(self.state()["sources"], [{"source": "test", "new": 1, "changed": 0, "unchanged": 1, "errors": 0, "warnings": 0}])
         self.assertEqual(len(json.loads((self.data / "analysis.json").read_text(encoding="utf-8"))["notices"]), 2)
         self.assertEqual(len(list((self.data / "logs").glob("*.jsonl"))), 2)
         logs = json.dumps(self.events())
@@ -121,6 +122,39 @@ class DailyTests(unittest.TestCase):
         self.assertEqual(self.state()["analysis_exit_code"], 0)
         self.assertEqual(self.state()["sources"][0]["new"], 1)
         self.assertEqual(len(json.loads((self.data / "analysis.json").read_text(encoding="utf-8"))["notices"]), 1)
+
+    def test_permanent_asset_failure_warns_but_daily_succeeds(self):
+        def fetch(url, hosts):
+            if url.endswith("/missing.png"):
+                response = requests.Response()
+                response.status_code = 404
+                raise requests.HTTPError("not found", response=response)
+            content = self.fetch(url, hosts)
+            if "artclView" in url:
+                content = content.replace(b"</div>", b'<img src="/missing.png"></div>')
+            return content
+
+        self.fetcher.get.side_effect = fetch
+        self.assertEqual(self.run_daily(), 0)
+        self.assertEqual(self.state()["status"], "success")
+        self.assertEqual(self.state()["sources"][0]["warnings"], 1)
+        self.assertEqual(self.state()["sources"][0]["errors"], 0)
+        self.assertEqual(self.state()["analysis_exit_code"], 0)
+        notice = json.loads((self.data / "notices.json").read_text(encoding="utf-8"))["notices"][0]
+        self.assertEqual(notice["images"][0]["download_status"], "skipped")
+
+    def test_transient_asset_failure_analyzes_but_returns_partial_failure(self):
+        def fetch(url, hosts):
+            if url.endswith("/image.png"):
+                raise requests.Timeout("private response")
+            content = self.fetch(url, hosts)
+            return content.replace(b"</div>", b'<img src="/image.png"></div>') if "artclView" in url else content
+
+        self.fetcher.get.side_effect = fetch
+        self.assertEqual(self.run_daily(), 1)
+        self.assertEqual(self.state()["status"], "partial_failure")
+        self.assertEqual(self.state()["analysis_exit_code"], 0)
+        self.assertEqual(self.state()["sources"][0]["errors"], 1)
 
     def test_analysis_system_exit_is_logged_and_keeps_previous_output(self):
         self.assertEqual(self.run_daily(), 0)

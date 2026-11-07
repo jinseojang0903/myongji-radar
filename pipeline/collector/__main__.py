@@ -64,7 +64,7 @@ def main(argv=None, *, lock_held=False):
             run_id = repo.start_run()
             results = []
             for source in sources:
-                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0, "errors": []}
+                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0, "errors": [], "warnings": []}
                 adapter = ADAPTERS[source.adapter]()
                 discovery_url = source.list_url if source.discovery == "html" else source.rss_url
                 try:
@@ -79,7 +79,8 @@ def main(argv=None, *, lock_held=False):
                             notice = adapter.parse_detail(html, ref, source)
                             asset_errors = assets.enrich(notice, source.allowed_hosts,
                                                          repo.latest_payload(source.id, ref.external_id))
-                            stats["errors"].extend(asset_errors)
+                            stats["errors"].extend(e for e in asset_errors if e["severity"] == "error")
+                            stats["warnings"].extend(e for e in asset_errors if e["severity"] == "warning")
                             def reparse_previous(old_html, old_payload):
                                 old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
                                                     old_payload["title"], old_payload["published_at"])

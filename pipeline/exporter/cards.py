@@ -199,20 +199,30 @@ def build_card(bundle: CardBundle, warnings: list[str] | None = None) -> dict:
     }
 
 
-def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at: str) -> tuple[dict, dict]:
+def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at: str,
+                     blocked: frozenset[str] | set[str] = frozenset()) -> tuple[dict, dict]:
     """카드 묶음 → cards.json 전체.
 
+    blocked: 수동 차단 목록의 카드 id (#65, `exporter/blocklist.py`). 이 카드는 만들지 않는다.
     Returns:
-        (cards.json 데이터, 보고 {"rejected": 뺀 카드, "skipped": 대회 아님, "warnings": 내보냈지만 확인할 일})
-        각 항목은 {"id", "reason"}. 같은 id가 다시 나오면 먼저 나온 카드를 쓴다.
+        (cards.json 데이터, 보고 {"rejected": 뺀 카드, "skipped": 대회 아님, "warnings": 내보냈지만 확인할 일,
+        "blocked": 차단해 뺀 카드})
+        각 항목은 {"id", "reason"}. 같은 id가 다시 나오면 먼저 나온 카드를 쓴다. 차단 이유는 보고에 넣지 않는다.
+        차단 목록의 id가 이번 묶음에 없으면(오타·이미 사라진 카드) 조용히 넘어가지 않게 warnings에 남긴다.
     Raises:
         ValueError: generated_at이 시간대가 있는 ISO 8601 시각이 아닐 때 (사이트가 전체를 못 읽게 되므로)
     """
     _check_generated_at(generated_at)
     cards, seen = [], set()
-    report = {"rejected": [], "skipped": [], "warnings": []}
+    report = {"rejected": [], "skipped": [], "warnings": [], "blocked": []}
+    matched: set[str] = set()
     for bundle in bundles:
         card_id = _printable_id(bundle.card_id)
+        if isinstance(bundle.card_id, str) and bundle.card_id in blocked:
+            if bundle.card_id not in matched:
+                report["blocked"].append({"id": card_id, "reason": "수동 차단 목록"})
+            matched.add(bundle.card_id)
+            continue
         warnings: list[str] = []
         try:
             card = build_card(bundle, warnings)
@@ -230,6 +240,8 @@ def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at
         seen.add(card["id"])
         cards.append(card)
         report["warnings"] += [{"id": card_id, "reason": message} for message in warnings]
+    report["warnings"] += [{"id": card_id, "reason": "차단 목록에 있지만 이번 묶음에 없는 카드 (오타이거나 사라진 카드면 목록에서 지우기)"}
+                           for card_id in sorted(set(blocked) - matched)]
     data = {"schema_version": SCHEMA_VERSION, "generated_at": generated_at, "boards": boards, "cards": cards}
     return data, report
 

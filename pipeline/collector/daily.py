@@ -155,7 +155,8 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
                 if run and (before is None or run["id"] > before["id"]):
                     state["collection_run_id"] = run["id"]
                     state["sources"] = [{"source": s["source"], "new": s["new"], "changed": s["changed"],
-                        "unchanged": s["unchanged"], "errors": len(s["errors"])} for s in run["sources"]]
+                        "unchanged": s["unchanged"], "errors": len(s["errors"]),
+                        "warnings": len(s.get("warnings", []))} for s in run["sources"]]
                 processed = sum(s["new"] + s["changed"] + s["unchanged"] for s in state["sources"])
                 emit("collection_finished", run_id=state["collection_run_id"], exit_code=collected, sources=state["sources"])
                 if collected:

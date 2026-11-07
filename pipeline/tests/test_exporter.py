@@ -567,6 +567,23 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertEqual([card["id"] for card in data["cards"]], ["ai-literacy-2026"])
         self.assertEqual(report["rejected"], [{"id": "broken", "reason": "처리 중 오류 (TypeError)"}], "AI 값은 이유에 넣지 않는다")
 
+    def test_blocked_cards_are_left_out(self):
+        bundles = [bundle(), bundle(card_id="keep-me"), bundle(card_id="keep-me"), bundle(card_id="block-me"), bundle(card_id="block-me")]
+        data, report = build_cards_json(bundles, [], GENERATED_AT, blocked={"ai-literacy-2026", "block-me", "gone-card"})
+        self.assertEqual([card["id"] for card in data["cards"]], ["keep-me"], "차단한 카드는 만들지 않는다")
+        self.assertEqual([item["id"] for item in report["blocked"]], ["ai-literacy-2026", "block-me"], "같은 id가 두 번 와도 한 번")
+        self.assertEqual([item["id"] for item in report["warnings"]], ["gone-card"],
+                         "목록에 있는데 이번 묶음에 없는 id는 조용히 넘어가지 않는다")
+        self.assertEqual([item["id"] for item in report["rejected"]], ["keep-me"], "차단과 상관없는 중복은 그대로 뺀다")
+        self.assertNotIn("block-me", json.dumps(data, ensure_ascii=False), "차단한 카드는 cards.json 어디에도 없다")
+        data, report = build_cards_json([bundle()], [], GENERATED_AT)
+        self.assertEqual((len(data["cards"]), report["blocked"]), (1, []), "목록이 없으면 그대로")
+        not_contest = bundle(card_id="not-contest", extraction={"is_contest": {"value": False, "reason": ""}})
+        data, report = build_cards_json([not_contest, bundle()], [], GENERATED_AT,
+                                        blocked={"not-contest"})
+        self.assertEqual(([item["id"] for item in report["blocked"]], report["skipped"]), (["not-contest"], []),
+                         "건너뛸 묶음이었어도 차단으로만 남는다")
+
     def test_non_contest_and_result_notices_are_skipped(self):
         results = example_fields()
         results["kind"]["value"] = "결과"
@@ -623,6 +640,10 @@ class ExporterCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             bundles_path = Path(folder) / "bundles.json"
             bundles_path.write_text(bundles_text, encoding="utf-8")
+            if "--blocked" not in extra:  # 저장소의 실제 차단 목록이 바뀌어도 시험이 흔들리지 않게 빈 목록으로
+                empty = Path(folder) / "blocked.toml"
+                empty.write_text("blocked = []\n", encoding="utf-8")
+                extra = [*extra, "--blocked", str(empty)]
             argv = ["exporter", "--bundles", str(bundles_path), "--out", str(out_path), *extra]
             stderr = io.StringIO()
             with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
@@ -648,6 +669,53 @@ class ExporterCliTests(unittest.TestCase):
             code, errors = self.run_cli(self.bundle_json([*fixture_bundles(), not_contest]), out)
             self.assertEqual(code, 0, "대회가 아닌 결과를 건너뛴 것은 문제가 아님")
             self.assertIn("[건너뜀] not-contest", errors)
+
+    def test_cli_applies_the_blocklist(self):
+        with tempfile.TemporaryDirectory() as folder:
+            out, blocked = Path(folder) / "cards.json", Path(folder) / "blocked.toml"
+            card_ids = [item.card_id for item in fixture_bundles()]
+            blocked.write_text(f'[[blocked]]\ncard_id = "{card_ids[0]}"\nreason = "비밀 이유 문구"\nsince = 2026-11-06\n', encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 0, "차단은 의도한 것이라 경고가 아니다")
+            self.assertEqual([card["id"] for card in json.loads(out.read_text(encoding="utf-8"))["cards"]], card_ids[1:])
+            self.assertIn(f"[차단] {card_ids[0]}", errors)
+            self.assertIn("차단 1", errors)
+            self.assertNotIn("비밀 이유 문구", errors + out.read_text(encoding="utf-8"), "이유는 기록·cards.json 어디에도 없다")
+            blocked.write_text('[[blocked]]\ncard_id = "gone-card"\nreason = "사라진 카드"\nsince = 2026-11-06\n', encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 1, "목록에만 있는 id는 확인할 일")
+            self.assertIn("[확인] gone-card", errors)
+            before = out.read_text(encoding="utf-8")
+            blocked.write_text("".join(f'[[blocked]]\ncard_id = "{card_id}"\nreason = "모두"\nsince = 2026-11-06\n'
+                                       for card_id in card_ids), encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+            self.assertEqual(code, 2, "모두 차단하면 0장이라 기존 규칙대로 멈춘다 (README에 적음)")
+            self.assertEqual(out.read_text(encoding="utf-8"), before)
+
+    def test_cli_stops_when_the_blocklist_is_unreadable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            out, blocked = Path(folder) / "cards.json", Path(folder) / "blocked.toml"
+            out.write_text('{"keep": true}', encoding="utf-8")
+            for content in ("blocked = [", '[[blocked]]\ncard_id = "Bad Id"\nreason = "x"\nsince = 2026-11-06\n', None):
+                if content is None:
+                    blocked.unlink()
+                else:
+                    blocked.write_text(content, encoding="utf-8")
+                code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
+                self.assertEqual(code, 2, f"차단 없이 내보내지 않는다: {content!r}")
+                self.assertIn("수동 차단 목록을 읽지 못해", errors)
+                self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
+
+    def test_cli_default_blocklist_is_the_repository_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bundles_path, out = Path(folder) / "bundles.json", Path(folder) / "cards.json"
+            bundles_path.write_text(self.bundle_json(fixture_bundles()), encoding="utf-8")
+            argv = ["exporter", "--bundles", str(bundles_path), "--out", str(out)]
+            with mock.patch.object(sys, "argv", argv), mock.patch("exporter.__main__.load_blocked", return_value={}) as loaded, \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                cli_main()
+            self.assertEqual(loaded.call_args.args[0].resolve(), (ROOT / "pipeline" / "config" / "blocked_cards.toml").resolve(),
+                             "기본값이 저장소의 차단 목록 (매일 공개는 --blocked를 넘기지 않는다)")
 
     def test_cli_null_keys_use_defaults(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -692,7 +760,7 @@ class ExporterCliTests(unittest.TestCase):
 class ExporterFixtureTests(unittest.TestCase):
     def test_fixture_matches_exporter_output(self):
         data, report = build_cards_json(fixture_bundles(), FIXTURE_BOARDS, GENERATED_AT)
-        self.assertEqual(report, {"rejected": [], "skipped": [], "warnings": []})
+        self.assertEqual(report, {"rejected": [], "skipped": [], "warnings": [], "blocked": []})
         if os.environ.get("UPDATE_FIXTURES") == "1":
             write_cards_json(FIXTURE, data)
         self.assertEqual(json.loads(FIXTURE.read_text(encoding="utf-8")), data, "결과가 바뀌었으면 UPDATE_FIXTURES=1로 다시 만든다")

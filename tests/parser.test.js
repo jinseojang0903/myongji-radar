@@ -242,6 +242,24 @@ test('시간 표현이 있는 절의 편입·학적은 부정으로 읽었어도
   }
 });
 
+test('지난해·지난 겨울·저번·전에·옛날도 지난 일이라 그 절의 지금 상태를 비운다 (#37)', () => {
+  const cases = [
+    ['지난해에 휴학했는데', 'enrollment'], ['지난 겨울에 휴학했어요', 'enrollment'], ['저번에 휴학생이었는데', 'enrollment'],
+    ['전에 편입생이었어요', 'is_transfer'], ['전엔 자연캠 다녔어', 'campus'], ['옛날에 3학년 때 수료했어', 'enrollment'],
+    ['지난번에 편입 안 했어', 'is_transfer'],
+    ['전에는 휴학생이었는데', 'enrollment'],
+  ];
+  for (const [sentence, field] of cases) {
+    assert.equal(parseConditions(sentence)[field], null, sentence);
+  }
+  const later = parseConditions('저번에 휴학했어요. 지금은 자연캠 3학년 재학생');
+  assert.equal(later.enrollment, '재학', '다른 절의 지금 상태는 그대로');
+  assert.equal(later.campus, '자연');
+  assert.equal(parseConditions('전공 수업 듣는 자연캠 재학생').campus, '자연', '"전"으로 시작하는 다른 낱말은 시간 표현이 아니다');
+  // 알려진 한계: 앞으로의 "전에"도 지난 일로 보고 비운다 (안전한 쪽). 고치면 이 시험을 바꾼다
+  assert.equal(parseConditions('졸업하기 전에 자연캠 대회 나가고 싶어').campus, null);
+});
+
 test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
   const now = new Date('2026-10-15T00:00:00Z');
   const verified = (value) => ({ value, status: 'human_verified', evidence: [{ quote: '근거 문장', location: '본문' }] });
