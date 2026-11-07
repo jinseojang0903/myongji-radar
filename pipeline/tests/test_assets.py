@@ -142,7 +142,7 @@ class AssetTests(unittest.TestCase):
             errors = AssetCollector(self.data, fetcher).enrich(self.notice, ["www.mju.ac.kr"])
         get.assert_not_called()
         self.assertEqual(len(errors), 1)
-        self.assertEqual(self.notice.attachments[0]["download_status"], "failed")
+        self.assertEqual(self.notice.attachments[0]["download_status"], "skipped")
 
     def test_image_unknown_and_scanned_pdf_require_review(self):
         writer = PdfWriter()
@@ -194,7 +194,7 @@ class AssetTests(unittest.TestCase):
         fetcher = Mock(get=Mock(return_value=b"x" * (5 * 1024 * 1024)))
         errors = AssetCollector(self.data, fetcher).enrich(self.notice, ["www.mju.ac.kr"])
         self.assertEqual(len(errors), 1)
-        self.assertEqual(self.notice.images[-1]["download_status"], "failed")
+        self.assertEqual(self.notice.images[-1]["download_status"], "skipped")
         with self.assertRaises(ValueError):
             private_path(self.data, "../escaped.bin")
         xml = '<?xml version="1.0" encoding="utf-16"?><!DOCTYPE s [<!ENTITY x "bad">]><s>&x;</s>'

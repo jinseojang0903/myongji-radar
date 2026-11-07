@@ -142,8 +142,12 @@ class Repository:
                 self.db.execute("UPDATE notice_versions SET content_hash=?, payload_json=? WHERE id=?",
                                 (updated_hash, updated_payload, current_version[0]))
             elif not changed:
-                # 실패/복구 같은 최신 확인 상태는 이력을 늘리지 않고 갱신한다.
-                self.db.execute("UPDATE notice_versions SET payload_json=? WHERE id=?", (encoded, current_version[0]))
+                # 자산 확인 메타데이터만 갱신한다. 과거 버전의 URL·게시일은 덮어쓰지 않는다.
+                current_payload = json.loads(current_version[1])
+                for kind in ("images", "attachments"):
+                    current_payload[kind] = payload[kind]
+                self.db.execute("UPDATE notice_versions SET payload_json=? WHERE id=?",
+                                (json.dumps(current_payload, ensure_ascii=False, sort_keys=True), current_version[0]))
             if changed:
                 self.db.execute("""INSERT INTO notice_versions
                     (source_id,external_id,content_hash,payload_json,raw_path,collected_at)
