@@ -31,9 +31,13 @@ import time
 from pathlib import Path
 
 from exporter.__main__ import main as export_main
+from exporter.blocklist import load_blocked
+from collector.locking import AlreadyRunning, CollectorLock
 from extractor.__main__ import main as extract_main
 from extractor.common import now_text
 from publisher.push import CARDS, PushError, prepare, push_cards
+from merger.__main__ import main as merge_main
+from merger.groups import load_groups
 from verifier.__main__ import main as verify_main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,10 +86,19 @@ def publish(args) -> int:
         print("[멈춤] --data-dir이 공개 폴더 site/ 안이라 시작하지 않음", file=sys.stderr)
         return 2
     repo = ROOT.parent
+    if args.push and args.out.resolve() != (repo / CARDS).resolve():
+        print(f"[멈춤] --push는 저장소의 {CARDS.as_posix()}만 올린다 (--out을 바꾸지 않기)", file=sys.stderr)
+        return 2
+    if args.out.resolve().is_relative_to(data.resolve()) or args.out.resolve() in {
+        args.groups.resolve(), (ROOT / "config/blocked_cards.toml").resolve(),
+        (ROOT / "config/sources.toml").resolve(), (ROOT / "config/rules.toml").resolve(),
+    }:
+        print("[멈춤] 공개 출력은 비공개 데이터 폴더나 설정 파일과 겹칠 수 없음", file=sys.stderr)
+        return 2
+    if not args.merge_contests and (data / "card_bundles.merged.json").exists():
+        print("[멈춤] 기존 병합 상태가 있어 --merge-contests 없이 공개할 수 없음", file=sys.stderr)
+        return 2
     if args.push:
-        if args.out.resolve() != (repo / CARDS).resolve():
-            print(f"[멈춤] --push는 저장소의 {CARDS.as_posix()}만 올린다 (--out을 바꾸지 않기)", file=sys.stderr)
-            return 2
         try:
             prepare(repo)  # 돌리기 전에: main에서 원격에 맞춘다 (안 되면 아무 단계도 돌리지 않는다)
         except PushError as error:
@@ -104,6 +117,12 @@ def publish(args) -> int:
         try:
             check_analysis(notices, analysis)
             log.append({"stage": "check", "code": 0})
+            if args.merge_contests:
+                try:
+                    load_groups(args.groups)
+                    load_blocked(ROOT / "config/blocked_cards.toml")
+                except (ValueError, OSError) as error:
+                    raise Stop(f"병합 설정 오류 ({type(error).__name__})") from None
             extract_argv = ["daily", "--model", args.model, "--notices", str(notices), "--analysis", str(analysis),
                             "--out", str(bundles), "--cache", str(data / "extractions"),
                             "--ledger", str(data / "extract_calls.json"), "--claude", args.claude,
@@ -113,14 +132,36 @@ def publish(args) -> int:
             run_stage("extract", extract_main, extract_argv, log)
             outcome["extract"] = _extract_summary(data / "extractions")
             check_analysis(notices, analysis)  # 추출하는 동안 다음 수집이 원문을 바꾸지 않았는지 (잠금 밖에서 불렸을 때 대비)
-            run_stage("verify", verify_main, ["--bundles", str(bundles), "--notices", str(notices), "--out", str(verified)], log)
-            code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out)], log, ok_codes=(0, 1))
+            to_verify = bundles
+            merge_warning = False
+            if args.merge_contests:
+                to_verify = data / "card_bundles.merged.json"
+                merge_code = run_stage("merge", lambda argv: merge_main(argv, lock_held=True),
+                                      ["--bundles", str(bundles), "--notices", str(notices), "--analysis", str(analysis),
+                                       "--groups", str(args.groups), "--out", str(to_verify)], log, ok_codes=(0, 1))
+                merge_warning = merge_code == 1
+                outcome["merged_bundles"] = _count(to_verify, "bundles")
+                try:
+                    report = json.loads(to_verify.read_text(encoding="utf-8"))["merge_report"]
+                    withheld = report["withheld"]
+                    if type(withheld) is not int or withheld < 0 or outcome["merged_bundles"] is None:
+                        raise ValueError("병합 결과 형식 오류")
+                except (OSError, ValueError, TypeError, KeyError):
+                    raise Stop("병합 결과를 읽지 못함") from None
+                check_analysis(notices, analysis)
+            run_stage("verify", verify_main, ["--bundles", str(to_verify), "--notices", str(notices), "--out", str(verified)], log)
+            export_argv = ["--bundles", str(verified), "--out", str(args.out)]
+            if args.allow_empty:
+                export_argv.append("--allow-empty")
+            code = run_stage("export", export_main, export_argv, log, ok_codes=(0, 1))
+            if merge_warning:
+                code = 1
         except Stop as stop:
             outcome["stopped"] = str(stop)
             print(f"[멈춤] {stop} — cards.json은 그대로 둠", file=sys.stderr)
             return 2
         outcome.update(stopped=None, cards=_count(args.out, "cards"), bundles=_count(bundles, "bundles"))
-        print(f"[공개 준비] cards.json 새로 씀 → {args.out}" + (" (내보내기 경고 있음, 로그 확인)" if code == 1 else ""),
+        print(f"[공개 준비] cards.json 처리 완료 → {args.out}" + (" (내보내기 경고 있음, 로그 확인)" if code == 1 else ""),
               file=sys.stderr)
         if args.push:
             try:
@@ -167,7 +208,7 @@ def _write_log(data: Path, started_at: str, stages: list[dict], outcome: dict) -
         file.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, lock_held=False) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
@@ -181,8 +222,18 @@ def main(argv=None) -> int:
     parser.add_argument("--timeout", type=int, default=300, help="호출 하나의 제한 시간(초)")
     parser.add_argument("--use-env-account", action="store_true", help="ANTHROPIC_API_KEY 등 환경변수 계정으로 (본인 키일 때만)")
     parser.add_argument("--push", action="store_true", help="새로 쓴 cards.json 한 파일만 main에 커밋·푸시 (사이트 배포)")
+    parser.add_argument("--merge-contests", action="store_true", help="검토된 공지 그룹을 병합 (기본 꺼짐)")
+    parser.add_argument("--groups", type=Path, default=ROOT / "config/contest_groups.toml", help="검토된 병합 그룹 설정")
+    parser.add_argument("--allow-empty", action="store_true", help="카드0장을 의도했을 때만 공개 허용 (기본 중단)")
     args = parser.parse_args(argv)
     try:
+        if args.merge_contests and not lock_held and not args.data_dir.resolve().is_relative_to(SITE.resolve()):
+            try:
+                with CollectorLock(args.data_dir):
+                    return publish(args)
+            except AlreadyRunning:
+                print("[멈춤] 다른 수집/분석/병합 작업이 실행 중", file=sys.stderr)
+                return 2
         return publish(args)
     except OSError as error:
         print(f"[오류] 실행하지 못함 ({type(error).__name__})", file=sys.stderr)

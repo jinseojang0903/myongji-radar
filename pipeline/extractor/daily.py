@@ -134,11 +134,15 @@ def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
             "notices": [{"source_id": notice.get("source_id"), "url": notice.get("url"), "title": notice.get("title"),
                          "published_at": notice.get("published_at"),
                          "last_seen_at": notice.get("last_seen_at"),
+                         "external_id": notice.get("external_id"), "version_id": notice.get("version_id"),
+                         "input_hash": content_hash(notice), "version_number": notice.get("version_number"),
                          "files": []}],  # 이미지·첨부를 AI에 넣지 않으므로(#12 전) 근거 파일 이름도 없다
             "extraction": entry["output"],
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)
             "deadline_history": [],  # 같은 대회 공지 묶기(#16) 뒤에
             "meta": {"prompt_version": entry.get("prompt_version"), "extract_model": entry.get("model_id") or entry.get("model"),
+                     "merge_model": entry.get("model"), "merge_model_id": entry.get("model_id"),
+                     "merge_prompt_fingerprint": entry.get("prompt_fingerprint"),
                      "cross_model": None, "checked_at": None}}
 
 

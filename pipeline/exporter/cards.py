@@ -24,6 +24,8 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import unquote_plus, urlsplit
 
+from extractor.common import posted_day
+
 SCHEMA_VERSION = "0.1"
 CARD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -708,7 +710,7 @@ def _checked_notices(raw: list) -> list[dict]:
     for number, notice in enumerate(raw, start=1):
         if not isinstance(notice, dict):
             raise CardExportError(f"출처 공지 {number}번 형식")
-        posted = str(notice.get("published_at") or "")[:10]
+        posted = posted_day(notice.get("published_at"), "")
         url = _safe_url(notice.get("url"))
         source_id = notice.get("source_id")
         if not _is_real_date(posted) or not url or not isinstance(source_id, str) or not SOURCE_ID_PATTERN.fullmatch(source_id):

@@ -204,12 +204,15 @@ class Repository:
         return "new" if previous is None else "changed" if changed else "unchanged"
 
     def export(self, path: Path):
-        rows = self.db.execute("""SELECT v.payload_json, v.id, v.collected_at, n.last_seen_at FROM notice_versions v
+        rows = self.db.execute("""SELECT v.payload_json, v.id, v.collected_at, n.last_seen_at,
+            (SELECT COUNT(*) FROM notice_versions all_v WHERE all_v.source_id=v.source_id
+                AND all_v.external_id=v.external_id) FROM notice_versions v
             JOIN notices n ON n.source_id=v.source_id AND n.external_id=v.external_id
             WHERE v.id=(SELECT MAX(v2.id) FROM notice_versions v2
                 WHERE v2.source_id=v.source_id AND v2.external_id=v.external_id)
             ORDER BY v.source_id, v.external_id""")
-        result = [{**json.loads(row[0]), "version_id": row[1], "collected_at": row[2], "last_seen_at": row[3]} for row in rows]
+        result = [{**json.loads(row[0]), "version_id": row[1], "collected_at": row[2], "last_seen_at": row[3],
+                   "version_number": row[4]} for row in rows]
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps({"schema_version": 1, "notices": result}, ensure_ascii=False, indent=2), encoding="utf-8")

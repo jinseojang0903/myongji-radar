@@ -1,0 +1,41 @@
+# #16: 사람 검토를 거친 같은 회차의 공지만 등록한다. 제목 유사도 자동 병합은 하지 않는다.
+# 근거: eval/answer_key/sources.csv. 원문·연락처는 이 파일에 넣지 않는다.
+# 운영 연결은 publisher --merge-contests로 선택하며 기본 동작에는 영향을 주지 않는다.
+# missing 구성 공지는 카드 보류, 결과/취소 확인 시 전체 묶음을 내린다.
+version = 1
+
+[[groups]]
+id = "ai-literacy-2026"
+members = [
+  {source_id = "mju_ctl", external_id = "ctl/792/235972"},
+  {source_id = "mju_ctl", external_id = "ctl/792/236616"},
+  {source_id = "mju_ctl", external_id = "ctl/792/236698"},
+]
+
+[[groups]]
+id = "history-video-5"
+members = [
+  {source_id = "mju_innovation", external_id = "innovation/56/235961"},
+  {source_id = "mju_general", external_id = "mjukr/141/236150"},
+]
+
+[[groups]]
+id = "whatssup-2026-2"
+members = [
+  {source_id = "mju_ctl", external_id = "ctl/792/235921"},
+  {source_id = "mju_general", external_id = "mjukr/141/236152"},
+]
+
+[[groups]]
+id = "report-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/234519"},
+  {source_id = "mju_innovation", external_id = "innovation/56/235950"},
+]
+
+[[groups]]
+id = "speakup-7"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/235076"},
+  {source_id = "mju_innovation", external_id = "innovation/56/235960"},
+]
