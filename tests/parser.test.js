@@ -25,13 +25,13 @@ const DEV_CASES = [
   ['자연캠2학년', { campus: '자연', grade: 2 }],
   ['자연 캠퍼스 재학중이고 편입생은 아닙니다. 혼자 할만한 글쓰기 대회 있을까요?',
     { campus: '자연', is_transfer: false, enrollment: '재학', participation: '개인', deliverables: ['에세이·수기'] }],
-  ['3명이서 앱개발로 나갈 해커톤', { participation: '팀', deliverables: ['코드·개발'] }],
+  ['3명이서 앱개발로 나갈 해커톤', { participation: '팀', deliverables: ['코드·개발'], unknown_terms: ['해커톤'] }],
   ['이학년 이번주까지 포스터', { grade: 2, deliverables: ['디자인'], period: '이번주' }],
   ['졸업유예생인데 마감 임박한 거 있어?', { enrollment: '졸업유예', period: '마감임박' }],
   ['용인 캠 다니는 3학년, 영상이나 디자인 쪽으로 이번달 마감인 거',
     { campus: '자연', grade: 3, deliverables: ['영상', '디자인'], period: '이번달' }],
   ['ㅎㅇ 2학년 휴학생인데 팀원 구해서 나갈 해커톤 ㅊㅊ',
-    { grade: 2, enrollment: '휴학', participation: '팀', deliverables: ['코드·개발'] }],
+    { grade: 2, enrollment: '휴학', participation: '팀', deliverables: [], unknown_terms: ['해커톤'] }],
   ['휴학 중인데 참가 가능한 공모전', { enrollment: '휴학' }],
   // 부정 (계약 2절 3)
   ['팀 말고 혼자 할 수 있는 코딩 대회', { participation: '개인', deliverables: ['코드·개발'] }],
@@ -49,7 +49,8 @@ const DEV_CASES = [
   ['고학년인데 발표 대회', { deliverables: ['발표'], unknown_terms: ['고학년'] }],
   ['복학생 혼자 나갈 대회', { participation: '개인', unknown_terms: ['복학생'] }],
   ['대학원생도 되나요', { unknown_terms: ['대학원생'] }],
-  ['휴학 예정인데 해커톤 나가고 싶어', { deliverables: ['코드·개발'], unknown_terms: ['휴학 예정'] }],
+  // 해커톤은 대회 방식이지 제출물이 아니다 (계약 2절 1, #37)
+  ['휴학 예정인데 해커톤 나가고 싶어', { deliverables: [], unknown_terms: ['해커톤', '휴학 예정'] }],
   ['오프라인 현장 참가 대회 다음 주 마감', { deliverables: ['현장 참가'], unknown_terms: ['다음주'] }],
   ['외국인 유학생도 참가 가능한 대회?', { unknown_terms: ['외국인', '유학생'] }],
   // 표현이 낱말 일부일 뿐인 경우
@@ -392,6 +393,24 @@ test('프로그래밍 언어는 코드·개발, 도면·설계도·건축 설계
     assert.deepEqual(result.deliverables, [], sentence);
     assert.ok(result.unknown_terms.length > 0, sentence);
   }
+});
+
+test('해커톤·아이디어톤만으로는 제출물이 아니고, 형식 낱말이 따로 있으면 그것을 담는다 (계약 2절 1, #37)', () => {
+  const cases = [
+    ['해커톤 찾아줘', ['해커톤']], ['아이디어톤 있어?', ['아이디어톤']], ['아이디어 해커톤 같은 거', ['아이디어', '해커톤']],
+    ['해커톤이나 아이디어톤', ['해커톤', '아이디어톤']], ['해커톤에 나가고 싶어', ['해커톤']],
+  ];
+  for (const [sentence, unknown] of cases) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.deepEqual(result.unknown_terms, unknown, sentence);
+  }
+  // 형식 낱말이 있으면 그것을 담고, 해커톤은 조건으로 쓰지 않았으므로 그대로 남는다
+  const coding = parseConditions('코딩 해커톤');
+  assert.deepEqual(coding.deliverables, ['코드·개발']);
+  assert.deepEqual(coding.unknown_terms, ['해커톤']);
+  assert.deepEqual(parseConditions('3명이서 앱개발로 나갈 해커톤').deliverables, ['코드·개발']);
+  assert.deepEqual(parseConditions('영상 해커톤').deliverables, ['영상']);
 });
 
 test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
