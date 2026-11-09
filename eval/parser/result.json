@@ -31,15 +31,15 @@
       "total": 50
     },
     "participation": {
-      "correct": 46,
-      "wrong": 1,
-      "missed": 3,
+      "correct": 48,
+      "wrong": 0,
+      "missed": 2,
       "extra": 0,
       "total": 50
     },
     "deliverables": {
-      "correct": 34,
-      "wrong": 4,
+      "correct": 35,
+      "wrong": 3,
       "missed": 3,
       "extra": 9,
       "total": 50
@@ -52,15 +52,15 @@
       "total": 50
     }
   },
-  "misreads": 7,
+  "misreads": 6,
   "full_match": {
-    "correct": 24,
+    "correct": 27,
     "total": 50
   },
   "unknown_terms": {
     "expected": 143,
-    "found": 68,
-    "extra": 199
+    "found": 69,
+    "extra": 195
   },
   "mismatches": [
     {
@@ -169,21 +169,12 @@
     {
       "id": "s06",
       "sentence": "팀플 극혐하는 인문캠 3학년인데 걍 방구석에서 피피티 하나만 띡 내면 되는 아이디어 공모전 있냐? 결과 빨리 나오는 걸로 ㄱㄱ",
-      "field": "participation",
-      "outcome": "wrong",
-      "expected": "개인",
-      "actual": "팀"
-    },
-    {
-      "id": "s06",
-      "sentence": "팀플 극혐하는 인문캠 3학년인데 걍 방구석에서 피피티 하나만 띡 내면 되는 아이디어 공모전 있냐? 결과 빨리 나오는 걸로 ㄱㄱ",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
         "결과 빨리 나오는"
       ],
       "actual": [
-        "극혐하",
         "걍",
         "방구석",
         "피피티",
@@ -519,10 +510,10 @@
         "1등 노려볼 만한"
       ],
       "actual": [
-        "귀찮아서",
         "1등",
         "노려볼",
-        "ᄎᄎ좀"
+        "ᄎᄎ좀",
+        "팀원 구하기 귀찮아서"
       ]
     },
     {
@@ -641,14 +632,6 @@
         "제작",
         "교육"
       ]
-    },
-    {
-      "id": "s32",
-      "sentence": "팀플은 절대 사절. 혼자서 카드뉴스 만들어서 내는 대외활동이나 공모전 찾아주라.",
-      "field": "participation",
-      "outcome": "missed",
-      "expected": "개인",
-      "actual": null
     },
     {
       "id": "s33",
@@ -1029,32 +1012,18 @@
     {
       "id": "s49",
       "sentence": "기획서 쓰는 건 극혐. 그냥 춤이나 노래, 커버 영상 찍어서 내는 틱톡/릴스 챌린지 같은 거 있음?",
-      "field": "deliverables",
-      "outcome": "wrong",
-      "expected": [
-        "영상"
-      ],
-      "actual": [
-        "기획서·제안서",
-        "영상"
-      ]
-    },
-    {
-      "id": "s49",
-      "sentence": "기획서 쓰는 건 극혐. 그냥 춤이나 노래, 커버 영상 찍어서 내는 틱톡/릴스 챌린지 같은 거 있음?",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "기획서 쓰는 건 극혐",
         "춤",
         "틱톡/릴스 챌린지"
       ],
       "actual": [
-        "극혐",
         "춤이나",
         "노래",
         "커버",
-        "틱톡"
+        "틱톡",
+        "기획서 쓰는 건 극혐"
       ]
     },
     {
@@ -1103,8 +1072,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T01:34:31.394Z",
-  "parser_sha256": "289d105e049dd0e112f81581600bcd1e1dbcab7515def11277346aa878c07982",
+  "measured_at": "2026-11-09T02:17:05.281Z",
+  "parser_sha256": "b9709d69efe4f31ef113546613b8d41a36650285381c04e662940e20a70228e4",
   "sentences_sha256": "505ae40aecf54cd56f2bbb0ed0d19e800b14241d570804469fa2e070ec0b8f36",
   "writers": [
     "hs",
