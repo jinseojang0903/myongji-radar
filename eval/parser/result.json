@@ -38,9 +38,9 @@
       "total": 50
     },
     "deliverables": {
-      "correct": 40,
+      "correct": 43,
       "wrong": 3,
-      "missed": 3,
+      "missed": 0,
       "extra": 4,
       "total": 50
     },
@@ -54,13 +54,13 @@
   },
   "misreads": 0,
   "full_match": {
-    "correct": 34,
+    "correct": 36,
     "total": 50
   },
   "unknown_terms": {
     "expected": 137,
     "found": 73,
-    "extra": 197
+    "extra": 193
   },
   "mismatches": [
     {
@@ -371,16 +371,6 @@
     {
       "id": "s22",
       "sentence": "자캠 교통공 3학년인데 데이터 분석이나 공간정보 활용하는 공모전 찾아줘. 파이썬 쓸 수 있는 걸로.",
-      "field": "deliverables",
-      "outcome": "missed",
-      "expected": [
-        "코드·개발"
-      ],
-      "actual": []
-    },
-    {
-      "id": "s22",
-      "sentence": "자캠 교통공 3학년인데 데이터 분석이나 공간정보 활용하는 공모전 찾아줘. 파이썬 쓸 수 있는 걸로.",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
@@ -392,7 +382,6 @@
         "분석",
         "공간정보",
         "활용하",
-        "파이썬",
         "걸로"
       ]
     },
@@ -558,16 +547,6 @@
     {
       "id": "s33",
       "sentence": "자캠 토목 4학년, CAD나 설계 툴 써서 도면 제출하는 경진대회 올해 남은 거 다 보여줘.",
-      "field": "deliverables",
-      "outcome": "missed",
-      "expected": [
-        "디자인"
-      ],
-      "actual": []
-    },
-    {
-      "id": "s33",
-      "sentence": "자캠 토목 4학년, CAD나 설계 툴 써서 도면 제출하는 경진대회 올해 남은 거 다 보여줘.",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
@@ -580,7 +559,6 @@
         "CAD나",
         "설계",
         "툴",
-        "도면",
         "올해"
       ]
     },
@@ -853,24 +831,12 @@
     {
       "id": "s47",
       "sentence": "자캠 건축 4학년, 건축 설계 공모전 중에 3D 모델링 필수 아닌 곳 있나요?",
-      "field": "deliverables",
-      "outcome": "missed",
-      "expected": [
-        "디자인"
-      ],
-      "actual": []
-    },
-    {
-      "id": "s47",
-      "sentence": "자캠 건축 4학년, 건축 설계 공모전 중에 3D 모델링 필수 아닌 곳 있나요?",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
         "3D 모델링 필수 아닌"
       ],
       "actual": [
-        "건축",
-        "설계",
         "3D",
         "모델링",
         "필수",
@@ -956,8 +922,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:11:41.524Z",
-  "parser_sha256": "0e94fdd4ba7c78940787e8326866873252367d038cfe256eb942047482e7fe32",
+  "measured_at": "2026-11-09T06:13:51.230Z",
+  "parser_sha256": "8da5d546bbee5bea12bd1af5640a9d8febec6de7681e0a7978888957f4d01c07",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
