@@ -38,10 +38,10 @@
       "total": 50
     },
     "deliverables": {
-      "correct": 43,
+      "correct": 44,
       "wrong": 3,
       "missed": 0,
-      "extra": 4,
+      "extra": 3,
       "total": 50
     },
     "period": {
@@ -54,13 +54,13 @@
   },
   "misreads": 0,
   "full_match": {
-    "correct": 36,
+    "correct": 37,
     "total": 50
   },
   "unknown_terms": {
     "expected": 137,
-    "found": 73,
-    "extra": 193
+    "found": 74,
+    "extra": 196
   },
   "mismatches": [
     {
@@ -89,6 +89,7 @@
         "취업",
         "전에",
         "AI",
+        "해커톤",
         "길게",
         "결과물",
         "걸로",
@@ -275,6 +276,7 @@
       "actual": [
         "컴공",
         "무조건",
+        "해커톤",
         "절대"
       ]
     },
@@ -485,7 +487,6 @@
       "outcome": "extra",
       "expected": [],
       "actual": [
-        "코드·개발",
         "현장 참가"
       ]
     },
@@ -495,14 +496,14 @@
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "주말 이틀 동안",
-        "해커톤"
+        "주말 이틀 동안"
       ],
       "actual": [
         "주말",
         "이틀",
         "동안",
         "빡세게",
+        "해커톤",
         "아이디어톤"
       ]
     },
@@ -897,16 +898,6 @@
     {
       "id": "s50",
       "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "코드·개발"
-      ]
-    },
-    {
-      "id": "s50",
-      "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
@@ -918,12 +909,13 @@
         "평일",
         "바빠서",
         "당일치기",
-        "아이디어"
+        "아이디어",
+        "해커톤"
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:16:29.575Z",
-  "parser_sha256": "4fd6ec739583cb7259aa91985504e22280081bbd1ae64b06fb6afb3fd53bc016",
+  "measured_at": "2026-11-09T06:19:44.755Z",
+  "parser_sha256": "a85c8fccab30194e81927abd4ca0644056626e16a0c254eefde002412a23159d",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
