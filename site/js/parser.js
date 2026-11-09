@@ -77,8 +77,10 @@ const CLAUSE_IDENTITY_NEGATION_RE = /^(아니(?!면)|아닌|아님|아닙|아냐
 // 한계: "졸업하기 전에", "방학 전에"의 앞으로의 "전에"도 걸려 그 절의 값이 빈다 (값이 비는 안전한 쪽. 시험 문장 측정 뒤 다시 본다)
 const CLAUSE_TIME_RE = /^(지난|저번|작년|재작년|예전|옛날|원래|이전|그전|전에$|전엔$|전에는$|내년|내후년|다음학기|나중|복학)/;
 const JUDGED_DIMS = new Set(['campus', 'grade', 'enrollment', 'is_transfer', 'participation']);
-// 직무를 말하는 절("직무는 PM이나 기획 쪽", "개발 직군")의 제출물 낱말은 하고 싶은 일이지 내는 것이 아니다 (계약 2절 1)
-const JOB_ROLE_RE = /^(직무|직군|직종|포지션)/;
+// 직무를 말하는 절("직무는 PM이나 기획 쪽", "개발 직군")의 제출물 낱말은 하고 싶은 일이지 내는 것이 아니다 (계약 2절 1).
+// 조사만 붙은 낱말 전체로 본다 ("직무적성", "직무역량"은 아니다).
+// 한계: 직무가 조건이 아니어도("직무 경험 쌓고 싶은데 영상 공모전") 같은 절의 제출물이 빈다 (값이 비는 안전한 쪽)
+const JOB_ROLE_RE = /^(직무|직군|직종|포지션)(은|는|이|가|을|를|도|만|에|으로|로|이나|이랑|이에요|이요)?$/;
 // "발표하는 거 말고", "편입생은 좀 아니고"처럼 표현과 부정 사이에 끼어도 부정이 그 표현에 걸리는 말
 const NEGATION_BRIDGE = new Set(['거', '것', '건', '게', '거는', '쪽', '쪽은', '좀', '조금', '같은', '딱', '그냥', '너무', '진짜', '정말', '절대']);
 // 참가 형태·제출물은 사이에 다른 말이 끼어도 부정이 걸릴 수 있다 ("같이 할 사람 없어서").
@@ -440,6 +442,7 @@ function applyClauseRisks(tokens, hits, consumed) {
   tokens.forEach((token, index) => {
     if (token.isBoundary || consumed.has(index)) return;
     if (JOB_ROLE_RE.test(token.lower)) {
+      // 제출물은 판정 조건(JUDGED_DIMS)이 아니라 hits 전체에서 찾는다
       for (const hit of hits) {
         if (hit.clause === token.clause && hit.dim === 'deliverables') markUncertain(hit, token);
       }
