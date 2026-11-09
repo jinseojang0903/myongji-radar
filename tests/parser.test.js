@@ -396,12 +396,19 @@ test('프로그래밍 언어는 코드·개발, 도면·설계도·건축 설계
 });
 
 test('해커톤·아이디어톤만으로는 제출물이 아니고, 형식 낱말이 따로 있으면 그것을 담는다 (계약 2절 1, #37)', () => {
-  for (const sentence of ['해커톤 찾아줘', '아이디어 해커톤 같은 거', '주말 해커톤이나 아이디어톤', '해커톤에 나가고 싶어']) {
+  const cases = [
+    ['해커톤 찾아줘', ['해커톤']], ['아이디어톤 있어?', ['아이디어톤']], ['아이디어 해커톤 같은 거', ['아이디어', '해커톤']],
+    ['해커톤이나 아이디어톤', ['해커톤', '아이디어톤']], ['해커톤에 나가고 싶어', ['해커톤']],
+  ];
+  for (const [sentence, unknown] of cases) {
     const result = parseConditions(sentence);
     assert.deepEqual(result.deliverables, [], sentence);
-    assert.ok(result.unknown_terms.some((term) => /해커톤|아이디어톤/.test(term)), `${sentence}: ${result.unknown_terms}`);
+    assert.deepEqual(result.unknown_terms, unknown, sentence);
   }
-  assert.deepEqual(parseConditions('코딩 해커톤').deliverables, ['코드·개발']);
+  // 형식 낱말이 있으면 그것을 담고, 해커톤은 조건으로 쓰지 않았으므로 그대로 남는다
+  const coding = parseConditions('코딩 해커톤');
+  assert.deepEqual(coding.deliverables, ['코드·개발']);
+  assert.deepEqual(coding.unknown_terms, ['해커톤']);
   assert.deepEqual(parseConditions('3명이서 앱개발로 나갈 해커톤').deliverables, ['코드·개발']);
   assert.deepEqual(parseConditions('영상 해커톤').deliverables, ['영상']);
 });
