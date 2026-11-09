@@ -422,6 +422,23 @@ test('"~도 괜찮다"로 말한 제출물은 담지 않고 이해하지 못한 
   // "도"가 없거나 받아들인다는 말이 아니면 그대로
   assert.deepEqual(parseConditions('오프라인 대회 좋아').deliverables, ['현장 참가']);
   assert.deepEqual(parseConditions('영상도 찍고 싶어').deliverables, ['영상']);
+  // 하고 싶음·요구·바람은 받아들인다는 말이 아니다
+  assert.deepEqual(parseConditions('발표도 좋아하고 영상도 좋아해').deliverables, ['영상', '발표']);
+  assert.deepEqual(parseConditions('영상도 좋아하는데').deliverables, ['영상']);
+  assert.deepEqual(parseConditions('발표도 돼야 해').deliverables, ['발표']);
+  assert.deepEqual(parseConditions('영상도 가능하면 짧게').deliverables, ['영상']);
+  // 부정·거절은 기존 규칙대로 값으로 정하지 않는다
+  for (const sentence of ['오프라인도 괜찮지 않아', '영상도 싫어']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+  assert.deepEqual(parseConditions('영상도 상관없지만 포스터는 싫어').deliverables, []);
+  // 쉼표로 절이 갈리면 받아들인다는 말이 아니다
+  assert.deepEqual(parseConditions('영상도, 괜찮아').deliverables, ['영상']);
+  // 다른 조건이 붙은 낱말은 이 규칙을 쓰지 않아 그 조건을 지우지 않는다
+  assert.equal(parseConditions('팀영상도 괜찮아').participation, '팀');
+  assert.deepEqual(parseConditions('앱개발도 괜찮아').deliverables, ['코드·개발']);
 });
 
 test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
