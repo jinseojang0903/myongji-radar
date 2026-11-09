@@ -360,6 +360,14 @@ test('"아이디어"만으로는 제출물이 아니고 이해하지 못한 표�
   assert.deepEqual(parseConditions('아이디어 기획서 공모전').deliverables, ['기획서·제안서']);
   assert.deepEqual(parseConditions('피피티 하나만 내면 되는 아이디어 공모전').deliverables, ['기획서·제안서']);
   assert.deepEqual(parseConditions('아이디어 영상 공모전').deliverables, ['영상']);
+  // 붙여 써도 같다
+  assert.deepEqual(parseConditions('아이디어기획서 공모전').deliverables, ['기획서·제안서']);
+  assert.deepEqual(parseConditions('아이디어영상 공모전').deliverables, ['영상']);
+  for (const sentence of ['아이디어톤 있어?', '아이디어로 승부하는 대회', '아이디어공모전 찾아줘']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.some((term) => term.startsWith('아이디어')), `${sentence}: ${result.unknown_terms}`);
+  }
 });
 
 test('PPT를 내는 것은 기획서·제안서, 그 밖의 PPT·PT는 발표 (계약 2절 1, #37)', () => {
