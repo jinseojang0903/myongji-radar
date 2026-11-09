@@ -31,7 +31,8 @@ const DICTIONARY = [
   ['deliverables', '기획서·제안서', ['사업계획서', '기획서', '제안서', '기획안', '계획서', '기획']],
   ['deliverables', '영상', ['동영상', '영상', '유튜브', '숏폼', '쇼츠', '릴스', 'ucc', '브이로그', 'vlog', '영화']],
   ['deliverables', '에세이·수기', ['에세이', '체험수기', '수기', '수필', '글쓰기', '독후감', '작문', '글']],
-  // 프로그래밍 언어도 코드·개발 (계약 2절 1). 도구 이름(CAD, AI 툴)은 형식이 정해지지 않아 넣지 않는다
+  // 프로그래밍 언어도 코드·개발 (계약 2절 1의 닫힌 목록). 도구 이름(CAD, AI 툴)은 형식이 정해지지 않아 넣지 않는다.
+  // "C 언어", "건축 설계"는 JOINS에서 붙인다
   ['deliverables', '코드·개발', ['프로그래밍', '소프트웨어', '자바스크립트', '파이썬', 'python', 'c언어', '자바', '해커톤', '코딩', '코드', '개발', '어플', '앱', '웹', 'sw']],
   ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피피티', '피티', 'ppt', 'pt']],
   // 도면·설계도·건축 설계는 설계 결과물 (계약 2절 1). "설계" 하나만으로는 "설계 툴"처럼 형식이 정해지지 않는다
@@ -121,6 +122,8 @@ const SUBMIT_RE = /^(내(면|는|는데|고|도|서|야|요|세요|기만|려고
 const PPT_SUBMIT_WINDOW = 4;
 // "디자인과 2학년"의 "과"는 조사가 아니라 학과
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
+const DEPARTMENT_TAIL_RE = /^과(예요|이에요|에요|인데|이고|이라|라서|생|입니다)/;
+const MAJOR_NEXT_RE = /^(전공|학과|학부|계열)/;
 
 // 조건과 상관없는 말 (계약 2절 4). 낱말 전체 또는 두 글자 이상 남기고 조사를 뗀 형태로 비교한다.
 const FILLER_WORDS = new Set([
@@ -164,7 +167,7 @@ const JOINS = [
   [/(현장|개인|팀)\s*(참가|참여)/g, '$1$2'],
   // "아이디어기획서", "아이디어영상": 사전에서 뺀 "아이디어"(계약 2절 1)를 떼어 뒤의 형식을 읽는다
   [/아이디어(?=기획|제안|계획서|영상|동영상|포스터|디자인|발표|에세이|코드|코딩|앱|웹)/g, '아이디어 '],
-  [/체험\s*수기/g, '체험수기'], [/건축\s*설계/g, '건축설계'], [/c\s*언어/gi, 'c언어'], [/카드\s*뉴스/g, '카드뉴스'], [/사업\s*계획서/g, '사업계획서'], [/글\s*쓰기/g, '글쓰기'],
+  [/체험\s*수기/g, '체험수기'], [/건축[ \t]*설계/g, '건축설계'], [/(?<![a-z])c[ \t]*언어/gi, 'c언어'], [/카드\s*뉴스/g, '카드뉴스'], [/사업\s*계획서/g, '사업계획서'], [/글\s*쓰기/g, '글쓰기'],
 ];
 
 /**
@@ -297,6 +300,12 @@ function acceptMatches(matches, tokens, index) {
   if (tags.size > 1) return null;
   // 학과 이름이 되는 것은 제출물 낱말뿐이다 ("디자인과"는 학과, "1학년과 2학년"의 과는 접속)
   if (last.dim === 'deliverables' && last.rest === '과' && DEPARTMENT_NEXT_RE.test(next)) return null;
+  // "디자인과예요", "건축설계과인데": 문장 끝이나 어미가 붙은 학과 이름
+  if (last.dim === 'deliverables' && DEPARTMENT_TAIL_RE.test(last.rest)) return null;
+  // "건축 설계 전공", "디자인 학부": 전공 이름이지 내는 것이 아니다 (계약 2절 1)
+  if (last.dim === 'deliverables' && last.rest === '' && MAJOR_NEXT_RE.test(next)) return null;
+  // "자바라"(호스)는 프로그래밍 언어가 아니다
+  if (last.stem === '자바' && last.rest.startsWith('라')) return null;
   if (matches.length === 1) {
     if (last.stem === '친구' && !FRIEND_TAIL_RE.test(last.rest)) return null;
     if ((last.stem === '같이' || last.stem === '함께') && last.rest === '' && !TOGETHER_NEXT_RE.test(next)) return null;

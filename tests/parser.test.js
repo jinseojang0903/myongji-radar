@@ -379,6 +379,14 @@ test('프로그래밍 언어는 코드·개발, 도면·설계도·건축 설계
   for (const [sentence, expected] of cases) {
     assert.deepEqual(parseConditions(sentence).deliverables, expected, sentence);
   }
+  // 학과·전공 이름, 비슷한 다른 낱말은 제출물이 아니다
+  for (const sentence of ['건축설계학과 3학년', '건축 설계 전공 학생', '건축설계과예요', '디자인과인데 영상 대회', '도면적 사고', '자바섬 여행 공모전', '자바라 호스']) {
+    const tags = parseConditions(sentence).deliverables;
+    assert.ok(!tags.includes('디자인') && !tags.includes('코드·개발'), `${sentence}: ${tags}`);
+  }
+  assert.deepEqual(parseConditions('디자인과인데 영상 대회').deliverables, ['영상']);
+  // 앞 낱말 끝의 c는 붙이지 않는다
+  assert.ok(parseConditions('magic 언어 공모전').unknown_terms.includes('magic'));
   for (const sentence of ['CAD 쓰는 대회', '설계 툴 써서 하는 대회', 'AI 툴 활용 공모전']) {
     const result = parseConditions(sentence);
     assert.deepEqual(result.deliverables, [], sentence);
