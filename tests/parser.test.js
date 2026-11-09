@@ -290,8 +290,25 @@ test('대회 일정·시간 여유 표현은 같은 절의 지금 상태를 비�
     const result = parseConditions(sentence);
     for (const [field, value] of Object.entries(expected)) assert.equal(result[field], value, `${sentence} → ${field}`);
   }
-  // 목록에 있는 시간 표현은 일정 표현과 함께 있어도 그대로 비운다
-  assert.equal(parseConditions('내년에 3학년인데 이번 주말 해커톤').grade, null);
+  // "ㅠ"는 문장부호가 아니라 한 절이어도 지금 상태는 그대로, 이번 주말은 기간 칸에
+  const oneClause = parseConditions('자캠 3학년인데 다음 주는 바빠서 ㅠ 이번 주말 대회');
+  assert.equal(oneClause.campus, '자연');
+  assert.equal(oneClause.grade, 3);
+  assert.equal(oneClause.period, '이번주');
+  // 일정 표현은 부정으로 읽은 값도 비우지 않는다 (목록 표현과 다름)
+  assert.equal(parseConditions('다음 주는 바빠서 편입 안 했어').is_transfer, false);
+});
+
+test('계약 2절 3의 시간 표현 목록은 일정을 말할 때도 그 절을 비운다 (겹치면 목록이 먼저, #37)', () => {
+  const cases = [
+    ['인문캠 2학년인데 다음 학기에 할 만한 대회', 'grade'], ['자캠 3학년인데 내년 1월 마감인 공모전', 'campus'],
+    ['방학 전에 낼 수 있는 대회 찾는 인문캠 2학년', 'grade'], ['지난주에 휴학했어요', 'enrollment'],
+    ['예전에 자연캠 다녔어', 'campus'], ['이전에는 편입생이었는데', 'is_transfer'], ['재작년에 3학년이었어', 'grade'],
+    ['내후년에 4학년', 'grade'], ['나중에 휴학할 수도', 'enrollment'], ['복학생인 인문캠 3학년', 'campus'],
+  ];
+  for (const [sentence, field] of cases) {
+    assert.equal(parseConditions(sentence)[field], null, sentence);
+  }
 });
 
 test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
