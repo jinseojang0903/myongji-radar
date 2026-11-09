@@ -124,6 +124,9 @@ const PPT_SUBMIT_WINDOW = 4;
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
 const DEPARTMENT_TAIL_RE = /^과(예요|이에요|에요|인데|이고|이라|라서|생|입니다)/;
 const MAJOR_NEXT_RE = /^(전공|학과|학부|계열)/;
+// "오프라인도 괜찮음", "영상도 돼": 제출물 + "도" 바로 뒤의 받아들인다는 말 (계약 2절 2).
+// 닫힌 목록을 낱말 전체로 비교한다: "좋아하는데"(하고 싶음), "돼야"(요구), "가능하면", "괜찮지 않아"(부정)는 아니다
+const PERMIT_NEXT_RE = /^(괜찮(아|아요|음|습니다|고|은데|다|지만)?|상관없(어|어요|음|고|다|지만|습니다)?|무관(해|해요|함|합니다)?|ok|오케이|가능(해|함|해요|하다|합니다)?|돼|돼요|되요|됨|된다|됩니다)$/;
 
 // 조건과 상관없는 말 (계약 2절 4). 낱말 전체 또는 두 글자 이상 남기고 조사를 뗀 형태로 비교한다.
 const FILLER_WORDS = new Set([
@@ -198,6 +201,17 @@ export function parseConditions(text) {
     }
     const last = matches[matches.length - 1];
     const context = readContext(tokens, index, last);
+    // "오프라인도 괜찮음": 받아들일 수 있다는 말이라 제출물은 값으로도, 이해하지 못한 표현으로도 남기지 않는다 (계약 2절 2).
+    // "팀영상도 괜찮아"처럼 다른 조건이 붙은 낱말은 그 조건만 그대로 읽는다
+    if (context.state === 'permitted') {
+      for (const match of matches.filter((m) => m.dim !== 'deliverables')) {
+        hits.push({ ...match, state: 'plain', term: token.raw.slice(match.start, match.start + match.length),
+          phrase: displayForm(token.raw), tokenIndex: index, clause: token.clause });
+      }
+      for (let used = index; used <= context.end; used += 1) consumed.add(used);
+      index = context.end;
+      continue;
+    }
     const phraseTokens = tokens.slice(context.begin, context.end + 1).map((t) => t.raw);
     phraseTokens[phraseTokens.length - 1] = displayForm(phraseTokens[phraseTokens.length - 1]);
     const phrase = phraseTokens.join(' ');
@@ -350,6 +364,12 @@ function readContext(tokens, index, hit) {
   if (hit.tailUncertain || (hit.tailFuture && isTimeSensitive)) return result('uncertain');
   if (hit.dim === 'grade' && GRADE_RANGE_RE.test(hit.rest)) return result('uncertain');
   if (hit.isHeadcount && HEADCOUNT_SCOPE_RE.test(hit.rest)) return result('uncertain');
+  if (hit.dim === 'deliverables' && hit.rest === '도' && PERMIT_NEXT_RE.test(at(1) ?? '')) return result('permitted', index + 1);
+  // "오프라인도 괜찮지 않아": 받아들이지 않는다는 부정이라 값으로 정하지 않는다 (계약 2절 3).
+  // 한계: 그 밖의 "~지 않아" 부정("영상 하지 않아")은 아직 읽지 못한다
+  if (hit.dim === 'deliverables' && hit.rest === '도' && /^(괜찮|상관없)지$/.test(at(1) ?? '') && /^않/.test(at(2) ?? '')) {
+    return result('uncertain', index + 2);
+  }
   if (isTimeSensitive && TIME_SHIFT_RE.test(at(-1) ?? '')) return result('uncertain', index, index - 1);
 
   const next = at(1);
