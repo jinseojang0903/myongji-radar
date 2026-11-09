@@ -309,6 +309,15 @@ test('계약 2절 3의 시간 표현 목록은 일정을 말할 때도 그 절�
   for (const [sentence, field] of cases) {
     assert.equal(parseConditions(sentence)[field], null, sentence);
   }
+  // 값과 떨어진 자리에 두어 절 단위 규칙만 시험한다 (값 바로 앞이면 다른 규칙이 먼저 비운다)
+  const listed = ['지난주에', '저번에', '작년에', '재작년에', '예전에', '옛날에', '원래', '이전에', '그전에', '전에', '전엔',
+    '전에는', '내년에', '내후년에', '다음 학기에', '나중에', '복학했고'];
+  for (const word of listed) {
+    const result = parseConditions(`자연캠 3학년인데 ${word} 대회 나갔어`);
+    assert.equal(result.campus, null, `${word} → campus`);
+    assert.equal(result.grade, null, `${word} → grade`);
+  }
+  assert.equal(parseConditions('자연캠 3학년인데 다음 주에 대회 나가').campus, '자연', '목록 밖 일정 표현은 같은 자리에서도 비우지 않는다');
 });
 
 test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
