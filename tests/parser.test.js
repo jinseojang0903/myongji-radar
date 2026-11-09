@@ -369,6 +369,13 @@ test('PPT를 내는 것은 기획서·제안서, 그 밖의 PPT·PT는 발표 (�
     assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
   }
   assert.deepEqual(parseConditions('피피티 말고 영상 제출').deliverables, ['영상']);
+  // 낸다는 말의 활용형은 이해하지 못한 표현으로 남지 않는다. 낱말 전체로 비교하므로 "제출기한"은 내는 말이 아니다
+  for (const sentence of ['ppt 제출해서 심사', 'ppt 냈어', '피피티 제출용', 'ppt 내기만 하면 됨', 'ppt 내세요']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, ['기획서·제안서'], sentence);
+    assert.ok(!result.unknown_terms.some((term) => /^(내|냈|낸|제출)/.test(term)), `${sentence}: ${result.unknown_terms}`);
+  }
+  assert.deepEqual(parseConditions('ppt 제출기한 3일 뒤').deliverables, ['발표']);
 });
 
 test('시연 문장 → 판정: 해석 결과를 그대로 judgeCard에 넣을 수 있다 (#24 시연)', () => {
