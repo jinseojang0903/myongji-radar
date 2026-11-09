@@ -38,10 +38,10 @@
       "total": 50
     },
     "deliverables": {
-      "correct": 39,
+      "correct": 40,
       "wrong": 3,
       "missed": 3,
-      "extra": 5,
+      "extra": 4,
       "total": 50
     },
     "period": {
@@ -54,12 +54,12 @@
   },
   "misreads": 0,
   "full_match": {
-    "correct": 33,
+    "correct": 34,
     "total": 50
   },
   "unknown_terms": {
     "expected": 137,
-    "found": 72,
+    "found": 73,
     "extra": 197
   },
   "mismatches": [
@@ -310,29 +310,6 @@
         "끝나",
         "단기",
         "아이디어톤"
-      ]
-    },
-    {
-      "id": "s17",
-      "sentence": "졸업 유예 중인데 참여 가능한 공모전 있나? 직무는 PM이나 기획 쪽.",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "기획서·제안서"
-      ]
-    },
-    {
-      "id": "s17",
-      "sentence": "졸업 유예 중인데 참여 가능한 공모전 있나? 직무는 PM이나 기획 쪽.",
-      "field": "unknown_terms",
-      "outcome": "missed",
-      "expected": [
-        "기획"
-      ],
-      "actual": [
-        "직무",
-        "PM"
       ]
     },
     {
@@ -979,8 +956,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:07:14.155Z",
-  "parser_sha256": "78826720908c4d14dd5c2ab0235caf5748f7c24948fb67ad97d446efced44a67",
+  "measured_at": "2026-11-09T06:11:41.524Z",
+  "parser_sha256": "0e94fdd4ba7c78940787e8326866873252367d038cfe256eb942047482e7fe32",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
