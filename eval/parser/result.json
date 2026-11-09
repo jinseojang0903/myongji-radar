@@ -38,10 +38,10 @@
       "total": 50
     },
     "deliverables": {
-      "correct": 44,
+      "correct": 45,
       "wrong": 3,
       "missed": 0,
-      "extra": 3,
+      "extra": 2,
       "total": 50
     },
     "period": {
@@ -54,7 +54,7 @@
   },
   "misreads": 0,
   "full_match": {
-    "correct": 37,
+    "correct": 38,
     "total": 50
   },
   "unknown_terms": {
@@ -483,16 +483,6 @@
     {
       "id": "s28",
       "sentence": "주말 이틀 동안 빡세게 해서 낼 수 있는 해커톤이나 아이디어톤! 오프라인도 괜찮음.",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "현장 참가"
-      ]
-    },
-    {
-      "id": "s28",
-      "sentence": "주말 이틀 동안 빡세게 해서 낼 수 있는 해커톤이나 아이디어톤! 오프라인도 괜찮음.",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
@@ -914,8 +904,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:19:44.755Z",
-  "parser_sha256": "a85c8fccab30194e81927abd4ca0644056626e16a0c254eefde002412a23159d",
+  "measured_at": "2026-11-09T06:29:08.119Z",
+  "parser_sha256": "43b36ea578544d618674ef6940d3120d478aecc7e6e4b998e4ac610512b22b2b",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
