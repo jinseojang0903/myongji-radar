@@ -370,6 +370,17 @@ test('"아이디어"만으로는 제출물이 아니고 이해하지 못한 표�
   }
 });
 
+test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
+  for (const sentence of ['희망 직무는 기획 쪽이에요', '개발 직군 희망하는 3학년', '포지션은 디자인', '마케팅 기획 직무 관련 공모전']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+  assert.equal(parseConditions('개발 직군 희망하는 3학년').grade, 3, '다른 조건은 그대로');
+  // 다른 절의 제출물은 그대로 읽는다
+  assert.deepEqual(parseConditions('직무는 기획 쪽. 영상 공모전 찾아줘').deliverables, ['영상']);
+});
+
 test('PPT를 내는 것은 기획서·제안서, 그 밖의 PPT·PT는 발표 (계약 2절 1, #37)', () => {
   const cases = [
     ['피피티 한 장만 내면 끝나는 공모전', ['기획서·제안서']], ['PPT 5장 이내로 낼 수 있는 대회', ['기획서·제안서']],
