@@ -279,6 +279,21 @@ test('지난해·지난 겨울·저번·전에·옛날도 지난 일이라 그 �
   assert.equal(parseConditions('졸업하기 전에 자연캠 대회 나가고 싶어').campus, null);
 });
 
+test('대회 일정·시간 여유 표현은 같은 절의 지금 상태를 비우지 않는다 (계약 2절 3, #37)', () => {
+  const cases = [
+    ['자연캠 3학년인데 이번 여름방학에 나갈 대회', { campus: '자연', grade: 3 }],
+    ['인문캠 4학년인데 다음 주는 시험 기간이라 바빠요', { campus: '인문', grade: 4 }],
+    ['휴학 중인 자연캠 2학년인데 다음 달 안에 끝나는 공모전', { campus: '자연', grade: 2, enrollment: '휴학' }],
+    ['편입생인데 이번 주말에 하는 해커톤', { is_transfer: true }],
+  ];
+  for (const [sentence, expected] of cases) {
+    const result = parseConditions(sentence);
+    for (const [field, value] of Object.entries(expected)) assert.equal(result[field], value, `${sentence} → ${field}`);
+  }
+  // 목록에 있는 시간 표현은 일정 표현과 함께 있어도 그대로 비운다
+  assert.equal(parseConditions('내년에 3학년인데 이번 주말 해커톤').grade, null);
+});
+
 test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
   const now = new Date('2026-10-15T00:00:00Z');
   const verified = (value) => ({ value, status: 'human_verified', evidence: [{ quote: '근거 문장', location: '본문' }] });
