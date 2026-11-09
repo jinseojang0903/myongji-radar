@@ -31,7 +31,7 @@ const DICTIONARY = [
   ['deliverables', '영상', ['동영상', '영상', '유튜브', '숏폼', '쇼츠', '릴스', 'ucc', '브이로그', 'vlog', '영화']],
   ['deliverables', '에세이·수기', ['에세이', '체험수기', '수기', '수필', '글쓰기', '독후감', '작문', '글']],
   ['deliverables', '코드·개발', ['프로그래밍', '소프트웨어', '해커톤', '코딩', '코드', '개발', '어플', '앱', '웹', 'sw']],
-  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피티', 'ppt', 'pt']],
+  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피피티', '피티', 'ppt', 'pt']],
   ['deliverables', '디자인', ['일러스트', '카드뉴스', '디자인', '포스터', '웹툰', '그림', '로고']],
   // "현장" 하나만으로는 "현장 실습", "현장 심사"와 구분되지 않아 넣지 않는다
   ['deliverables', '현장 참가', ['현장참가', '현장참여', '오프라인']],
@@ -105,6 +105,10 @@ const VERB_RE = /^(했|했어|했어요|했는데|했고|했지만|했음|했다
 const FRIEND_TAIL_RE = /^(랑|이랑|와|과|하고|끼리|들과|들이랑|들하고|들끼리|들랑)/;
 // "같이 나갈", "함께 할"처럼 참가와 이어질 때만 팀 ("영상 같이 짧은 거", "같이 내용이 비슷한"은 아님)
 const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하|해|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
+// PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1). "PT"는 발표로만 쓰여 넣지 않는다
+const PPT_FILE_STEMS = new Set(['ppt', '피피티']);
+const SUBMIT_RE = /^(내$|내면|내는|내고|내도|내서|낼|제출)/;
+const PPT_SUBMIT_WINDOW = 3;
 // "디자인과 2학년"의 "과"는 조사가 아니라 학과
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
 
@@ -283,7 +287,23 @@ function acceptMatches(matches, tokens, index) {
     if (last.stem === '친구' && !FRIEND_TAIL_RE.test(last.rest)) return null;
     if ((last.stem === '같이' || last.stem === '함께') && last.rest === '' && !TOGETHER_NEXT_RE.test(next)) return null;
   }
+  if (PPT_FILE_STEMS.has(last.stem) && isSubmittedFile(last, tokens, index)) {
+    return [...matches.slice(0, -1), { ...last, value: '기획서·제안서' }];
+  }
   return matches;
+}
+
+// "피피티 하나만 내면", "PPT 10장 내외로 낼", "ppt제출": 뒤 몇 낱말 안에 내다·제출이 오면 파일 제출이다.
+// 사이에 다른 조건 표현이 끼면("ppt 발표 영상 제출") 그 표현의 말이라 보지 않는다
+function isSubmittedFile(hit, tokens, index) {
+  if (/제출/.test(hit.rest)) return true;
+  for (let offset = 1; offset <= PPT_SUBMIT_WINDOW; offset += 1) {
+    const word = wordAt(tokens, index + offset);
+    if (word === null) return false;
+    if (SUBMIT_RE.test(word)) return true;
+    if (matchToken(word)) return false;
+  }
+  return false;
 }
 
 function wordAt(tokens, index) {
