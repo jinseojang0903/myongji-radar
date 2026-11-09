@@ -38,10 +38,10 @@
       "total": 50
     },
     "deliverables": {
-      "correct": 35,
+      "correct": 39,
       "wrong": 3,
       "missed": 3,
-      "extra": 9,
+      "extra": 5,
       "total": 50
     },
     "period": {
@@ -54,13 +54,13 @@
   },
   "misreads": 0,
   "full_match": {
-    "correct": 29,
+    "correct": 33,
     "total": 50
   },
   "unknown_terms": {
     "expected": 137,
-    "found": 69,
-    "extra": 193
+    "found": 72,
+    "extra": 197
   },
   "mismatches": [
     {
@@ -178,6 +178,7 @@
         "걍",
         "방구석",
         "띡",
+        "아이디어",
         "결과",
         "빨리",
         "나오",
@@ -238,16 +239,6 @@
     {
       "id": "s13",
       "sentence": "새내기인데 아직 아는게 없어서 ㅠㅠ 아이디어만 있으면 낼 수 있는 가벼운 공모전 있나요?",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "기획서·제안서"
-      ]
-    },
-    {
-      "id": "s13",
-      "sentence": "새내기인데 아직 아는게 없어서 ㅠㅠ 아이디어만 있으면 낼 수 있는 가벼운 공모전 있나요?",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
@@ -256,6 +247,7 @@
       "actual": [
         "아직",
         "아는게",
+        "아이디어",
         "가벼운"
       ]
     },
@@ -395,7 +387,8 @@
         "낼모레",
         "걍",
         "10장",
-        "내외"
+        "내외",
+        "아이디어"
       ]
     },
     {
@@ -429,22 +422,11 @@
     {
       "id": "s23",
       "sentence": "자캠 화공 2학년인데 전공 살려서 나갈만한 화학/환경 관련 논문이나 아이디어 대회 있을까요?",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "기획서·제안서"
-      ]
-    },
-    {
-      "id": "s23",
-      "sentence": "자캠 화공 2학년인데 전공 살려서 나갈만한 화학/환경 관련 논문이나 아이디어 대회 있을까요?",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
         "전공 살려서",
-        "화학/환경",
-        "아이디어"
+        "화학/환경"
       ],
       "actual": [
         "화공",
@@ -452,7 +434,8 @@
         "살려서",
         "화학",
         "환경",
-        "논문"
+        "논문",
+        "아이디어"
       ]
     },
     {
@@ -790,29 +773,19 @@
     {
       "id": "s42",
       "sentence": "인문캠 행정 3학년, 지역사회 발전이나 지자체 정책 아이디어 내는 공모전 알려줘.",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "기획서·제안서"
-      ]
-    },
-    {
-      "id": "s42",
-      "sentence": "인문캠 행정 3학년, 지역사회 발전이나 지자체 정책 아이디어 내는 공모전 알려줘.",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
         "지역사회 발전",
-        "지자체 정책",
-        "아이디어"
+        "지자체 정책"
       ],
       "actual": [
         "행정",
         "지역사회",
         "발전",
         "지자체",
-        "정책"
+        "정책",
+        "아이디어"
       ]
     },
     {
@@ -877,21 +850,10 @@
     {
       "id": "s46",
       "sentence": "편입 1년 차 3학년인데, 전공 상관없이 마케팅이나 브랜딩 아이디어 내는 쉬운 공모전 ㅊㅊ",
-      "field": "deliverables",
-      "outcome": "extra",
-      "expected": [],
-      "actual": [
-        "기획서·제안서"
-      ]
-    },
-    {
-      "id": "s46",
-      "sentence": "편입 1년 차 3학년인데, 전공 상관없이 마케팅이나 브랜딩 아이디어 내는 쉬운 공모전 ㅊㅊ",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "전공 상관없이",
-        "아이디어"
+        "전공 상관없이"
       ],
       "actual": [
         "1년",
@@ -899,6 +861,7 @@
         "전공",
         "마케팅",
         "브랜딩",
+        "아이디어",
         "쉬운"
       ]
     },
@@ -995,7 +958,6 @@
       "outcome": "extra",
       "expected": [],
       "actual": [
-        "기획서·제안서",
         "코드·개발"
       ]
     },
@@ -1012,12 +974,13 @@
         "다음주",
         "평일",
         "바빠서",
-        "당일치기"
+        "당일치기",
+        "아이디어"
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:02:33.243Z",
-  "parser_sha256": "3ae2d477c9b8ede67b2bf0efb259e084b2f3a1fcb6236442fed14f9e1c8092d4",
+  "measured_at": "2026-11-09T06:07:14.155Z",
+  "parser_sha256": "78826720908c4d14dd5c2ab0235caf5748f7c24948fb67ad97d446efced44a67",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
