@@ -105,10 +105,13 @@ const VERB_RE = /^(했|했어|했어요|했는데|했고|했지만|했음|했다
 const FRIEND_TAIL_RE = /^(랑|이랑|와|과|하고|끼리|들과|들이랑|들하고|들끼리|들랑)/;
 // "같이 나갈", "함께 할"처럼 참가와 이어질 때만 팀 ("영상 같이 짧은 거", "같이 내용이 비슷한"은 아님)
 const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하|해|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
-// PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1). "PT"는 발표로만 쓰여 넣지 않는다
+// PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1).
+// "PT"는 "PT 면접", "본선 PT"처럼 발표 자체를 말할 때가 많아 넣지 않는다
 const PPT_FILE_STEMS = new Set(['ppt', '피피티']);
-const SUBMIT_RE = /^(내$|내면|내는|내고|내도|내서|낼|제출)/;
-const PPT_SUBMIT_WINDOW = 3;
+// 닫힌 목록: "낼모레", "내면의", "내 전공"·"10분 내"의 "내"를 잡지 않게 낱말 전체로 비교한다
+const SUBMIT_RE = /^(내(면|는|고|도|서|야|요|세요|기만|려고?|볼)|낼(만한|수)?|낸|냈|냈어|제출(하는|하면|하고|할|해|해도|해야|만|용)?)$/;
+// "피피티 딱 하나만 띡 내면"까지. 그보다 멀면 무엇을 내는지 확실하지 않다
+const PPT_SUBMIT_WINDOW = 4;
 // "디자인과 2학년"의 "과"는 조사가 아니라 학과
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
 
@@ -294,14 +297,14 @@ function acceptMatches(matches, tokens, index) {
 }
 
 // "피피티 하나만 내면", "PPT 10장 내외로 낼", "ppt제출": 뒤 몇 낱말 안에 내다·제출이 오면 파일 제출이다.
-// 사이에 다른 조건 표현이 끼면("ppt 발표 영상 제출") 그 표현의 말이라 보지 않는다
+// 사이에 다른 제출물이 끼면("ppt 발표 영상 제출") 그 제출물의 말이다. 참가 형태·학년은 끼어도 된다("피피티 혼자 낼")
 function isSubmittedFile(hit, tokens, index) {
   if (/제출/.test(hit.rest)) return true;
   for (let offset = 1; offset <= PPT_SUBMIT_WINDOW; offset += 1) {
     const word = wordAt(tokens, index + offset);
     if (word === null) return false;
     if (SUBMIT_RE.test(word)) return true;
-    if (matchToken(word)) return false;
+    if (matchToken(word)?.some((match) => match.dim === 'deliverables')) return false;
   }
   return false;
 }

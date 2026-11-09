@@ -355,13 +355,20 @@ test('PPT를 내는 것은 기획서·제안서, 그 밖의 PPT·PT는 발표 (�
     ['피피티 한 장만 내면 끝나는 공모전', ['기획서·제안서']], ['PPT 5장 이내로 낼 수 있는 대회', ['기획서·제안서']],
     ['ppt 제출하는 대회', ['기획서·제안서']], ['ppt제출만 하면 됨', ['기획서·제안서']], ['PPT로 제출', ['기획서·제안서']],
     ['피피티 발표하는 대회', ['발표']], ['본선 PT 있는 대회', ['발표']], ['PT 내면 되는 대회', ['발표']], ['ppt 있는 대회', ['발표']],
-    // 사이에 다른 제출물이 끼면 내는 것은 그쪽이다
-    ['ppt 발표 영상 제출', ['영상', '발표']],
+    // 사이에 다른 제출물이 끼면 내는 것은 그쪽이다. 참가 형태·학년은 끼어도 된다
+    ['ppt 발표 영상 제출', ['영상', '발표']], ['피피티 혼자 낼 수 있는 대회', ['기획서·제안서']],
+    ['ppt 3학년이 내기만 하면 되는', ['기획서·제안서']], ['피피티 딱 하나만 띡 내면 되는', ['기획서·제안서']],
+    // "내다"가 아닌 낱말: 낼모레, 내 전공, 10분 내
+    ['ppt 대회 낼모레 마감', ['발표']], ['ppt 내 전공 맞는 대회', ['발표']], ['ppt 20분 내 진행', ['발표']],
   ];
   for (const [sentence, expected] of cases) {
     assert.deepEqual(parseConditions(sentence).deliverables, expected, sentence);
   }
-  assert.deepEqual(parseConditions('ppt 싫어').deliverables, [], '거절은 그대로');
+  // 부정·거절이 붙으면 값으로 정하지 않는다 (계약 2절 3)
+  for (const sentence of ['ppt 싫어', 'ppt 내기 싫어', 'ppt 안 내도 되는 대회', '피피티 말고']) {
+    assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
+  }
+  assert.deepEqual(parseConditions('피피티 말고 영상 제출').deliverables, ['영상']);
 });
 
 test('시연 문장 → 판정: 해석 결과를 그대로 judgeCard에 넣을 수 있다 (#24 시연)', () => {
