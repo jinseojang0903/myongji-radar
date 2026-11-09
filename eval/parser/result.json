@@ -904,8 +904,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T06:29:08.119Z",
-  "parser_sha256": "43b36ea578544d618674ef6940d3120d478aecc7e6e4b998e4ac610512b22b2b",
+  "measured_at": "2026-11-09T06:32:11.664Z",
+  "parser_sha256": "739a96b1994b92206f40a94a770dbcc1e0e10bdfeeb3258fc5a5fced48b6aa5f",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
