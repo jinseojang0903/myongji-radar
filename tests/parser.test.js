@@ -370,6 +370,30 @@ test('"아이디어"만으로는 제출물이 아니고 이해하지 못한 표�
   }
 });
 
+test('프로그래밍 언어는 코드·개발, 도면·설계도·건축 설계는 디자인, 도구 이름은 아님 (계약 2절 1, #37)', () => {
+  const cases = [
+    ['파이썬으로 할 수 있는 대회', ['코드·개발']], ['Python 데이터 분석 공모전', ['코드·개발']], ['자바 쓸 줄 알아', ['코드·개발']],
+    ['자바스크립트 대회', ['코드·개발']], ['C언어 경진대회', ['코드·개발']], ['c 언어로 푸는 대회', ['코드·개발']],
+    ['도면 그려서 내는 대회', ['디자인']], ['설계도 제출하는 공모전', ['디자인']], ['건축 설계 공모전', ['디자인']], ['건축설계 대회', ['디자인']],
+  ];
+  for (const [sentence, expected] of cases) {
+    assert.deepEqual(parseConditions(sentence).deliverables, expected, sentence);
+  }
+  // 학과·전공 이름, 비슷한 다른 낱말은 제출물이 아니다
+  for (const sentence of ['건축설계학과 3학년', '건축 설계 전공 학생', '건축설계과예요', '디자인과인데 영상 대회', '도면적 사고', '자바섬 여행 공모전', '자바라 호스']) {
+    const tags = parseConditions(sentence).deliverables;
+    assert.ok(!tags.includes('디자인') && !tags.includes('코드·개발'), `${sentence}: ${tags}`);
+  }
+  assert.deepEqual(parseConditions('디자인과인데 영상 대회').deliverables, ['영상']);
+  // 앞 낱말 끝의 c는 붙이지 않는다
+  assert.ok(parseConditions('magic 언어 공모전').unknown_terms.includes('magic'));
+  for (const sentence of ['CAD 쓰는 대회', '설계 툴 써서 하는 대회', 'AI 툴 활용 공모전']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+});
+
 test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
   for (const sentence of ['희망 직무는 기획 쪽이에요', '개발 직군 희망하는 3학년', '포지션은 디자인', '마케팅 기획 직무 관련 공모전']) {
     const result = parseConditions(sentence);
