@@ -3,17 +3,17 @@
   "sentences": 50,
   "fields": {
     "campus": {
-      "correct": 45,
+      "correct": 48,
       "wrong": 0,
       "missed": 2,
-      "extra": 3,
+      "extra": 0,
       "total": 50
     },
     "grade": {
-      "correct": 46,
+      "correct": 49,
       "wrong": 0,
       "missed": 1,
-      "extra": 3,
+      "extra": 0,
       "total": 50
     },
     "is_transfer": {
@@ -52,13 +52,13 @@
       "total": 50
     }
   },
-  "misreads": 6,
+  "misreads": 0,
   "full_match": {
-    "correct": 27,
+    "correct": 29,
     "total": 50
   },
   "unknown_terms": {
-    "expected": 143,
+    "expected": 137,
     "found": 69,
     "extra": 195
   },
@@ -188,27 +188,9 @@
     {
       "id": "s08",
       "sentence": "인문캠 국문과 2학년인데 이번 겨울방학에 할만한 문학 공모전 있어? 시나 소설 쪽으로.",
-      "field": "campus",
-      "outcome": "extra",
-      "expected": null,
-      "actual": "인문"
-    },
-    {
-      "id": "s08",
-      "sentence": "인문캠 국문과 2학년인데 이번 겨울방학에 할만한 문학 공모전 있어? 시나 소설 쪽으로.",
-      "field": "grade",
-      "outcome": "extra",
-      "expected": null,
-      "actual": 2
-    },
-    {
-      "id": "s08",
-      "sentence": "인문캠 국문과 2학년인데 이번 겨울방학에 할만한 문학 공모전 있어? 시나 소설 쪽으로.",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "인문캠",
-        "2학년",
         "이번 겨울방학",
         "시나 소설"
       ],
@@ -326,27 +308,9 @@
     {
       "id": "s16",
       "sentence": "인문캠 경영 3학년인데 다음 달 안에 끝나는 단기 아이디어톤 같은 거 없어?",
-      "field": "campus",
-      "outcome": "extra",
-      "expected": null,
-      "actual": "인문"
-    },
-    {
-      "id": "s16",
-      "sentence": "인문캠 경영 3학년인데 다음 달 안에 끝나는 단기 아이디어톤 같은 거 없어?",
-      "field": "grade",
-      "outcome": "extra",
-      "expected": null,
-      "actual": 3
-    },
-    {
-      "id": "s16",
-      "sentence": "인문캠 경영 3학년인데 다음 달 안에 끝나는 단기 아이디어톤 같은 거 없어?",
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "인문캠",
-        "3학년",
         "다음 달 안에 끝나는"
       ],
       "actual": [
@@ -1029,22 +993,6 @@
     {
       "id": "s50",
       "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
-      "field": "campus",
-      "outcome": "extra",
-      "expected": null,
-      "actual": "인문"
-    },
-    {
-      "id": "s50",
-      "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
-      "field": "grade",
-      "outcome": "extra",
-      "expected": null,
-      "actual": 2
-    },
-    {
-      "id": "s50",
-      "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
       "field": "deliverables",
       "outcome": "extra",
       "expected": [],
@@ -1059,8 +1007,6 @@
       "field": "unknown_terms",
       "outcome": "missed",
       "expected": [
-        "인캠",
-        "2학년",
         "다음 주 평일은 바빠서",
         "아이디어 해커톤"
       ],
@@ -1072,9 +1018,9 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T02:17:05.281Z",
-  "parser_sha256": "b9709d69efe4f31ef113546613b8d41a36650285381c04e662940e20a70228e4",
-  "sentences_sha256": "505ae40aecf54cd56f2bbb0ed0d19e800b14241d570804469fa2e070ec0b8f36",
+  "measured_at": "2026-11-09T04:31:53.279Z",
+  "parser_sha256": "6e6d9a6028faeab4d502f49ac3cefc5b29578d3eec1a4feca21d8e1ea974c76c",
+  "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
     "km",
