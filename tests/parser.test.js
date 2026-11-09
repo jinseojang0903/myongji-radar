@@ -198,6 +198,17 @@ test('캠퍼스·학년·학적을 부정하면 값이 남지 않는다 (위험 
   }
 });
 
+test('실제 학생 문장의 거절 표현: 극혐·귀찮아서·사절도 팀을 거절한 것이다 (#37, 첫 측정)', () => {
+  for (const sentence of ['팀플 극혐하는 3학년', '팀플은 극혐', '팀플 귀찮아서 혼자 할래', '팀플은 사절', '팀플은 절대 사절']) {
+    assert.equal(parseConditions(sentence).participation, '개인', sentence);
+  }
+  assert.equal(parseConditions('팀플 극혐하는 인문캠 3학년').grade, 3, '거절이 다른 조건을 지우지 않는다');
+  for (const sentence of ['편입생이라 귀찮아요', '휴학생이라 사절']) {
+    const result = parseConditions(sentence);
+    assert.equal(result.is_transfer ?? result.enrollment, null, `${sentence}: 참가 형태 밖에서는 반대 값을 내지 않는다`);
+  }
+});
+
 test('편입·참가 형태 + 부정·거절: 학생이 한 말의 반대 값이 나오지 않는다', () => {
   const flips = [' 아니고', ' 말고', '은 좀 아니고', '안했어', ' 안 했어요'];
   const rejections = ['이라 힘들어요', '인데 어려워요', '은 별로', '이라서 부담돼요', '은 싫어'];

@@ -65,7 +65,8 @@ const PARTICLES = [
 const FLIP_NEGATION_RE = /^(아니(?!면)|아닌|아님|아닙|아냐|말고|빼고|없이|없는|없어|없고|없음|없으|제외)/;
 // 거절·곤란 ("팀플은 싫어", "발표는 별로", "편입생이라 힘들어요"): 참가 형태만 뒤집고(싫다 = 반대를 원함),
 // 그 밖의 조건은 무엇을 말하는지 확실하지 않아 값을 비운다 (편입생이라 힘들다 ≠ 편입생이 아니다)
-const REJECTION_RE = /^(싫|별로|부담|힘들|어렵|어려|자신없)/;
+// 극혐·귀찮·사절: 시험 문장 첫 측정에서 실제 학생이 쓴 거절 표현 (#37)
+const REJECTION_RE = /^(싫|별로|부담|힘들|어렵|어려|자신없|극혐|귀찮|사절)/;
 const NEGATION_RE = new RegExp(`${FLIP_NEGATION_RE.source}|${REJECTION_RE.source}`);
 const REJECTION_FLIP_DIMS = new Set(['participation', 'deliverables']);
 // 절 안에서 어느 표현에도 붙지 않은 신분 부정·시간 표현은 그 앞(시간 표현은 절 전체)의 판정 조건을 모두 불확실하게 만든다
@@ -76,7 +77,7 @@ const CLAUSE_IDENTITY_NEGATION_RE = /^(아니(?!면)|아닌|아님|아닙|아냐
 const CLAUSE_TIME_RE = /^(지난|저번|작년|재작년|예전|옛날|원래|이전|그전|전에$|전엔$|전에는$|내년|내후년|다음학기|나중|복학)/;
 const JUDGED_DIMS = new Set(['campus', 'grade', 'enrollment', 'is_transfer', 'participation']);
 // "발표하는 거 말고", "편입생은 좀 아니고"처럼 표현과 부정 사이에 끼어도 부정이 그 표현에 걸리는 말
-const NEGATION_BRIDGE = new Set(['거', '것', '건', '게', '거는', '쪽', '쪽은', '좀', '조금', '같은', '딱', '그냥', '너무', '진짜', '정말']);
+const NEGATION_BRIDGE = new Set(['거', '것', '건', '게', '거는', '쪽', '쪽은', '좀', '조금', '같은', '딱', '그냥', '너무', '진짜', '정말', '절대']);
 // 참가 형태·제출물은 사이에 다른 말이 끼어도 부정이 걸릴 수 있다 ("같이 할 사람 없어서").
 // 이때는 어디에 걸린 부정인지 확실하지 않으므로 값을 비운다. 그 밖의 조건은 바로 옆 부정만 본다.
 const DISTANT_NEGATION_DIMS = new Set(['participation', 'deliverables']);
