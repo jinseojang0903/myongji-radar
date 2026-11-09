@@ -126,7 +126,7 @@ const DEPARTMENT_TAIL_RE = /^과(예요|이에요|에요|인데|이고|이라|�
 const MAJOR_NEXT_RE = /^(전공|학과|학부|계열)/;
 // "오프라인도 괜찮음", "영상도 돼": 제출물 + "도" 바로 뒤의 받아들인다는 말 (계약 2절 2).
 // 닫힌 목록을 낱말 전체로 비교한다: "좋아하는데"(하고 싶음), "돼야"(요구), "가능하면", "괜찮지 않아"(부정)는 아니다
-const PERMIT_NEXT_RE = /^(괜찮(아|아요|음|습니다|고|은데|다|지만)?|상관없(어|어요|음|고|다|지만)?|무관|ok|오케이|가능(해|함|해요|합니다)?|돼|돼요|되요|됨)$/;
+const PERMIT_NEXT_RE = /^(괜찮(아|아요|음|습니다|고|은데|다|지만)?|상관없(어|어요|음|고|다|지만|습니다)?|무관(해|해요|함|합니다)?|ok|오케이|가능(해|함|해요|합니다)?|돼|돼요|되요|됨|된다|됩니다)$/;
 
 // 조건과 상관없는 말 (계약 2절 4). 낱말 전체 또는 두 글자 이상 남기고 조사를 뗀 형태로 비교한다.
 const FILLER_WORDS = new Set([
@@ -201,10 +201,13 @@ export function parseConditions(text) {
     }
     const last = matches[matches.length - 1];
     const context = readContext(tokens, index, last);
-    // "오프라인도 괜찮음": 받아들일 수 있다는 말이라 값으로도, 이해하지 못한 표현으로도 남기지 않는다 (계약 2절 2).
-    // "팀영상도 괜찮아"처럼 다른 조건이 붙은 낱말은 그 조건까지 지우게 되므로 이 규칙을 쓰지 않는다
-    if (context.state === 'permitted' && matches.length > 1) Object.assign(context, { state: 'plain', end: index });
+    // "오프라인도 괜찮음": 받아들일 수 있다는 말이라 제출물은 값으로도, 이해하지 못한 표현으로도 남기지 않는다 (계약 2절 2).
+    // "팀영상도 괜찮아"처럼 다른 조건이 붙은 낱말은 그 조건만 그대로 읽는다
     if (context.state === 'permitted') {
+      for (const match of matches.filter((m) => m.dim !== 'deliverables')) {
+        hits.push({ ...match, state: 'plain', term: token.raw.slice(match.start, match.start + match.length),
+          phrase: displayForm(token.raw), tokenIndex: index, clause: token.clause });
+      }
       for (let used = index; used <= context.end; used += 1) consumed.add(used);
       index = context.end;
       continue;

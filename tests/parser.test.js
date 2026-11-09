@@ -436,9 +436,16 @@ test('"~도 괜찮다"로 말한 제출물은 담지 않고 이해하지 못한 
   assert.deepEqual(parseConditions('영상도 상관없지만 포스터는 싫어').deliverables, []);
   // 쉼표로 절이 갈리면 받아들인다는 말이 아니다
   assert.deepEqual(parseConditions('영상도, 괜찮아').deliverables, ['영상']);
-  // 다른 조건이 붙은 낱말은 이 규칙을 쓰지 않아 그 조건을 지우지 않는다
-  assert.equal(parseConditions('팀영상도 괜찮아').participation, '팀');
-  assert.deepEqual(parseConditions('앱개발도 괜찮아').deliverables, ['코드·개발']);
+  // 붙여 쓴 제출물도 같다. 다른 조건이 붙으면 그 조건만 읽는다
+  assert.deepEqual(parseConditions('앱개발도 괜찮아'), parseConditions(''));
+  const teamVideo = parseConditions('팀영상도 괜찮아');
+  assert.equal(teamVideo.participation, '팀');
+  assert.deepEqual(teamVideo.deliverables, []);
+  assert.deepEqual(teamVideo.unknown_terms, []);
+  // 계약에 적은 끝맺음
+  for (const sentence of ['영상도 된다', '영상도 됩니다', '영상도 무관해요', '영상도 상관없습니다']) {
+    assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
+  }
 });
 
 test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
