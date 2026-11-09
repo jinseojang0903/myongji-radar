@@ -443,7 +443,7 @@ test('"~도 괜찮다"로 말한 제출물은 담지 않고 이해하지 못한 
   assert.deepEqual(teamVideo.deliverables, []);
   assert.deepEqual(teamVideo.unknown_terms, []);
   // 계약에 적은 끝맺음
-  for (const sentence of ['영상도 된다', '영상도 됩니다', '영상도 무관해요', '영상도 상관없습니다']) {
+  for (const sentence of ['영상도 된다', '영상도 됩니다', '영상도 무관해요', '영상도 상관없습니다', '영상도 가능하다']) {
     assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
   }
 });
