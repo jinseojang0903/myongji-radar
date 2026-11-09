@@ -413,6 +413,17 @@ test('해커톤·아이디어톤만으로는 제출물이 아니고, 형식 낱�
   assert.deepEqual(parseConditions('영상 해커톤').deliverables, ['영상']);
 });
 
+test('"~도 괜찮다"로 말한 제출물은 담지 않고 이해하지 못한 표현에도 넣지 않는다 (계약 2절 2, #37)', () => {
+  for (const sentence of ['오프라인도 괜찮음', '영상도 돼요', '포스터도 상관없어', '현장참가도 가능', '발표도 ok']) {
+    assert.deepEqual(parseConditions(sentence), parseConditions(''), sentence);
+  }
+  // 하고 싶은 것과 함께 말하면 하고 싶은 것만 담는다
+  assert.deepEqual(parseConditions('영상 공모전, 포스터도 괜찮아').deliverables, ['영상']);
+  // "도"가 없거나 받아들인다는 말이 아니면 그대로
+  assert.deepEqual(parseConditions('오프라인 대회 좋아').deliverables, ['현장 참가']);
+  assert.deepEqual(parseConditions('영상도 찍고 싶어').deliverables, ['영상']);
+});
+
 test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
   for (const sentence of ['희망 직무는 기획 쪽이에요', '개발 직군 희망하는 3학년', '포지션은 디자인', '마케팅 기획 직무 관련 공모전']) {
     const result = parseConditions(sentence);
