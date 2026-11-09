@@ -1016,8 +1016,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T05:26:12.301Z",
-  "parser_sha256": "5f3ccbd3984576de1ca7ddea01f02d8f470ab9c3c2fdf55cedb4bdd17954a4bf",
+  "measured_at": "2026-11-09T06:00:22.921Z",
+  "parser_sha256": "76c7a651bbea561f2942a2418c2fb77e5782400db97c6ecb229b4d63b70d73af",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
