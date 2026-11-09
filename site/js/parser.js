@@ -31,7 +31,7 @@ const DICTIONARY = [
   ['deliverables', '영상', ['동영상', '영상', '유튜브', '숏폼', '쇼츠', '릴스', 'ucc', '브이로그', 'vlog', '영화']],
   ['deliverables', '에세이·수기', ['에세이', '체험수기', '수기', '수필', '글쓰기', '독후감', '작문', '글']],
   ['deliverables', '코드·개발', ['프로그래밍', '소프트웨어', '해커톤', '코딩', '코드', '개발', '어플', '앱', '웹', 'sw']],
-  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피티', 'ppt', 'pt']],
+  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피피티', '피티', 'ppt', 'pt']],
   ['deliverables', '디자인', ['일러스트', '카드뉴스', '디자인', '포스터', '웹툰', '그림', '로고']],
   // "현장" 하나만으로는 "현장 실습", "현장 심사"와 구분되지 않아 넣지 않는다
   ['deliverables', '현장 참가', ['현장참가', '현장참여', '오프라인']],
@@ -105,6 +105,13 @@ const VERB_RE = /^(했|했어|했어요|했는데|했고|했지만|했음|했다
 const FRIEND_TAIL_RE = /^(랑|이랑|와|과|하고|끼리|들과|들이랑|들하고|들끼리|들랑)/;
 // "같이 나갈", "함께 할"처럼 참가와 이어질 때만 팀 ("영상 같이 짧은 거", "같이 내용이 비슷한"은 아님)
 const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하|해|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
+// PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1).
+// "PT"는 "PT 면접", "본선 PT"처럼 발표 자체를 말할 때가 많아 넣지 않는다
+const PPT_FILE_STEMS = new Set(['ppt', '피피티']);
+// 닫힌 목록: "낼모레", "내면의", "내 전공"·"10분 내"의 "내"를 잡지 않게 낱말 전체로 비교한다
+const SUBMIT_RE = /^(내(면|는|는데|고|도|서|야|요|세요|기만|려고?|볼|면서)|낼(만한|수|래)?|낸|냈|냈어|제출(하는|하면|하고|하며|할|해|해도|해서|해야|하세요|합니다|만|용|로|로만|은|는)?)$/;
+// "피피티 딱 하나만 띡 내면"까지. 그보다 멀면 무엇을 내는지 확실하지 않다
+const PPT_SUBMIT_WINDOW = 4;
 // "디자인과 2학년"의 "과"는 조사가 아니라 학과
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
 
@@ -124,6 +131,8 @@ const FILLER_PATTERNS = [
   /^(있|없)/,
   /^(할|하는|하고|해|해서|한|할래|해볼|해보고|해볼만한|할만한|할수|하기|하면|하려고|하는데|해요|합니다)$/,
   /^(낼|내|내고|내는|내려|내려고|내면|내도|내볼|낼만한|내볼만한)$/,
+  // PPT 파일 제출에서 보는 낸다는 말도 조건이 아니다 ("ppt 냈어", "제출용")
+  SUBMIT_RE,
   /^(나갈|나가)/,
   /^(주는|주고|하나|구해|구하|구할|몰라|모르)/,
   // 초성 줄임말 ("ㅊㅊ", "ㅎㅇ"). NFKC를 거치면 한글 자모 영역으로 바뀐다
@@ -283,7 +292,23 @@ function acceptMatches(matches, tokens, index) {
     if (last.stem === '친구' && !FRIEND_TAIL_RE.test(last.rest)) return null;
     if ((last.stem === '같이' || last.stem === '함께') && last.rest === '' && !TOGETHER_NEXT_RE.test(next)) return null;
   }
+  if (PPT_FILE_STEMS.has(last.stem) && isSubmittedFile(last, tokens, index)) {
+    return [...matches.slice(0, -1), { ...last, value: '기획서·제안서' }];
+  }
   return matches;
+}
+
+// "피피티 하나만 내면", "PPT 10장 내외로 낼", "ppt제출": 뒤 몇 낱말 안에 내다·제출이 오면 파일 제출이다.
+// 사이에 다른 제출물이 끼면("ppt 발표 영상 제출") 그 제출물의 말이다. 참가 형태·학년은 끼어도 된다("피피티 혼자 낼")
+function isSubmittedFile(hit, tokens, index) {
+  if (/제출/.test(hit.rest)) return true;
+  for (let offset = 1; offset <= PPT_SUBMIT_WINDOW; offset += 1) {
+    const word = wordAt(tokens, index + offset);
+    if (word === null) return false;
+    if (SUBMIT_RE.test(word)) return true;
+    if (matchToken(word)?.some((match) => match.dim === 'deliverables')) return false;
+  }
+  return false;
 }
 
 function wordAt(tokens, index) {

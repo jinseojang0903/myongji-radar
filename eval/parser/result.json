@@ -60,7 +60,7 @@
   "unknown_terms": {
     "expected": 137,
     "found": 69,
-    "extra": 195
+    "extra": 193
   },
   "mismatches": [
     {
@@ -177,7 +177,6 @@
       "actual": [
         "걍",
         "방구석",
-        "피피티",
         "띡",
         "결과",
         "빨리",
@@ -395,7 +394,6 @@
       "actual": [
         "낼모레",
         "걍",
-        "피피티",
         "10장",
         "내외"
       ]
@@ -1018,8 +1016,8 @@
       ]
     }
   ],
-  "measured_at": "2026-11-09T04:31:53.279Z",
-  "parser_sha256": "6e6d9a6028faeab4d502f49ac3cefc5b29578d3eec1a4feca21d8e1ea974c76c",
+  "measured_at": "2026-11-09T06:02:33.243Z",
+  "parser_sha256": "3ae2d477c9b8ede67b2bf0efb259e084b2f3a1fcb6236442fed14f9e1c8092d4",
   "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
   "writers": [
     "hs",
