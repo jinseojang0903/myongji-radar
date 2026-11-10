@@ -6,7 +6,7 @@
 
 - 주소: **https://myongji-radar-site.vercel.app/** (Vercel 프로젝트 `myongji-radar-site`, 팀 jinseo's projects, #45)
 - 설정: Root Directory `site`, Framework Preset Other, 빌드 명령 없음. `site/` 밖의 파일(pipeline·eval·docs)은 공개되지 않는다 (2026-11-06 확인: `pipeline/README.md`·`docs/api-contract.md` 등 404).
-- `main`에 커밋이 들어오면 자동 배포된다. **단 커밋 작성자가 Vercel 팀 멤버일 때만**: 무료(Hobby) 팀 + 비공개 저장소라 멤버를 추가할 수 없어, 팀원이 작성한 커밋(스쿼시 머지도 PR 작성자가 작성자로 남음)은 배포가 "Blocked"된다. 그 뒤 장진서가 작성한 커밋이 `main`에 들어가면 그때의 `main` 전체가 배포된다. PR 미리보기도 같은 이유로 팀원 PR에서는 만들어지지 않는다 (PR에 Vercel 검사 "실패"로 뜨지만 머지는 막지 않는다). 누가 머지해도 배포되게 하는 방법은 #19에서 정한다.
+- `main`에 커밋이 들어오면 자동 배포된다. **단 커밋 작성자가 Vercel 팀 멤버일 때만**: 무료(Hobby) 팀 + 비공개 저장소라 멤버를 추가할 수 없어, 팀원이 작성한 커밋(스쿼시 머지도 PR 작성자가 작성자로 남음)은 배포가 "Blocked"된다. 그 뒤 장진서가 작성한 커밋이 `main`에 들어가면 그때의 `main` 전체가 배포된다. PR 미리보기도 같은 이유로 팀원 PR에서는 만들어지지 않는다 (PR에 Vercel 검사 "실패"로 뜨지만 머지는 막지 않는다). Vercel 안내로는 저장소를 공개로 바꾸면 무료 팀에서도 팀원 커밋이 배포된다 (#64, 전환 뒤 확인).
 - `data/cards.json`이 아직 없어(404) 예시 데이터를 보여 주고 상단에 예시 안내가 뜬다.
 
 ## 로컬에서 보기
