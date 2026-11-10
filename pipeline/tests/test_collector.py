@@ -50,8 +50,9 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(refs[0].published_at, "2026-11-02")
 
     def test_unsupported_rss_is_not_a_notice(self):
-        with self.assertRaisesRegex(ValueError, "RSS 항목 링크 없음"):
-            self.adapter.discover(b'<rss><channel><item><title>NOT SUPPORT RSS</title><link/></item></channel></rss>', self.source)
+        refs = self.adapter.discover(b'<rss><channel><item><title>NOT SUPPORT RSS</title><link/></item></channel></rss>', self.source)
+        self.assertEqual(refs, [])
+        self.assertEqual(self.adapter.discovery_errors, [{"url": self.source.rss_url, "error": "invalid_rss_item"}])
 
     def test_html_pinned_markers_do_not_depend_on_notice_title(self):
         html = '''<table><tbody>

@@ -21,14 +21,14 @@ attachment_selector = ".attfile a[href]"
 [[sources]]
 id = "test"
 name = "Test board"
-rss_url = "https://example.com/rss"
-list_url = "https://example.com/list"
-allowed_hosts = ["example.com"]
+rss_url = "https://test.mju.ac.kr/rss"
+list_url = "https://test.mju.ac.kr/list"
+allowed_hosts = ["test.mju.ac.kr"]
 '''
 
 
 def reference(number, *, pinned=False):
-    return NoticeRef(f"test/1/{number}", f"https://example.com/bbs/test/1/{number}/artclView.do",
+    return NoticeRef(f"test/1/{number}", f"https://test.mju.ac.kr/bbs/test/1/{number}/artclView.do",
                      f"Notice {number}", None, pinned)
 
 
@@ -64,13 +64,13 @@ class CollectionRunTests(unittest.TestCase):
         else:
             items = ''.join(f'<item><title>{ref.title}</title><link>{ref.url}</link></item>' for ref in refs)
             listing = f'<rss><channel>{items}</channel></rss>'.encode()
-        discovery_url = "https://example.com/list" if html else "https://example.com/rss"
+        discovery_url = "https://test.mju.ac.kr/list" if html else "https://test.mju.ac.kr/rss"
         responses = {ref.url: detail(ref, body) for ref in refs}
         responses[discovery_url] = listing
         requests = []
 
         def fetch(url, hosts):
-            self.assertEqual(hosts, ["example.com"])
+            self.assertEqual(hosts, ["test.mju.ac.kr"])
             requests.append(url)
             return responses[url]
 

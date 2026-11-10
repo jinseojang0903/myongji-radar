@@ -21,8 +21,8 @@ RSS_SOURCE = '''
 [[sources]]
 id = "example"
 name = "Example board"
-rss_url = "https://example.com/rss"
-allowed_hosts = ["example.com"]
+rss_url = "https://test.mju.ac.kr/rss"
+allowed_hosts = ["test.mju.ac.kr"]
 '''
 
 
@@ -48,8 +48,8 @@ class SourceConfigTests(unittest.TestCase):
         self.assertEqual([s.id for s in self.load(DEFAULTS + entries)], ["first", "second", "last"])
 
     def test_html_does_not_require_rss_url(self):
-        html = RSS_SOURCE.replace('rss_url = "https://example.com/rss"',
-                                  'discovery = "html"\nlist_url = "https://example.com/list"')
+        html = RSS_SOURCE.replace('rss_url = "https://test.mju.ac.kr/rss"',
+                                  'discovery = "html"\nlist_url = "https://test.mju.ac.kr/list"')
         source, = self.load(DEFAULTS + html)
         self.assertEqual(source.rss_url, "")
         self.assertEqual(source.discovery, "html")
@@ -57,7 +57,7 @@ class SourceConfigTests(unittest.TestCase):
     def test_discovery_requires_matching_url(self):
         for mode, field in [("rss", "rss_url"), ("html", "list_url")]:
             with self.subTest(mode=mode):
-                text = RSS_SOURCE.replace('rss_url = "https://example.com/rss"', f'discovery = "{mode}"')
+                text = RSS_SOURCE.replace('rss_url = "https://test.mju.ac.kr/rss"', f'discovery = "{mode}"')
                 with self.assertRaisesRegex(ValueError, field):
                     self.load(DEFAULTS + text)
 
@@ -81,13 +81,13 @@ class SourceConfigTests(unittest.TestCase):
         cases = [
             (RSS_SOURCE + 'unexpected = "field"', "설정 필드"),
             (RSS_SOURCE.replace('id = "example"', 'id = " "'), "id"),
-            (RSS_SOURCE.replace('["example.com"]', '[]'), "allowed_hosts"),
-            (RSS_SOURCE.replace('["example.com"]', '"example.com"'), "allowed_hosts"),
-            (RSS_SOURCE.replace('["example.com"]', '[4]'), "allowed_hosts"),
+            (RSS_SOURCE.replace('["test.mju.ac.kr"]', '[]'), "allowed_hosts"),
+            (RSS_SOURCE.replace('["test.mju.ac.kr"]', '"test.mju.ac.kr"'), "allowed_hosts"),
+            (RSS_SOURCE.replace('["test.mju.ac.kr"]', '[4]'), "allowed_hosts"),
             (RSS_SOURCE + 'priority = true', "priority"),
             (RSS_SOURCE + 'repair_rss_ampersands = "true"', "repair_rss_ampersands"),
             (RSS_SOURCE + 'title_selector = ""', "title_selector"),
-            (RSS_SOURCE.replace('rss_url = "https://example.com/rss"', 'rss_url = 42'), "rss_url"),
+            (RSS_SOURCE.replace('rss_url = "https://test.mju.ac.kr/rss"', 'rss_url = 42'), "rss_url"),
         ]
         for entry, message in cases:
             with self.subTest(entry=entry), self.assertRaisesRegex(ValueError, message):
@@ -97,7 +97,7 @@ class SourceConfigTests(unittest.TestCase):
         # CLI 설정 오류는 외부 요청이나 DB 생성 전에 끝나야 한다.
         with tempfile.TemporaryDirectory() as tmp:
             config = Path(tmp) / "invalid.toml"
-            config.write_text(DEFAULTS + RSS_SOURCE.replace('rss_url = "https://example.com/rss"', ''), encoding="utf-8")
+            config.write_text(DEFAULTS + RSS_SOURCE.replace('rss_url = "https://test.mju.ac.kr/rss"', ''), encoding="utf-8")
             data = Path(tmp) / "data"
             result = subprocess.run([sys.executable, "-m", "collector", "run", "--config", str(config),
                                      "--data-dir", str(data)], cwd=ROOT, capture_output=True, timeout=10,

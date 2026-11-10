@@ -9,7 +9,7 @@ from pathlib import Path
 
 import requests
 
-from .fetcher import FetchPolicyError, MAX_FILE_BYTES, ResponseTooLarge
+from .fetcher import FetchPolicyError, MAX_FILE_BYTES, ResponseTooLarge, RunDeadlineExceeded
 
 MAX_NOTICE_BYTES = 20 * 1024 * 1024
 MAX_ASSETS = 20
@@ -76,6 +76,7 @@ class AssetCollector:
     def convert(self, item: dict, target: Path, digest: str):
         """변환 실패는 다운로드 성공 바이트를 되돌리지 않는다."""
         try:
+            self.check_deadline()
             text_relative = f"asset_text/{digest}.txt"
             text_target = private_path(self.data_dir, text_relative)
             if text_target.exists() and text_target.stat().st_size <= MAX_TEXT_BYTES:
@@ -83,6 +84,7 @@ class AssetCollector:
                 if text.strip():
                     item.update(text_status="extracted", text_path=text_relative)
                     return
+            self.check_deadline()
             text, reason = convert_document(target, self.data_dir)
             if text:
                 atomic_bytes(text_target, text.encode("utf-8"))
@@ -91,6 +93,11 @@ class AssetCollector:
                 item.update(text_status="needs_review", text_reason=reason)
         except Exception as exc:
             item.update(text_status="needs_review", text_reason="conversion_" + type(exc).__name__)
+
+    def check_deadline(self):
+        deadline = getattr(self.fetcher, "run_deadline", None)
+        if isinstance(deadline, (int, float)) and time.monotonic() >= deadline:
+            raise RunDeadlineExceeded("수집 실행 전체 시간 예산 소진")
 
     def enrich(self, notice, allowed_hosts: list[str], previous: dict | None = None) -> list[dict]:
         errors = []
@@ -101,6 +108,7 @@ class AssetCollector:
                 count += 1
                 url = item["url"]
                 try:
+                    self.check_deadline()
                     if count > MAX_ASSETS:
                         raise FetchPolicyError("공지당 첨부 수 상한")
                     if time.monotonic() - self.started >= MAX_RUN_SECONDS:

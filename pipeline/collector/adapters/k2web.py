@@ -6,17 +6,22 @@ from urllib.parse import urljoin, urlsplit
 from bs4 import BeautifulSoup
 
 from ..models import Notice, NoticeRef, Source
+from ..text_safety import safe_terminal
 
 
 def normalized_text(node) -> str:
     return "\n".join(
         line for part in node.get_text("\n").splitlines()
-        if (line := " ".join(part.split()))
+        if (line := safe_terminal(" ".join(part.split())))
     )
 
 
 class K2WebAdapter:
+    def __init__(self):
+        self.discovery_errors = []
+
     def discover(self, xml: bytes, source: Source) -> list[NoticeRef]:
+        self.discovery_errors = []
         if source.discovery == "html":
             return self.discover_html(xml, source)
         if source.repair_rss_ampersands:
@@ -31,24 +36,27 @@ class K2WebAdapter:
             raise ValueError("RSS 루트가 아닙니다")
         refs = {}
         for item in root.findall("./channel/item"):
-            link = (item.findtext("link") or "").strip()
-            if not link:
-                raise ValueError("RSS 항목 링크 없음: RSS 미지원 여부 확인 후 HTML 발견 설정 필요")
-            url = urljoin(source.rss_url, link)
-            match = re.search(r"/bbs/([^/]+)/(\d+)/(\d+)/artclView\.do$", urlsplit(url).path)
-            if not match:
-                raise ValueError(f"지원하지 않는 게시글 URL: {url}")
-            raw_date = (item.findtext("pubDate") or "").strip()
-            published_at = None
-            if raw_date:
-                # K2Web RSS 날짜에 시간대가 없으면 학교 현지 시각을 적용.
-                date = datetime.fromisoformat(raw_date)
-                if date.tzinfo is None:
-                    date = date.replace(tzinfo=timezone(timedelta(hours=9)))
-                published_at = date.isoformat()
-            external_id = "/".join(match.groups())
-            refs[external_id] = NoticeRef(external_id, url, (item.findtext("title") or "").strip(), published_at)
-        if not refs:
+            url = source.rss_url
+            try:
+                link = (item.findtext("link") or "").strip()
+                if not link:
+                    raise ValueError("RSS 항목 링크 없음")
+                url = urljoin(source.rss_url, link)
+                match = re.search(r"/bbs/([^/]+)/(\d+)/(\d+)/artclView\.do$", urlsplit(url).path)
+                if not match:
+                    raise ValueError("지원하지 않는 게시글 URL")
+                raw_date = (item.findtext("pubDate") or "").strip()
+                published_at = None
+                if raw_date:
+                    date = datetime.fromisoformat(raw_date)
+                    if date.tzinfo is None:
+                        date = date.replace(tzinfo=timezone(timedelta(hours=9)))
+                    published_at = date.isoformat()
+                external_id = "/".join(match.groups())
+                refs[external_id] = NoticeRef(external_id, url, safe_terminal((item.findtext("title") or "").strip()), published_at)
+            except (ValueError, TypeError):
+                self.discovery_errors.append({"url": url, "error": "invalid_rss_item"})
+        if not refs and not self.discovery_errors:
             raise ValueError("RSS 항목 0건: 빈 게시판 또는 구조 변경 확인 필요")
         return list(refs.values())
 
@@ -56,19 +64,25 @@ class K2WebAdapter:
         """공개 목록 첫 페이지에서만 발견. 과거 페이지 순회는 아직 지원하지 않는다."""
         soup = BeautifulSoup(html, "html.parser", from_encoding="utf-8")
         refs = {}
+        self.discovery_errors = []
         for row in soup.select("tbody tr"):
             link = row.select_one("a.artclLinkView[href]")
             if link is None:
                 continue
-            url = urljoin(source.list_url, link["href"])
-            match = re.search(r"/bbs/([^/]+)/(\d+)/(\d+)/artclView\.do$", urlsplit(url).path)
-            if not match:
-                raise ValueError(f"지원하지 않는 HTML 게시글 URL: {url}")
-            title = link.select_one("strong") or link
-            date = row.select_one("._artclTdRdate")
-            published = normalized_text(date).replace(".", "-") if date else None
-            if published:
-                datetime.strptime(published, "%Y-%m-%d")
+            url = source.list_url
+            try:
+                url = urljoin(source.list_url, link["href"])
+                match = re.search(r"/bbs/([^/]+)/(\d+)/(\d+)/artclView\.do$", urlsplit(url).path)
+                if not match:
+                    raise ValueError("지원하지 않는 HTML 게시글 URL")
+                title = link.select_one("strong") or link
+                date = row.select_one("._artclTdRdate")
+                published = normalized_text(date).replace(".", "-") if date else None
+                if published:
+                    datetime.strptime(published, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                self.discovery_errors.append({"url": url, "error": "invalid_html_item"})
+                continue
             external_id = "/".join(match.groups())
             # K2Web 목록에서 확인한 고정 행/번호 칸 표식만 사용한다.
             # 제목의 '공지' 문구나 게시 날짜로 고정 여부를 추측하지 않는다.
@@ -77,7 +91,7 @@ class K2WebAdapter:
             previous = refs.get(external_id)
             refs[external_id] = NoticeRef(external_id, url, normalized_text(title), published,
                                          is_pinned or (previous.is_pinned if previous else False))
-        if not refs:
+        if not refs and not self.discovery_errors:
             raise ValueError("HTML 목록 0건: 접근 권한 또는 목록 구조 확인 필요")
         return list(refs.values())
 
@@ -93,7 +107,7 @@ class K2WebAdapter:
         for img in body.select("img[src]"):
             url = urljoin(ref.url, img["src"])
             if urlsplit(url).scheme in ("http", "https"):
-                images.append({"url": url, "alt": img.get("alt", "")})
+                images.append({"url": url, "alt": safe_terminal(img.get("alt", ""))})
         attachments = []
         for link in soup.select(source.attachment_selector):
             url = urljoin(ref.url, link["href"])
