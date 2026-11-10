@@ -49,12 +49,15 @@ def classify(title, body, config):
     for name, pattern in [
         ("cancellation", r"(?:개최|행사|모집|대회|프로그램)취소|취소안내"),
         ("result_delayed", r"결과발표연기|결과.*연기"),
-        ("results", r"결과발표|결과안내|모집결과|심사결과|선발결과|선정결과|합격자|합격안내|합격발표|진출팀|수상자|입상자|시상식|매칭결과"),
+        ("results", r"결과발표|결과안내|모집결과|심사결과|선발결과|선정결과|최종합격자|합격자발표|합격결과|합격안내|합격발표|진출팀|수상자|입상자|시상식|매칭결과"),
         ("extension", r"(?:모집|신청|접수|기간).*연장|연장안내"),
         ("change", r"변경|정정"),
         ("recruitment", r"모집|참가안내|신청안내|개최안내|프로그램안내|참여안내|공모전안내"),
     ]:
         match = re.search(pattern, title_view.text)
+        if (name == "results" and match and match.group() == "합격자발표"
+                and "모집" in title_view.text and title_view.text[match.end():].startswith(("일정", "예정"))):
+            continue
         if match:
             stage = name
             stage_evidence.append(title_view.evidence(*match.span(), "notice_stage"))
@@ -73,8 +76,7 @@ TIME_SIGNAL = re.compile(
     r"^(?:\([월화수목금토일](?:요일)?\))?[,，]?"
     r"(?:(?:오전|오후)?\d{1,3}(?::\d{0,3}|시(?:\d{1,3}분)?(?:반)?)"
     r"|오전|오후|정오|자정|[Nn]시|(?:한|두|세|네|다섯|여섯|일곱|여덟|아홉|열(?:한|두)?)시)")
-TIME_TRAILER = re.compile(r"^(?:반|오전|오후|[ap]m|:\d*|\d+(?:분|초)?|분|초)", re.I)
-TIME_CUE = re.compile(r"오전|오후|정오|자정|\d{1,3}:\d{1,3}|(?:\d{1,3}|[Nn]|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열(?:한|두)?)시")
+TIME_TRAILER = re.compile(r"^(?:오전|오후|[ap]m(?![A-Za-z])|:\d*|\d+(?:분|초)?)", re.I)
 DATE_LABELS = re.compile(
     r"(?P<application>신청기간|접수기간|모집기간|신청기한|접수기한|신청마감|접수마감|모집마감|접수(?=[:：]))"
     r"|(?P<submission>제출기간|제출기한|제출마감|출품작제출기한|작품제출기한)"
@@ -83,17 +85,28 @@ STOP = re.compile(r"(?<![\d.])\d{1,2}\.(?=[가-힣A-Za-z])|[가-하]\.|신청방
 
 
 def unread_clock_end(text):
-    """괄호·안내 문구 뒤의 시각도 버리지 않는다. 호출부가 다음 날짜 전에서 자른다."""
-    cue = TIME_CUE.search(text)
-    if not cue:
+    """날짜에 붙은 괄호·시각 라벨만 넘기고 일반 안내 문장을 검색하지 않는다."""
+    prefix = re.match(r"^(?:\([월화수목금토일](?:요일)?\))?[,，]?(?:\()?(?:(?:마감|종료)시간[:：]?)?(?:\()?", text)
+    signal = TIME_SIGNAL.match(text[prefix.end():])
+    if not signal:
         return 0
-    signal = TIME_SIGNAL.match(text[cue.start():])
-    end = cue.start() + signal.end() if signal else cue.end()
+    end = prefix.end() + signal.end()
     return end + 1 if text[end:end + 1] == ")" else end
 
 
 def read_time(suffix):
     """24시간 표기만 읽고, 해석하지 못한 시각 신호와 근거 길이를 함께 보존한다."""
+    original = TextView(suffix)
+    suffix = original.text
+    def trailer(offset):
+        if offset >= len(suffix):
+            return None
+        raw_tail = original.original[original.positions[offset]:]
+        extra = TIME_TRAILER.match(raw_tail)
+        adjacent = original.positions[offset] == original.positions[offset - 1] + 1
+        if not extra and adjacent:
+            extra = re.match(r"^(?:반|분|초)(?=$|까지|부터|[^가-힣A-Za-z])", raw_tail)
+        return extra
     tm = TIME.match(suffix)
     if not tm:
         consumed = unread_clock_end(suffix)
@@ -105,7 +118,7 @@ def read_time(suffix):
     end_time, consumed = None, tm.end()
     tail = suffix[consumed:]
     # 3시반·17:00pm 등을 3:00·17:00으로 조용히 잘라 읽지 않는다.
-    extra = TIME_TRAILER.match(tail)
+    extra = trailer(consumed)
     if extra:
         return time_value, None, "해석하지 못한 시각 표기", consumed + extra.end()
     time_range = re.match(r"^[~∼～-](\d{1,2}):(\d{2})(?!\d)", tail)
@@ -118,16 +131,13 @@ def read_time(suffix):
                 issue = "시간 범위 역전 또는 익일 여부 확인 필요"
         else:
             issue = "유효하지 않은 종료 시각"
-        extra = TIME_TRAILER.match(suffix[consumed:])
+        extra = trailer(consumed)
         if extra:
             issue, consumed = "해석하지 못한 종료 시각 표기", consumed + extra.end()
     elif tail.startswith(("~", "∼", "～", "-")):
         signal_end = unread_clock_end(tail[1:])
         if signal_end:
             issue, consumed = "해석하지 못한 종료 시각 표기", consumed + 1 + signal_end
-    signal_end = unread_clock_end(suffix[consumed:])
-    if signal_end:
-        issue, consumed = issue or "해석하지 못한 추가 시각 표기", consumed + signal_end
     return time_value, end_time, issue, consumed
 
 
@@ -143,6 +153,8 @@ def extract_dates(view):
         segment = view.text[label.end():end]
         # 표의 열 이름 다음에 다른 단계 날짜가 이어지는 경우를 단일 마감으로 오인하지 않는다.
         if not segment.startswith((":", "：")):
+            if segment.startswith(("내", "이후", "이전", "후", "전", "중")):
+                continue  # '신청기간 내 제출'은 새 일정 라벨이 아니다.
             buckets[label.lastgroup].append(field(evidence=[view.evidence(label.start(), label.end(), "date_label_without_separator")],
                 status="needs_review", reason="일정 라벨 뒤 구분자 없음: 원문 확인 필요"))
             continue
@@ -166,7 +178,9 @@ def extract_dates(view):
             except ValueError:
                 issue = "유효하지 않은 날짜"
             next_date = matches[index + 1].start() if index + 1 < len(matches) else len(segment)
-            time_value, end_time, time_issue, time_end = read_time(segment[m.end():next_date])
+            a, b = label.end() + m.end(), label.end() + next_date
+            raw_suffix = view.original[view.positions[a]:view.positions[b - 1] + 1] if a < b else ""
+            time_value, end_time, time_issue, time_end = read_time(raw_suffix)
             if time_issue:
                 issue = time_issue
             time_ends.append(time_end)

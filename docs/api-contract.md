@@ -77,6 +77,8 @@
 
 규칙 엔진의 내부 상태는 호환성을 위해 유지한다. `extracted`는 계약의 `ai`(자동 추출·검증 전), `needs_review`는 `needs_check`, `not_stated`는 `missing`으로 대응한다. 규칙 필드에는 이를 `contract_status`로 함께 기록한다. 이 대응은 **상태만** 바꾼다. 규칙의 `mentions`를 허용 조건으로 바꾸거나 필드 이름·값 형식을 AI 카드와 같다고 보지 않는다. 규칙 분석만으로 공개 카드를 만들지 않는다.
 
+규칙 날짜 필드의 복수 후보는 내부 분석에서 `value: {"candidates": [Field, ...]}`로 보존한다. 각 후보는 규칙 필드와 같은 `value/status/contract_status/evidence/reason` 구조이며, 날짜를 읽지 못한 후보의 `value`는 null일 수 있다. 전체 상태는 `needs_review`이고, null은 제한 없음이나 확정 날짜가 아니다. 이 내부 후보 형식을 공개 카드 날짜 값으로 직접 사용하지 않는다.
+
 AI v0.2의 `found`는 검증 전 `ai`, `needs_check`·`conflict`는 `needs_check`, `missing`은 `missing`이다. 검증기·사람 검수만 `auto_verified`·`human_verified`로 올릴 수 있다. 기존 `analysis.json`·추출 캐시는 실행 호환용으로 계속 만들며, DB가 없는 JSON 전용 시험 입력은 DB를 새로 만들지 않는다. 모델 비교용 `extractor eval`의 다중 공지 결과는 기존 평가 폴더에 남긴다(공지 하나에 잘못 연결하지 않는다).
 
 **핵심 항목 규칙:** `apply`(신청기간)와 자격 항목(`campus`, `grades`, `enrollment`, `team`)은 `human_verified`가 아니면 화면에 **확인 전**으로 표시한다.

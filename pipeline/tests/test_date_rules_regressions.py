@@ -14,6 +14,35 @@ def application(text):
 
 
 class DateRuleRegressions(unittest.TestCase):
+    def test_normal_deadlines_ignore_following_prose(self):
+        for raw, time in (
+            ("신청마감: 2026.11.4.(수) 17:00까지 (총 3시간 교육)", "17:00"),
+            ("접수기간: 2026.11.1.~11.4. 17:00 ※ 행사는 14:00 시작", "17:00"),
+            ("신청마감: 2026.11.4.(수)까지 한시적 운영", None),
+            ("신청마감: 2026.11.4.(수)까지 오전 중 회신", None),
+            *[("신청마감: 2026.11.4. 17:00 " + tail, "17:00")
+              for tail in ("반드시 제출", "분야별 1명", "초과 제출 불가", "amazing 프로그램")],
+            *[("신청기간: 2026.11.1.~11.4. 17:00\n" + tail, "17:00")
+              for tail in ("신청기간 내 제출한 서류만 인정", "접수기간 이후 제출 불가", "모집마감 후 안내")],
+        ):
+            with self.subTest(raw=raw):
+                result = application(raw)
+                self.assertEqual(result["status"], "extracted")
+                self.assertEqual(result["value"]["end"]["time"], time)
+                for e in result["evidence"]:
+                    self.assertEqual(raw[e["start"]:e["end"]], e["quote"])
+
+    def test_clock_tails_still_require_review(self):
+        for clock in ("3시반까지", "17:00pm", "17:00 pm", "17:00반", "13:30~17:00pm"):
+            with self.subTest(clock=clock):
+                self.assertEqual(application("신청마감: 2026.11.4. " + clock)["status"], "needs_review")
+
+    def test_recruitment_with_acceptance_schedule_is_not_results(self):
+        for title in ("[모집] 공모전 참가자 모집 (합격자 발표 일정 안내)", "공모전 합격자 대상 참가자 모집"):
+            result = analyze_notice({"source_id": "test", "external_id": "1", "version_id": 1,
+                "url": "https://www.mju.ac.kr/1", "title": title, "body_text": ""}, CONFIG)
+            self.assertEqual(result["classification"]["notice_kind"]["value"], "recruitment")
+
     def test_year_sharing_preserves_invalid_and_unread_time(self):
         for clock in ("25:00", "17:60", "오후 3시", "정오", "자정", "N시"):
             with self.subTest(clock=clock):
@@ -63,6 +92,10 @@ class DateRuleRegressions(unittest.TestCase):
         result = application("신청마감 2026.11.4. 신청마감: 2026.11.8.")
         self.assertEqual(result["status"], "needs_review")
         self.assertEqual(len(result["value"]["candidates"]), 2)
+        pending = result["value"]["candidates"][0]
+        self.assertIsNone(pending["value"])
+        self.assertEqual(pending["contract_status"], "needs_check")
+        self.assertTrue(pending["evidence"])
 
     def test_unread_or_invalid_time_range_end_is_pending(self):
         for clocks in ("13:30~오후5시", "13:30~17시", "13:30~25:00", "13:30~12:00", "13:30~17:00pm", "13:30~17:00반"):
