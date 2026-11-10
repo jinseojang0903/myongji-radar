@@ -130,12 +130,14 @@ def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str) -
 
 def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
     """뽑은 결과 → 내보내기 묶음 하나 (exporter.cards.CardBundle 모양)."""
+    # 이전 호출부의 최소 공지 입력도 받되, 완전한 수집 원문의 해시 계산은 바꾸지 않는다.
+    hash_input = {"title": "", "body_text": "", "images": [], "attachments": [], **notice}
     return {"card_id": card_id,
             "notices": [{"source_id": notice.get("source_id"), "url": notice.get("url"), "title": notice.get("title"),
                          "published_at": notice.get("published_at"),
                          "last_seen_at": notice.get("last_seen_at"),
                          "external_id": notice.get("external_id"), "version_id": notice.get("version_id"),
-                         "input_hash": content_hash(notice), "version_number": notice.get("version_number"),
+                         "input_hash": content_hash(hash_input), "version_number": notice.get("version_number"),
                          "files": []}],  # 이미지·첨부를 AI에 넣지 않으므로(#12 전) 근거 파일 이름도 없다
             "extraction": entry["output"],
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)

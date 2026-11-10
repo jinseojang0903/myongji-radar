@@ -545,6 +545,12 @@ class ExporterSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(CardExportError, "순서"):
             build_card(bundle(notices=list(reversed(originals))))
 
+    def test_naive_source_time_is_already_korean_date(self):
+        for posted in ("2026-11-01", "2026-11-01T22:00:00", "2026-11-01T22:00:00+09:00"):
+            with self.subTest(posted=posted):
+                card = build_card(bundle(notices=[dict(NOTICE, published_at=posted)]))
+                self.assertEqual(card["sources"][0]["posted_at"], "2026-11-01")
+
     def test_broken_bundles_are_rejected_one_by_one(self):
         no_title = example_fields()
         no_title["title"]["value"] = ""
@@ -695,13 +701,12 @@ class ExporterCliTests(unittest.TestCase):
             code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
             self.assertEqual(code, 1, "목록에만 있는 id는 확인할 일")
             self.assertIn("[확인] gone-card", errors)
-            before = json.loads(out.read_text(encoding="utf-8"))
+            before = out.read_text(encoding="utf-8")
             blocked.write_text("".join(f'[[blocked]]\ncard_id = "{card_id}"\nreason = "모두"\nsince = 2026-11-06\n'
                                        for card_id in card_ids), encoding="utf-8")
             code, errors = self.run_cli(self.bundle_json(fixture_bundles()), out, ["--blocked", str(blocked)])
-            self.assertEqual(code, 1, "전부 차단되어도 기존에 공개된 차단 카드는 제거한다")
-            self.assertEqual(json.loads(out.read_text(encoding="utf-8")), {**before, "cards": []},
-                             "카드만 제거하고 기존 게시판·생성 시각은 보존한다")
+            self.assertEqual(code, 2, "모두 차단하면 0장이라 기존 규칙대로 멈춘다 (README에 적음)")
+            self.assertEqual(out.read_text(encoding="utf-8"), before)
 
     def test_cli_stops_when_the_blocklist_is_unreadable(self):
         with tempfile.TemporaryDirectory() as folder:
