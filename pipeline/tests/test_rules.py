@@ -53,7 +53,8 @@ class RuleTests(unittest.TestCase):
 
     def test_table_heading_does_not_capture_next_event_date(self):
         result = extract_dates(TextView("2026.10.28. 17:00 참가 신청서 접수 마감 2026.11.5. 18:00 개회식"))["application_period"]
-        self.assertEqual(result["status"], "not_stated")
+        self.assertEqual(result["status"], "needs_review")
+        self.assertIsNone(result["value"], "표 뒤의 다음 행사 날짜를 접수 마감으로 추정하지 않는다")
 
     def test_academic_year_and_percentage_are_not_grade_or_team_size(self):
         n = analyze_notice(notice("1. 참가자격: 2026학년도 재학생. 팀 구성원의 60% 이상이 공과대학 재학생 2. 접수기간: 2026.11.1.~2026.11.4."), CONFIG)

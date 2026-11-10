@@ -25,13 +25,13 @@ const DEV_CASES = [
   ['자연캠2학년', { campus: '자연', grade: 2 }],
   ['자연 캠퍼스 재학중이고 편입생은 아닙니다. 혼자 할만한 글쓰기 대회 있을까요?',
     { campus: '자연', is_transfer: false, enrollment: '재학', participation: '개인', deliverables: ['에세이·수기'] }],
-  ['3명이서 앱개발로 나갈 해커톤', { participation: '팀', deliverables: ['코드·개발'] }],
+  ['3명이서 앱개발로 나갈 해커톤', { participation: '팀', deliverables: ['코드·개발'], unknown_terms: ['해커톤'] }],
   ['이학년 이번주까지 포스터', { grade: 2, deliverables: ['디자인'], period: '이번주' }],
   ['졸업유예생인데 마감 임박한 거 있어?', { enrollment: '졸업유예', period: '마감임박' }],
   ['용인 캠 다니는 3학년, 영상이나 디자인 쪽으로 이번달 마감인 거',
     { campus: '자연', grade: 3, deliverables: ['영상', '디자인'], period: '이번달' }],
   ['ㅎㅇ 2학년 휴학생인데 팀원 구해서 나갈 해커톤 ㅊㅊ',
-    { grade: 2, enrollment: '휴학', participation: '팀', deliverables: ['코드·개발'] }],
+    { grade: 2, enrollment: '휴학', participation: '팀', deliverables: [], unknown_terms: ['해커톤'] }],
   ['휴학 중인데 참가 가능한 공모전', { enrollment: '휴학' }],
   // 부정 (계약 2절 3)
   ['팀 말고 혼자 할 수 있는 코딩 대회', { participation: '개인', deliverables: ['코드·개발'] }],
@@ -49,7 +49,8 @@ const DEV_CASES = [
   ['고학년인데 발표 대회', { deliverables: ['발표'], unknown_terms: ['고학년'] }],
   ['복학생 혼자 나갈 대회', { participation: '개인', unknown_terms: ['복학생'] }],
   ['대학원생도 되나요', { unknown_terms: ['대학원생'] }],
-  ['휴학 예정인데 해커톤 나가고 싶어', { deliverables: ['코드·개발'], unknown_terms: ['휴학 예정'] }],
+  // 해커톤은 대회 방식이지 제출물이 아니다 (계약 2절 1, #37)
+  ['휴학 예정인데 해커톤 나가고 싶어', { deliverables: [], unknown_terms: ['해커톤', '휴학 예정'] }],
   ['오프라인 현장 참가 대회 다음 주 마감', { deliverables: ['현장 참가'], unknown_terms: ['다음주'] }],
   ['외국인 유학생도 참가 가능한 대회?', { unknown_terms: ['외국인', '유학생'] }],
   // 표현이 낱말 일부일 뿐인 경우
@@ -198,6 +199,25 @@ test('캠퍼스·학년·학적을 부정하면 값이 남지 않는다 (위험 
   }
 });
 
+test('실제 학생 문장의 거절 표현: 극혐·귀찮아서·사절도 팀을 거절한 것이다 (#37, 첫 측정)', () => {
+  for (const sentence of ['팀플 극혐하는 3학년', '팀플은 극혐', '팀플 귀찮아서 혼자 할래', '팀플은 사절', '팀플은 절대 사절']) {
+    assert.equal(parseConditions(sentence).participation, '개인', sentence);
+  }
+  assert.equal(parseConditions('팀플 극혐하는 인문캠 3학년').grade, 3, '거절이 다른 조건을 지우지 않는다');
+  for (const sentence of ['편입생이라 극혐', '편입생이라 귀찮아요', '휴학생이라 사절']) {
+    const result = parseConditions(sentence);
+    assert.equal(result.is_transfer, null, `${sentence}: 참가 형태 밖에서는 반대 값을 내지 않는다`);
+    assert.equal(result.enrollment, null, sentence);
+  }
+  for (const sentence of ['영상은 극혐', '발표는 귀찮아서']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], `${sentence}: 거절한 제출물은 목록에 넣지 않는다`);
+    assert.equal(result.unknown_terms.length, 1, sentence);
+  }
+  assert.deepEqual(parseConditions('영상 사절단 활동').deliverables, ['영상'], '"사절단"은 거절이 아니다');
+  assert.equal(parseConditions('편입 절대 안 했어').is_transfer, false, '"절대"가 끼어도 편입 부정이 걸린다');
+});
+
 test('편입·참가 형태 + 부정·거절: 학생이 한 말의 반대 값이 나오지 않는다', () => {
   const flips = [' 아니고', ' 말고', '은 좀 아니고', '안했어', ' 안 했어요'];
   const rejections = ['이라 힘들어요', '인데 어려워요', '은 별로', '이라서 부담돼요', '은 싫어'];
@@ -260,6 +280,47 @@ test('지난해·지난 겨울·저번·전에·옛날도 지난 일이라 그 �
   assert.equal(parseConditions('졸업하기 전에 자연캠 대회 나가고 싶어').campus, null);
 });
 
+test('대회 일정·시간 여유 표현은 같은 절의 지금 상태를 비우지 않는다 (계약 2절 3, #37)', () => {
+  const cases = [
+    ['자연캠 3학년인데 이번 여름방학에 나갈 대회', { campus: '자연', grade: 3 }],
+    ['인문캠 4학년인데 다음 주는 시험 기간이라 바빠요', { campus: '인문', grade: 4 }],
+    ['휴학 중인 자연캠 2학년인데 다음 달 안에 끝나는 공모전', { campus: '자연', grade: 2, enrollment: '휴학' }],
+    ['편입생인데 이번 주말에 하는 해커톤', { is_transfer: true }],
+  ];
+  for (const [sentence, expected] of cases) {
+    const result = parseConditions(sentence);
+    for (const [field, value] of Object.entries(expected)) assert.equal(result[field], value, `${sentence} → ${field}`);
+  }
+  // "ㅠ"는 문장부호가 아니라 한 절이어도 지금 상태는 그대로, 이번 주말은 기간 칸에
+  const oneClause = parseConditions('자캠 3학년인데 다음 주는 바빠서 ㅠ 이번 주말 대회');
+  assert.equal(oneClause.campus, '자연');
+  assert.equal(oneClause.grade, 3);
+  assert.equal(oneClause.period, '이번주');
+  // 일정 표현은 부정으로 읽은 값도 비우지 않는다 (목록 표현과 다름)
+  assert.equal(parseConditions('다음 주는 바빠서 편입 안 했어').is_transfer, false);
+});
+
+test('계약 2절 3의 시간 표현 목록은 일정을 말할 때도 그 절을 비운다 (겹치면 목록이 먼저, #37)', () => {
+  const cases = [
+    ['인문캠 2학년인데 다음 학기에 할 만한 대회', 'grade'], ['자캠 3학년인데 내년 1월 마감인 공모전', 'campus'],
+    ['방학 전에 낼 수 있는 대회 찾는 인문캠 2학년', 'grade'], ['지난주에 휴학했어요', 'enrollment'],
+    ['예전에 자연캠 다녔어', 'campus'], ['이전에는 편입생이었는데', 'is_transfer'], ['재작년에 3학년이었어', 'grade'],
+    ['내후년에 4학년', 'grade'], ['나중에 휴학할 수도', 'enrollment'], ['복학생인 인문캠 3학년', 'campus'],
+  ];
+  for (const [sentence, field] of cases) {
+    assert.equal(parseConditions(sentence)[field], null, sentence);
+  }
+  // 값과 떨어진 자리에 두어 절 단위 규칙만 시험한다 (값 바로 앞이면 다른 규칙이 먼저 비운다)
+  const listed = ['지난주에', '저번에', '작년에', '재작년에', '예전에', '옛날에', '원래', '이전에', '그전에', '전에', '전엔',
+    '전에는', '내년에', '내후년에', '다음 학기에', '나중에', '복학했고'];
+  for (const word of listed) {
+    const result = parseConditions(`자연캠 3학년인데 ${word} 대회 나갔어`);
+    assert.equal(result.campus, null, `${word} → campus`);
+    assert.equal(result.grade, null, `${word} → grade`);
+  }
+  assert.equal(parseConditions('자연캠 3학년인데 다음 주에 대회 나가').campus, '자연', '목록 밖 일정 표현은 같은 자리에서도 비우지 않는다');
+});
+
 test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않는다 (검증용 카드)', () => {
   const now = new Date('2026-10-15T00:00:00Z');
   const verified = (value) => ({ value, status: 'human_verified', evidence: [{ quote: '근거 문장', location: '본문' }] });
@@ -288,6 +349,148 @@ test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않�
 
 test('제출물 태그는 기타를 뺀 계약 태그', () => {
   assert.deepEqual(STUDENT_DELIVERABLE_TAGS, ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가']);
+});
+
+test('"아이디어"만으로는 제출물이 아니고 이해하지 못한 표현에 남는다 (계약 2절 1, #37)', () => {
+  for (const sentence of ['아이디어만 있으면 낼 수 있는 대회', '환경 정책 아이디어 내는 공모전', '아이디어 대회 찾아줘']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.some((term) => term.includes('아이디어')), `${sentence}: ${result.unknown_terms}`);
+  }
+  // 형식이 따로 있으면 그것을 담는다
+  assert.deepEqual(parseConditions('아이디어 기획서 공모전').deliverables, ['기획서·제안서']);
+  assert.deepEqual(parseConditions('피피티 하나만 내면 되는 아이디어 공모전').deliverables, ['기획서·제안서']);
+  assert.deepEqual(parseConditions('아이디어 영상 공모전').deliverables, ['영상']);
+  // 붙여 써도 같다
+  assert.deepEqual(parseConditions('아이디어기획서 공모전').deliverables, ['기획서·제안서']);
+  assert.deepEqual(parseConditions('아이디어영상 공모전').deliverables, ['영상']);
+  for (const sentence of ['아이디어톤 있어?', '아이디어로 승부하는 대회', '아이디어공모전 찾아줘']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.some((term) => term.startsWith('아이디어')), `${sentence}: ${result.unknown_terms}`);
+  }
+});
+
+test('프로그래밍 언어는 코드·개발, 도면·설계도·건축 설계는 디자인, 도구 이름은 아님 (계약 2절 1, #37)', () => {
+  const cases = [
+    ['파이썬으로 할 수 있는 대회', ['코드·개발']], ['Python 데이터 분석 공모전', ['코드·개발']], ['자바 쓸 줄 알아', ['코드·개발']],
+    ['자바스크립트 대회', ['코드·개발']], ['C언어 경진대회', ['코드·개발']], ['c 언어로 푸는 대회', ['코드·개발']],
+    ['도면 그려서 내는 대회', ['디자인']], ['설계도 제출하는 공모전', ['디자인']], ['건축 설계 공모전', ['디자인']], ['건축설계 대회', ['디자인']],
+  ];
+  for (const [sentence, expected] of cases) {
+    assert.deepEqual(parseConditions(sentence).deliverables, expected, sentence);
+  }
+  // 학과·전공 이름, 비슷한 다른 낱말은 제출물이 아니다
+  for (const sentence of ['건축설계학과 3학년', '건축 설계 전공 학생', '건축설계과예요', '디자인과인데 영상 대회', '도면적 사고', '자바섬 여행 공모전', '자바라 호스']) {
+    const tags = parseConditions(sentence).deliverables;
+    assert.ok(!tags.includes('디자인') && !tags.includes('코드·개발'), `${sentence}: ${tags}`);
+  }
+  assert.deepEqual(parseConditions('디자인과인데 영상 대회').deliverables, ['영상']);
+  // 앞 낱말 끝의 c는 붙이지 않는다
+  assert.ok(parseConditions('magic 언어 공모전').unknown_terms.includes('magic'));
+  for (const sentence of ['CAD 쓰는 대회', '설계 툴 써서 하는 대회', 'AI 툴 활용 공모전']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+});
+
+test('해커톤·아이디어톤만으로는 제출물이 아니고, 형식 낱말이 따로 있으면 그것을 담는다 (계약 2절 1, #37)', () => {
+  const cases = [
+    ['해커톤 찾아줘', ['해커톤']], ['아이디어톤 있어?', ['아이디어톤']], ['아이디어 해커톤 같은 거', ['아이디어', '해커톤']],
+    ['해커톤이나 아이디어톤', ['해커톤', '아이디어톤']], ['해커톤에 나가고 싶어', ['해커톤']],
+  ];
+  for (const [sentence, unknown] of cases) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.deepEqual(result.unknown_terms, unknown, sentence);
+  }
+  // 형식 낱말이 있으면 그것을 담고, 해커톤은 조건으로 쓰지 않았으므로 그대로 남는다
+  const coding = parseConditions('코딩 해커톤');
+  assert.deepEqual(coding.deliverables, ['코드·개발']);
+  assert.deepEqual(coding.unknown_terms, ['해커톤']);
+  assert.deepEqual(parseConditions('3명이서 앱개발로 나갈 해커톤').deliverables, ['코드·개발']);
+  assert.deepEqual(parseConditions('영상 해커톤').deliverables, ['영상']);
+});
+
+test('"~도 괜찮다"로 말한 제출물은 담지 않고 이해하지 못한 표현에도 넣지 않는다 (계약 2절 2, #37)', () => {
+  for (const sentence of ['오프라인도 괜찮음', '영상도 돼요', '포스터도 상관없어', '현장참가도 가능', '발표도 ok']) {
+    assert.deepEqual(parseConditions(sentence), parseConditions(''), sentence);
+  }
+  // 하고 싶은 것과 함께 말하면 하고 싶은 것만 담는다
+  assert.deepEqual(parseConditions('영상 공모전, 포스터도 괜찮아').deliverables, ['영상']);
+  // "도"가 없거나 받아들인다는 말이 아니면 그대로
+  assert.deepEqual(parseConditions('오프라인 대회 좋아').deliverables, ['현장 참가']);
+  assert.deepEqual(parseConditions('영상도 찍고 싶어').deliverables, ['영상']);
+  // 하고 싶음·요구·바람은 받아들인다는 말이 아니다
+  assert.deepEqual(parseConditions('발표도 좋아하고 영상도 좋아해').deliverables, ['영상', '발표']);
+  assert.deepEqual(parseConditions('영상도 좋아하는데').deliverables, ['영상']);
+  assert.deepEqual(parseConditions('발표도 돼야 해').deliverables, ['발표']);
+  assert.deepEqual(parseConditions('영상도 가능하면 짧게').deliverables, ['영상']);
+  // 부정·거절은 기존 규칙대로 값으로 정하지 않는다
+  for (const sentence of ['오프라인도 괜찮지 않아', '영상도 싫어']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+  assert.deepEqual(parseConditions('영상도 상관없지만 포스터는 싫어').deliverables, []);
+  // 쉼표로 절이 갈리면 받아들인다는 말이 아니다
+  assert.deepEqual(parseConditions('영상도, 괜찮아').deliverables, ['영상']);
+  // 붙여 쓴 제출물도 같다. 다른 조건이 붙으면 그 조건만 읽는다
+  assert.deepEqual(parseConditions('앱개발도 괜찮아'), parseConditions(''));
+  const teamVideo = parseConditions('팀영상도 괜찮아');
+  assert.equal(teamVideo.participation, '팀');
+  assert.deepEqual(teamVideo.deliverables, []);
+  assert.deepEqual(teamVideo.unknown_terms, []);
+  // 계약에 적은 끝맺음
+  for (const sentence of ['영상도 된다', '영상도 됩니다', '영상도 무관해요', '영상도 상관없습니다', '영상도 가능하다']) {
+    assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
+  }
+});
+
+test('직무를 말하는 절의 제출물 낱말은 제출물이 아니다 (계약 2절 1, #37)', () => {
+  for (const sentence of ['희망 직무는 기획 쪽이에요', '개발 직군 희망하는 3학년', '포지션은 디자인', '마케팅 기획 직무 관련 공모전']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, [], sentence);
+    assert.ok(result.unknown_terms.length > 0, sentence);
+  }
+  assert.equal(parseConditions('개발 직군 희망하는 3학년').grade, 3, '다른 조건은 그대로');
+  const role = parseConditions('참여 가능한 공모전 있나? 직무는 마케터나 기획 쪽.');
+  assert.ok(role.unknown_terms.some((term) => term.includes('기획')), `기획이 남는다: ${role.unknown_terms}`);
+  // 다른 절의 제출물은 그대로 읽는다
+  assert.deepEqual(parseConditions('직무는 기획 쪽. 영상 공모전 찾아줘').deliverables, ['영상']);
+  assert.deepEqual(parseConditions('직무는 기획 쪽, 영상 공모전 찾아줘').deliverables, ['영상']);
+  // 직무로 시작하는 다른 낱말은 직무 표현이 아니다
+  assert.deepEqual(parseConditions('직무적성 기획서 내는 공모전').deliverables, ['기획서·제안서']);
+  assert.deepEqual(parseConditions('직무역량 키우는 영상 공모전').deliverables, ['영상']);
+});
+
+test('PPT를 내는 것은 기획서·제안서, 그 밖의 PPT·PT는 발표 (계약 2절 1, #37)', () => {
+  const cases = [
+    ['피피티 한 장만 내면 끝나는 공모전', ['기획서·제안서']], ['PPT 5장 이내로 낼 수 있는 대회', ['기획서·제안서']],
+    ['ppt 제출하는 대회', ['기획서·제안서']], ['ppt제출만 하면 됨', ['기획서·제안서']], ['PPT로 제출', ['기획서·제안서']],
+    ['피피티 발표하는 대회', ['발표']], ['본선 PT 있는 대회', ['발표']], ['PT 내면 되는 대회', ['발표']], ['ppt 있는 대회', ['발표']],
+    // 사이에 다른 제출물이 끼면 내는 것은 그쪽이다. 참가 형태·학년은 끼어도 된다
+    ['ppt 발표 영상 제출', ['영상', '발표']], ['피피티 혼자 낼 수 있는 대회', ['기획서·제안서']],
+    ['ppt 3학년이 내기만 하면 되는', ['기획서·제안서']], ['피피티 딱 하나만 띡 내면 되는', ['기획서·제안서']],
+    // "내다"가 아닌 낱말: 낼모레, 내 전공, 10분 내
+    ['ppt 대회 낼모레 마감', ['발표']], ['ppt 내 전공 맞는 대회', ['발표']], ['ppt 20분 내 진행', ['발표']],
+  ];
+  for (const [sentence, expected] of cases) {
+    assert.deepEqual(parseConditions(sentence).deliverables, expected, sentence);
+  }
+  // 부정·거절이 붙으면 값으로 정하지 않는다 (계약 2절 3)
+  for (const sentence of ['ppt 싫어', 'ppt 내기 싫어', 'ppt 안 내도 되는 대회', '피피티 말고']) {
+    assert.deepEqual(parseConditions(sentence).deliverables, [], sentence);
+  }
+  assert.deepEqual(parseConditions('피피티 말고 영상 제출').deliverables, ['영상']);
+  // 낸다는 말의 활용형은 이해하지 못한 표현으로 남지 않는다. 낱말 전체로 비교하므로 "제출기한"은 내는 말이 아니다
+  for (const sentence of ['ppt 제출해서 심사', 'ppt 냈어', '피피티 제출용', 'ppt 내기만 하면 됨', 'ppt 내세요']) {
+    const result = parseConditions(sentence);
+    assert.deepEqual(result.deliverables, ['기획서·제안서'], sentence);
+    assert.ok(!result.unknown_terms.some((term) => /^(내|냈|낸|제출)/.test(term)), `${sentence}: ${result.unknown_terms}`);
+  }
+  assert.deepEqual(parseConditions('ppt 제출기한 3일 뒤').deliverables, ['발표']);
 });
 
 test('시연 문장 → 판정: 해석 결과를 그대로 judgeCard에 넣을 수 있다 (#24 시연)', () => {

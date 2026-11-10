@@ -37,7 +37,7 @@ class Notice:
     body_text: str
     images: list[dict] = field(default_factory=list)
     attachments: list[dict] = field(default_factory=list)
-    parser_version: str = "k2web-v1"
+    parser_version: str = "k2web-v1.1"
 
 
 class Adapter(Protocol):

@@ -27,12 +27,16 @@ const DICTIONARY = [
   ['enrollment', '졸업유예', ['졸업유예생', '졸업유예']],
   ['participation', '개인', ['혼자서', '혼자', '개인전', '개인참가', '개인참여', '개인', '솔로', '단독']],
   ['participation', '팀', ['팀전', '팀참가', '팀참여', '팀플', '팀원', '팀', '친구', '같이', '함께', '둘이서', '둘이', '셋이서', '셋이', '넷이서', '넷이', '여럿이']],
-  ['deliverables', '기획서·제안서', ['사업계획서', '기획서', '제안서', '기획안', '계획서', '아이디어', '기획']],
+  // "아이디어"만으로는 무엇을 내는지 정해지지 않아 넣지 않는다 (계약 2절 1)
+  ['deliverables', '기획서·제안서', ['사업계획서', '기획서', '제안서', '기획안', '계획서', '기획']],
   ['deliverables', '영상', ['동영상', '영상', '유튜브', '숏폼', '쇼츠', '릴스', 'ucc', '브이로그', 'vlog', '영화']],
   ['deliverables', '에세이·수기', ['에세이', '체험수기', '수기', '수필', '글쓰기', '독후감', '작문', '글']],
-  ['deliverables', '코드·개발', ['프로그래밍', '소프트웨어', '해커톤', '코딩', '코드', '개발', '어플', '앱', '웹', 'sw']],
-  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피티', 'ppt', 'pt']],
-  ['deliverables', '디자인', ['일러스트', '카드뉴스', '디자인', '포스터', '웹툰', '그림', '로고']],
+  // 프로그래밍 언어도 코드·개발 (계약 2절 1의 닫힌 목록). 도구 이름(CAD, AI 툴)은 형식이 정해지지 않아 넣지 않는다.
+  // "C 언어", "건축 설계"는 JOINS에서 붙인다. 해커톤은 대회 방식이라 넣지 않는다 ("아이디어 해커톤", 계약 2절 1)
+  ['deliverables', '코드·개발', ['프로그래밍', '소프트웨어', '자바스크립트', '파이썬', 'python', 'c언어', '자바', '코딩', '코드', '개발', '어플', '앱', '웹', 'sw']],
+  ['deliverables', '발표', ['프레젠테이션', '프리젠테이션', '스피치', '발표', '피피티', '피티', 'ppt', 'pt']],
+  // 도면·설계도·건축 설계는 설계 결과물 (계약 2절 1). "설계" 하나만으로는 "설계 툴"처럼 형식이 정해지지 않는다
+  ['deliverables', '디자인', ['일러스트', '카드뉴스', '건축설계', '디자인', '포스터', '설계도', '웹툰', '그림', '로고', '도면']],
   // "현장" 하나만으로는 "현장 실습", "현장 심사"와 구분되지 않아 넣지 않는다
   ['deliverables', '현장 참가', ['현장참가', '현장참여', '오프라인']],
   ['period', '마감임박', ['마감임박']],
@@ -65,7 +69,8 @@ const PARTICLES = [
 const FLIP_NEGATION_RE = /^(아니(?!면)|아닌|아님|아닙|아냐|말고|빼고|없이|없는|없어|없고|없음|없으|제외)/;
 // 거절·곤란 ("팀플은 싫어", "발표는 별로", "편입생이라 힘들어요"): 참가 형태만 뒤집고(싫다 = 반대를 원함),
 // 그 밖의 조건은 무엇을 말하는지 확실하지 않아 값을 비운다 (편입생이라 힘들다 ≠ 편입생이 아니다)
-const REJECTION_RE = /^(싫|별로|부담|힘들|어렵|어려|자신없)/;
+// 극혐·귀찮·사절: 시험 문장 첫 측정에서 실제 학생이 쓴 거절 표현 (#37). "사절단"은 거절이 아니다
+const REJECTION_RE = /^(싫|별로|부담|힘들|어렵|어려|자신없|극혐|귀찮|사절(?!단))/;
 const NEGATION_RE = new RegExp(`${FLIP_NEGATION_RE.source}|${REJECTION_RE.source}`);
 const REJECTION_FLIP_DIMS = new Set(['participation', 'deliverables']);
 // 절 안에서 어느 표현에도 붙지 않은 신분 부정·시간 표현은 그 앞(시간 표현은 절 전체)의 판정 조건을 모두 불확실하게 만든다
@@ -75,8 +80,12 @@ const CLAUSE_IDENTITY_NEGATION_RE = /^(아니(?!면)|아닌|아님|아닙|아냐
 // 한계: "졸업하기 전에", "방학 전에"의 앞으로의 "전에"도 걸려 그 절의 값이 빈다 (값이 비는 안전한 쪽. 시험 문장 측정 뒤 다시 본다)
 const CLAUSE_TIME_RE = /^(지난|저번|작년|재작년|예전|옛날|원래|이전|그전|전에$|전엔$|전에는$|내년|내후년|다음학기|나중|복학)/;
 const JUDGED_DIMS = new Set(['campus', 'grade', 'enrollment', 'is_transfer', 'participation']);
+// 직무를 말하는 절("직무는 PM이나 기획 쪽", "개발 직군")의 제출물 낱말은 하고 싶은 일이지 내는 것이 아니다 (계약 2절 1).
+// 조사만 붙은 낱말 전체로 본다 ("직무적성", "직무역량"은 아니다).
+// 한계: 직무가 조건이 아니어도("직무 경험 쌓고 싶은데 영상 공모전") 같은 절의 제출물이 빈다 (값이 비는 안전한 쪽)
+const JOB_ROLE_RE = /^(직무|직군|직종|포지션)(은|는|이|가|을|를|도|만|에|으로|로|이나|이랑|이에요|이요)?$/;
 // "발표하는 거 말고", "편입생은 좀 아니고"처럼 표현과 부정 사이에 끼어도 부정이 그 표현에 걸리는 말
-const NEGATION_BRIDGE = new Set(['거', '것', '건', '게', '거는', '쪽', '쪽은', '좀', '조금', '같은', '딱', '그냥', '너무', '진짜', '정말']);
+const NEGATION_BRIDGE = new Set(['거', '것', '건', '게', '거는', '쪽', '쪽은', '좀', '조금', '같은', '딱', '그냥', '너무', '진짜', '정말', '절대']);
 // 참가 형태·제출물은 사이에 다른 말이 끼어도 부정이 걸릴 수 있다 ("같이 할 사람 없어서").
 // 이때는 어디에 걸린 부정인지 확실하지 않으므로 값을 비운다. 그 밖의 조건은 바로 옆 부정만 본다.
 const DISTANT_NEGATION_DIMS = new Set(['participation', 'deliverables']);
@@ -104,8 +113,20 @@ const VERB_RE = /^(했|했어|했어요|했는데|했고|했지만|했음|했다
 const FRIEND_TAIL_RE = /^(랑|이랑|와|과|하고|끼리|들과|들이랑|들하고|들끼리|들랑)/;
 // "같이 나갈", "함께 할"처럼 참가와 이어질 때만 팀 ("영상 같이 짧은 거", "같이 내용이 비슷한"은 아님)
 const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하|해|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
+// PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1).
+// "PT"는 "PT 면접", "본선 PT"처럼 발표 자체를 말할 때가 많아 넣지 않는다
+const PPT_FILE_STEMS = new Set(['ppt', '피피티']);
+// 닫힌 목록: "낼모레", "내면의", "내 전공"·"10분 내"의 "내"를 잡지 않게 낱말 전체로 비교한다
+const SUBMIT_RE = /^(내(면|는|는데|고|도|서|야|요|세요|기만|려고?|볼|면서)|낼(만한|수|래)?|낸|냈|냈어|제출(하는|하면|하고|하며|할|해|해도|해서|해야|하세요|합니다|만|용|로|로만|은|는)?)$/;
+// "피피티 딱 하나만 띡 내면"까지. 그보다 멀면 무엇을 내는지 확실하지 않다
+const PPT_SUBMIT_WINDOW = 4;
 // "디자인과 2학년"의 "과"는 조사가 아니라 학과
 const DEPARTMENT_NEXT_RE = /^(학생|학년|전공|재학|다니|다녀|졸업|교수|선배|후배|동기|학번|\d학년|[일이삼사오육]학년)/;
+const DEPARTMENT_TAIL_RE = /^과(예요|이에요|에요|인데|이고|이라|라서|생|입니다)/;
+const MAJOR_NEXT_RE = /^(전공|학과|학부|계열)/;
+// "오프라인도 괜찮음", "영상도 돼": 제출물 + "도" 바로 뒤의 받아들인다는 말 (계약 2절 2).
+// 닫힌 목록을 낱말 전체로 비교한다: "좋아하는데"(하고 싶음), "돼야"(요구), "가능하면", "괜찮지 않아"(부정)는 아니다
+const PERMIT_NEXT_RE = /^(괜찮(아|아요|음|습니다|고|은데|다|지만)?|상관없(어|어요|음|고|다|지만|습니다)?|무관(해|해요|함|합니다)?|ok|오케이|가능(해|함|해요|하다|합니다)?|돼|돼요|되요|됨|된다|됩니다)$/;
 
 // 조건과 상관없는 말 (계약 2절 4). 낱말 전체 또는 두 글자 이상 남기고 조사를 뗀 형태로 비교한다.
 const FILLER_WORDS = new Set([
@@ -123,6 +144,8 @@ const FILLER_PATTERNS = [
   /^(있|없)/,
   /^(할|하는|하고|해|해서|한|할래|해볼|해보고|해볼만한|할만한|할수|하기|하면|하려고|하는데|해요|합니다)$/,
   /^(낼|내|내고|내는|내려|내려고|내면|내도|내볼|낼만한|내볼만한)$/,
+  // PPT 파일 제출에서 보는 낸다는 말도 조건이 아니다 ("ppt 냈어", "제출용")
+  SUBMIT_RE,
   /^(나갈|나가)/,
   /^(주는|주고|하나|구해|구하|구할|몰라|모르)/,
   // 초성 줄임말 ("ㅊㅊ", "ㅎㅇ"). NFKC를 거치면 한글 자모 영역으로 바뀐다
@@ -145,7 +168,9 @@ const JOINS = [
   [/초과\s*학기/g, '초과학기'], [/졸업\s*유예/g, '졸업유예'],
   [/(인문|자연|서울|용인)\s*캠/g, '$1캠'],
   [/(현장|개인|팀)\s*(참가|참여)/g, '$1$2'],
-  [/체험\s*수기/g, '체험수기'], [/카드\s*뉴스/g, '카드뉴스'], [/사업\s*계획서/g, '사업계획서'], [/글\s*쓰기/g, '글쓰기'],
+  // "아이디어기획서", "아이디어영상": 사전에서 뺀 "아이디어"(계약 2절 1)를 떼어 뒤의 형식을 읽는다
+  [/아이디어(?=기획|제안|계획서|영상|동영상|포스터|디자인|발표|에세이|코드|코딩|앱|웹)/g, '아이디어 '],
+  [/체험\s*수기/g, '체험수기'], [/건축[ \t]*설계/g, '건축설계'], [/(?<![a-z])c[ \t]*언어/gi, 'c언어'], [/카드\s*뉴스/g, '카드뉴스'], [/사업\s*계획서/g, '사업계획서'], [/글\s*쓰기/g, '글쓰기'],
 ];
 
 /**
@@ -176,6 +201,17 @@ export function parseConditions(text) {
     }
     const last = matches[matches.length - 1];
     const context = readContext(tokens, index, last);
+    // "오프라인도 괜찮음": 받아들일 수 있다는 말이라 제출물은 값으로도, 이해하지 못한 표현으로도 남기지 않는다 (계약 2절 2).
+    // "팀영상도 괜찮아"처럼 다른 조건이 붙은 낱말은 그 조건만 그대로 읽는다
+    if (context.state === 'permitted') {
+      for (const match of matches.filter((m) => m.dim !== 'deliverables')) {
+        hits.push({ ...match, state: 'plain', term: token.raw.slice(match.start, match.start + match.length),
+          phrase: displayForm(token.raw), tokenIndex: index, clause: token.clause });
+      }
+      for (let used = index; used <= context.end; used += 1) consumed.add(used);
+      index = context.end;
+      continue;
+    }
     const phraseTokens = tokens.slice(context.begin, context.end + 1).map((t) => t.raw);
     phraseTokens[phraseTokens.length - 1] = displayForm(phraseTokens[phraseTokens.length - 1]);
     const phrase = phraseTokens.join(' ');
@@ -278,11 +314,33 @@ function acceptMatches(matches, tokens, index) {
   if (tags.size > 1) return null;
   // 학과 이름이 되는 것은 제출물 낱말뿐이다 ("디자인과"는 학과, "1학년과 2학년"의 과는 접속)
   if (last.dim === 'deliverables' && last.rest === '과' && DEPARTMENT_NEXT_RE.test(next)) return null;
+  // "디자인과예요", "건축설계과인데": 문장 끝이나 어미가 붙은 학과 이름
+  if (last.dim === 'deliverables' && DEPARTMENT_TAIL_RE.test(last.rest)) return null;
+  // "건축 설계 전공", "디자인 학부": 전공 이름이지 내는 것이 아니다 (계약 2절 1)
+  if (last.dim === 'deliverables' && last.rest === '' && MAJOR_NEXT_RE.test(next)) return null;
+  // "자바라"(호스)는 프로그래밍 언어가 아니다
+  if (last.stem === '자바' && last.rest.startsWith('라')) return null;
   if (matches.length === 1) {
     if (last.stem === '친구' && !FRIEND_TAIL_RE.test(last.rest)) return null;
     if ((last.stem === '같이' || last.stem === '함께') && last.rest === '' && !TOGETHER_NEXT_RE.test(next)) return null;
   }
+  if (PPT_FILE_STEMS.has(last.stem) && isSubmittedFile(last, tokens, index)) {
+    return [...matches.slice(0, -1), { ...last, value: '기획서·제안서' }];
+  }
   return matches;
+}
+
+// "피피티 하나만 내면", "PPT 10장 내외로 낼", "ppt제출": 뒤 몇 낱말 안에 내다·제출이 오면 파일 제출이다.
+// 사이에 다른 제출물이 끼면("ppt 발표 영상 제출") 그 제출물의 말이다. 참가 형태·학년은 끼어도 된다("피피티 혼자 낼")
+function isSubmittedFile(hit, tokens, index) {
+  if (/제출/.test(hit.rest)) return true;
+  for (let offset = 1; offset <= PPT_SUBMIT_WINDOW; offset += 1) {
+    const word = wordAt(tokens, index + offset);
+    if (word === null) return false;
+    if (SUBMIT_RE.test(word)) return true;
+    if (matchToken(word)?.some((match) => match.dim === 'deliverables')) return false;
+  }
+  return false;
 }
 
 function wordAt(tokens, index) {
@@ -306,6 +364,12 @@ function readContext(tokens, index, hit) {
   if (hit.tailUncertain || (hit.tailFuture && isTimeSensitive)) return result('uncertain');
   if (hit.dim === 'grade' && GRADE_RANGE_RE.test(hit.rest)) return result('uncertain');
   if (hit.isHeadcount && HEADCOUNT_SCOPE_RE.test(hit.rest)) return result('uncertain');
+  if (hit.dim === 'deliverables' && hit.rest === '도' && PERMIT_NEXT_RE.test(at(1) ?? '')) return result('permitted', index + 1);
+  // "오프라인도 괜찮지 않아": 받아들이지 않는다는 부정이라 값으로 정하지 않는다 (계약 2절 3).
+  // 한계: 그 밖의 "~지 않아" 부정("영상 하지 않아")은 아직 읽지 못한다
+  if (hit.dim === 'deliverables' && hit.rest === '도' && /^(괜찮|상관없)지$/.test(at(1) ?? '') && /^않/.test(at(2) ?? '')) {
+    return result('uncertain', index + 2);
+  }
   if (isTimeSensitive && TIME_SHIFT_RE.test(at(-1) ?? '')) return result('uncertain', index, index - 1);
 
   const next = at(1);
@@ -408,7 +472,12 @@ function applyClauseRisks(tokens, hits, consumed) {
   };
   tokens.forEach((token, index) => {
     if (token.isBoundary || consumed.has(index)) return;
-    if (CLAUSE_TIME_RE.test(token.lower)) {
+    if (JOB_ROLE_RE.test(token.lower)) {
+      // 제출물은 판정 조건(JUDGED_DIMS)이 아니라 hits 전체에서 찾는다
+      for (const hit of hits) {
+        if (hit.clause === token.clause && hit.dim === 'deliverables') markUncertain(hit, token);
+      }
+    } else if (CLAUSE_TIME_RE.test(token.lower)) {
       for (const hit of judged) {
         if (hit.clause === token.clause && FUTURE_SENSITIVE.has(hit.dim)) markUncertain(hit, token, true);
       }

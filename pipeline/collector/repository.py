@@ -5,6 +5,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .assets import atomic_bytes, private_path
+
 DB_VERSION = 3
 
 
@@ -174,10 +176,9 @@ class Repository:
         if changed:
             raw_hash = hashlib.sha256(html).hexdigest()
             raw_path = f"raw/{raw_hash}.html"
-            target = self.data_dir / raw_path
-            target.parent.mkdir(exist_ok=True)
+            target = private_path(self.data_dir, raw_path)
             if not target.exists():
-                target.write_bytes(html)
+                atomic_bytes(target, html)
         with self.db:
             self.db.execute("""INSERT INTO notices VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(source_id, external_id) DO UPDATE SET
