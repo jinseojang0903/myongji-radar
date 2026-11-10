@@ -2,6 +2,7 @@
 import json
 import math
 import multiprocessing
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -25,6 +26,10 @@ class ResponseTooLarge(FetchPolicyError):
 
 class FetchDeadlineExceeded(requests.Timeout):
     """단일 get의 간격·재시도·리다이렉트·body를 합친 시간 예산 소진."""
+
+
+class RunDeadlineExceeded(FetchDeadlineExceeded):
+    """수집 실행 전체의 HTTP 시간 예산 소진. 다음 출처도 요청하지 않는다."""
 
 
 def checked_url(url, allowed_hosts):
@@ -128,9 +133,17 @@ def _receive(connection, result, ready):
     """IPC 부분 전송도 부모의 deadline 대기를 막지 않도록 전용 reader에서 받는다."""
     try:
         result["meta"] = json.loads(connection.recv_bytes(65536))
+        meta = result["meta"]
+        if (not isinstance(meta, dict) or meta.get("kind") not in {"ok", "size", "policy", "timeout", "http", "connection", "error"}
+                or not isinstance(meta.get("last_request"), dict)
+                or any(not isinstance(host, str) or type(value) not in (int, float) or not math.isfinite(value)
+                       for host, value in meta["last_request"].items())
+                or not isinstance(meta.get("cookies", []), list)
+                or (meta["kind"] == "http" and (type(meta.get("status")) is not int or not 100 <= meta["status"] <= 599))):
+            raise ValueError("HTTP 작업자 메타데이터 형식 오류")
         if result["meta"]["kind"] == "ok":
             result["content"] = connection.recv_bytes(MAX_FILE_BYTES)
-    except (OSError, EOFError, ValueError, KeyError) as exc:
+    except (OSError, EOFError, ValueError, KeyError, TypeError) as exc:
         result["ipc_error"] = type(exc).__name__
     finally:
         ready.set()
@@ -139,18 +152,25 @@ def _receive(connection, result, ready):
 class Fetcher:
     """순차 get 전용. 각 호출의 HTTP session은 worker 안에서 생성·종료된다."""
 
-    def __init__(self, interval: float = 1.0, total_timeout: float = TOTAL_TIMEOUT):
+    def __init__(self, interval: float = 1.0, total_timeout: float = TOTAL_TIMEOUT, run_deadline: float | None = None):
         if not math.isfinite(total_timeout) or total_timeout <= 0:
             raise ValueError("전체 요청 제한은 양수여야 합니다")
+        if run_deadline is not None and not math.isfinite(run_deadline):
+            raise ValueError("수집 실행 제한 시각은 유한해야 합니다")
         self.session = requests.Session()  # 공개 headers/close 호환. 실제 연결은 worker 소유.
         self.session.headers["User-Agent"] = "MjuRadarPrototype/0.1"
         self.interval = interval
         self.total_timeout = total_timeout
+        self.run_deadline = run_deadline
         self.last_request = {}
 
     def get(self, url: str, allowed_hosts: list[str]) -> bytes:
         checked_url(url, allowed_hosts)  # 거부된 주소는 프로세스·요청도 만들지 않는다.
+        if self.run_deadline is not None and time.monotonic() >= self.run_deadline:
+            raise RunDeadlineExceeded("수집 실행 전체 시간 제한을 초과했습니다")
         deadline = time.monotonic() + self.total_timeout
+        if self.run_deadline is not None:
+            deadline = min(deadline, self.run_deadline)
         context = multiprocessing.get_context("spawn")
         receiver, sender = context.Pipe(duplex=False)
         process = context.Process(target=_fetch_worker, args=(sender, url, allowed_hosts, self.interval,
@@ -192,8 +212,12 @@ class Fetcher:
             raise RuntimeError("HTTP 작업자 실행 실패")
         except FetchDeadlineExceeded:
             timed_out = True
+            if self.run_deadline is not None and time.monotonic() >= self.run_deadline:
+                raise RunDeadlineExceeded("수집 실행 전체 시간 제한을 초과했습니다") from None
             raise
         finally:
+            has_error = sys.exc_info()[0] is not None
+            cleanup_error = None
             sender.close()
             if started:
                 if process.is_alive():
@@ -203,17 +227,20 @@ class Fetcher:
                     process.kill()
                     process.join(timeout=0.5)
                 if process.is_alive():
-                    raise RuntimeError("HTTP 작업자를 종료하지 못했습니다")
-                process.close()
-            receiver.close()
+                    cleanup_error = "HTTP 작업자를 종료하지 못했습니다"
+                else:
+                    process.close()
             if reader.ident is not None:
                 reader.join(timeout=0.5)
                 if reader.is_alive():
-                    raise RuntimeError("HTTP 작업자 통신을 종료하지 못했습니다")
+                    cleanup_error = "HTTP 작업자 통신을 종료하지 못했습니다"
+            receiver.close()
             # 완료/오류 결과를 못 받았어도 다음 호출의 호스트 간격을 보수적으로 보장한다.
             if timed_out or not ready.is_set() or "ipc_error" in result:
                 now = time.monotonic()
                 self.last_request.update({host: now for host in allowed_hosts})
+            if cleanup_error is not None and not has_error:
+                raise RuntimeError(cleanup_error)
 
     def _get(self, url: str, allowed_hosts: list[str], deadline: float) -> bytes:
         """worker 내부 구현. parent 감독이 DNS·연결·읽기 정지까지 전체 시간을 제한한다."""
@@ -229,6 +256,11 @@ class Fetcher:
                                                 allow_redirects=False, stream=True)
                     with response:
                         remaining(deadline)
+                        if response.status_code == 429:
+                            header = response.headers.get("Retry-After", "").strip()
+                            digits = header.lstrip("0") or "0"
+                            if not (header.isascii() and header.isdigit() and len(digits) <= 2 and int(digits) <= 30):
+                                response.raise_for_status()
                         if response.status_code in (429, 500, 502, 503, 504) and attempt < 2:
                             bounded_sleep(retry_delay(response.headers.get("Retry-After", ""), attempt), deadline)
                             continue

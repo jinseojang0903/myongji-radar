@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from collector.fetcher import (FetchDeadlineExceeded, Fetcher, FetchPolicyError, MAX_FILE_BYTES,
-                               ResponseTooLarge, _fetch_worker, cookie_jar, cookie_records, retry_delay)
+                               ResponseTooLarge, RunDeadlineExceeded, _fetch_worker, cookie_jar, cookie_records, retry_delay)
 
 
 HOST = "www.mju.ac.kr"
@@ -43,6 +43,20 @@ def response_worker(connection, url, *args):
         connection.send_bytes(json.dumps(meta).encode())
         if code is None:
             connection.send_bytes(b"x" * MAX_FILE_BYTES)
+    finally:
+        connection.close()
+
+
+def actual_worker_without_network(connection, url, *args):
+    """실제 spawn 안에서 HTTP 응답만 대역으로 바꾸고 실제 worker와 _get을 실행한다."""
+    status = 429 if url.endswith("/429") else 200
+    with patch("requests.sessions.Session.get", return_value=Response(status, {"Retry-After": "bad"})):
+        _fetch_worker(connection, url, *args)
+
+
+def malformed_worker(connection, *args):
+    try:
+        connection.send_bytes(b'[]')
     finally:
         connection.close()
 
@@ -100,7 +114,7 @@ class FetcherLimitTests(unittest.TestCase):
                 self.assertEqual(retry_delay(header, 1, now), expected)
 
     def test_every_retryable_status_caps_retry_after(self):
-        for status in (429, 500, 502, 503, 504):
+        for status in (500, 502, 503, 504):
             clock = Clock()
             fetcher = self.fetcher(interval=0)
             responses = [Response(status, {"Retry-After": "120"}), Response(status, {"Retry-After": "120"}), Response()]
@@ -110,6 +124,74 @@ class FetcherLimitTests(unittest.TestCase):
                 self.assertEqual(fetcher._get(URL, [HOST], 190), b"ok")
                 self.assertEqual(clock.sleeps, [30, 30])
                 self.assertTrue(all(r.closed for r in responses))
+
+    def test_429_unacceptable_retry_after_fails_immediately_in_actual_get_path(self):
+        for header in (None, "", "bad", "31", "999999999999999999", "-1", "1.5", "Wed, 11 Nov 2026 00:00:00 GMT"):
+            with self.subTest(header=header):
+                clock = Clock()
+                fetcher = self.fetcher(interval=0)
+                response = Response(429, {} if header is None else {"Retry-After": header})
+                fetcher.session.get = Mock(return_value=response)
+                with patch("collector.fetcher.time.monotonic", clock.monotonic), patch("collector.fetcher.time.sleep", clock.sleep):
+                    with self.assertRaises(requests.HTTPError) as error:
+                        fetcher._get(URL, [HOST], 190)
+                self.assertEqual(error.exception.response.status_code, 429)
+                self.assertEqual(fetcher.session.get.call_count, 1)
+                self.assertEqual(clock.sleeps, [])
+                self.assertTrue(response.closed)
+
+    def test_429_short_numeric_retry_after_retries_within_deadline(self):
+        for header in ("0", "30", "0000000012"):
+            with self.subTest(header=header):
+                clock = Clock()
+                fetcher = self.fetcher(interval=0)
+                fetcher.session.get = Mock(side_effect=[Response(429, {"Retry-After": header}), Response()])
+                with patch("collector.fetcher.time.monotonic", clock.monotonic), patch("collector.fetcher.time.sleep", clock.sleep):
+                    self.assertEqual(fetcher._get(URL, [HOST], 190), b"ok")
+                self.assertEqual(fetcher.session.get.call_count, 2)
+                self.assertEqual(clock.sleeps, [] if int(header) == 0 else [int(header)])
+
+    def test_expired_run_budget_never_starts_worker(self):
+        fetcher = self.fetcher(run_deadline=time.monotonic() - 1)
+        with patch("collector.fetcher.multiprocessing.get_context") as context:
+            with self.assertRaises(RunDeadlineExceeded):
+                fetcher.get(URL, [HOST])
+            context.assert_not_called()
+
+    def test_actual_worker_spawn_roundtrip_without_network(self):
+        before = {p.pid for p in multiprocessing.active_children()}
+        fetcher = self.fetcher(interval=0, total_timeout=5)
+        with patch("collector.fetcher._fetch_worker", actual_worker_without_network):
+            self.assertEqual(fetcher.get(URL, [HOST]), b"ok")
+            with self.assertRaises(requests.HTTPError) as error:
+                fetcher.get(f"https://{HOST}/429", [HOST])
+            self.assertEqual(error.exception.response.status_code, 429)
+        self.assertEqual({p.pid for p in multiprocessing.active_children()}, before)
+        self.assertFalse(any(t.name == "mju-http-result" for t in threading.enumerate()))
+
+    def test_malformed_ipc_metadata_fails_without_reader_or_child_leak(self):
+        before = {p.pid for p in multiprocessing.active_children()}
+        fetcher = self.fetcher(interval=0, total_timeout=5)
+        with patch("collector.fetcher._fetch_worker", malformed_worker):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 작업자 응답"):
+                fetcher.get(URL, [HOST])
+        self.assertEqual({p.pid for p in multiprocessing.active_children()}, before)
+        self.assertFalse(any(t.name == "mju-http-result" for t in threading.enumerate()))
+
+    def test_run_budget_limits_hung_worker_and_stops_following_request(self):
+        before = {p.pid for p in multiprocessing.active_children()}
+        fetcher = self.fetcher(total_timeout=60, run_deadline=time.monotonic() + 0.8)
+        started = time.monotonic()
+        with patch("collector.fetcher._fetch_worker", slow_worker):
+            with self.assertRaises(RunDeadlineExceeded):
+                fetcher.get(URL, [HOST])
+        self.assertLess(time.monotonic() - started, 2.5)
+        self.assertEqual({p.pid for p in multiprocessing.active_children()}, before)
+        self.assertFalse(any(t.name == "mju-http-result" for t in threading.enumerate()))
+        with patch("collector.fetcher.multiprocessing.get_context") as context:
+            with self.assertRaises(RunDeadlineExceeded):
+                fetcher.get(URL, [HOST])
+            context.assert_not_called()
 
     def test_interval_and_retry_consume_the_same_deadline(self):
         clock = Clock()

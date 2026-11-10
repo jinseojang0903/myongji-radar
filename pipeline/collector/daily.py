@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import io
 import json
+import math
 import sqlite3
 import sys
 import tomllib
@@ -10,7 +11,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .__main__ import main as collector_main
+from .__main__ import RUN_TIMEOUT, main as collector_main
 from .config import load_sources
 from .locking import AlreadyRunning, CollectorLock
 
@@ -100,7 +101,9 @@ def call_collector(argv):
             return exc.code if isinstance(exc.code, int) else 1
 
 
-def run_daily(data_dir, config, rules, *, clock=current_time):
+def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TIMEOUT):
+    if not math.isfinite(run_timeout) or run_timeout <= 0:
+        raise ValueError("수집 시간 예산은 유한한 양수여야 합니다")
     data_dir, config, rules = Path(data_dir), Path(config), Path(rules)
     started = clock().astimezone(SEOUL)
     log_dir = data_dir / "logs"
@@ -148,7 +151,8 @@ def run_daily(data_dir, config, rules, *, clock=current_time):
                 atomic_json(state_path, state)
                 # 네트워크 요청 전에 시도 시작을 저장한다. 비정상 종료 후 같은 날 재시도하지 않는다.
                 phase = "collection"
-                collected = call_collector(["run", "--config", str(config), "--data-dir", str(data_dir)])
+                collected = call_collector(["run", "--config", str(config), "--data-dir", str(data_dir),
+                                            "--run-timeout", str(run_timeout)])
                 state["collection_exit_code"] = collected
                 phase = "collection_result"
                 run = latest_run(data_dir)
@@ -198,10 +202,13 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
+    parser.add_argument("--run-timeout", type=float, default=RUN_TIMEOUT, help="수집 전체 요청 예산(초, 기본 1200)")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="설정만 확인. 수집·DB·날짜 상태 변경 없음")
     mode.add_argument("--recover-state", action="store_true", help="손상 상태 백업·복구. 오늘 수집은 차단하고 다음 날 재개")
     args = parser.parse_args()
+    if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
+        parser.error("--run-timeout은 유한한 양수여야 합니다")
     if args.recover_state:
         code = recover_state(args.data_dir)
         print(f"상태 복구 종료 코드: {code}. 정상 상태는 유지하며, 손상 상태 복구 시 오늘 재수집은 차단됩니다.")
@@ -216,7 +223,7 @@ def main():
             parser.exit(1, f"설정 확인 실패: {type(exc).__name__}\n")
         print(f"설정 확인 완료: 출처 {len(sources)}곳, 데이터 경로 {args.data_dir}")
         return 0
-    code = run_daily(args.data_dir, args.config, args.rules)
+    code = run_daily(args.data_dir, args.config, args.rules, run_timeout=args.run_timeout)
     print(f"일일 작업 종료 코드: {code}. 상태: {args.data_dir / 'daily_status.json'}")
     return code
 
