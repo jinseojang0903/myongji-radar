@@ -535,6 +535,22 @@ class ExporterSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(CardExportError, "순서"):
             build_card(bundle(notices=list(reversed(originals))))
 
+    def test_sources_are_sorted_and_published_by_korean_date(self):
+        originals = [dict(NOTICE, source_id="mju_z", published_at="2026-11-01T22:00:00+09:00"),
+                     dict(NOTICE, source_id="mju_a", published_at="2026-11-01T17:00:00+00:00",
+                          url=NOTICE["url"] + "?utc=1")]
+        card = build_card(bundle(notices=originals))
+        self.assertEqual([(source["board_id"], source["posted_at"]) for source in card["sources"]],
+                         [("mju-a", "2026-11-02"), ("mju-z", "2026-11-01")])
+        with self.assertRaisesRegex(CardExportError, "순서"):
+            build_card(bundle(notices=list(reversed(originals))))
+
+    def test_naive_source_time_is_already_korean_date(self):
+        for posted in ("2026-11-01", "2026-11-01T22:00:00", "2026-11-01T22:00:00+09:00"):
+            with self.subTest(posted=posted):
+                card = build_card(bundle(notices=[dict(NOTICE, published_at=posted)]))
+                self.assertEqual(card["sources"][0]["posted_at"], "2026-11-01")
+
     def test_broken_bundles_are_rejected_one_by_one(self):
         no_title = example_fields()
         no_title["title"]["value"] = ""

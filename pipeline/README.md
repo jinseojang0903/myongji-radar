@@ -355,6 +355,10 @@ JSON과 원문은 로컬 확인용이며 그대로 공개하지 않는다. 이�
 
 기본 저장 위치는 `pipeline/data/`이며 `.gitignore`로 제외한다. `--data-dir`로 다른 비공개 경로를 지정할 수도 있다. 원문·DB·분석 결과는 저장소나 공개 사이트에 올리지 않는다.
 
+## 게시일·버전 정보 (#16 분할1)
+
+게시일·버전 정보(#16 분할1): 공개 출처의 `posted_at`은 한국 시간 날짜로 정렬한다. 수집 JSON은 보존된 원문 버전 수(`version_number`), 추출 중간 묶음은 버전·입력 해시와 생성 조건을 비공개로 보존한다. 공개 JSON 키는 늘리지 않는다. 병합·마감 이력·publisher 연결은 이 변경에 포함하지 않으며 [분할 계획과 되돌리기 절차](../docs/contest-merge-plan.md)를 따른다.
+
 ## 이미지·첨부 저장 (#12)
 
 기존 `collector run`과 BAT 수집 메뉴에서 이미지·첨부도 함께 내려받는다. 먼저 가상환경에서 `python -m pip install -r requirements.lock.txt`로 PDF·HWP 변환 의존성을 설치한다.
