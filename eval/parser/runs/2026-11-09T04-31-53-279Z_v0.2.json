@@ -1,0 +1,1035 @@
+{
+  "parser_version": "0.2",
+  "sentences": 50,
+  "fields": {
+    "campus": {
+      "correct": 48,
+      "wrong": 0,
+      "missed": 2,
+      "extra": 0,
+      "total": 50
+    },
+    "grade": {
+      "correct": 49,
+      "wrong": 0,
+      "missed": 1,
+      "extra": 0,
+      "total": 50
+    },
+    "is_transfer": {
+      "correct": 50,
+      "wrong": 0,
+      "missed": 0,
+      "extra": 0,
+      "total": 50
+    },
+    "enrollment": {
+      "correct": 50,
+      "wrong": 0,
+      "missed": 0,
+      "extra": 0,
+      "total": 50
+    },
+    "participation": {
+      "correct": 48,
+      "wrong": 0,
+      "missed": 2,
+      "extra": 0,
+      "total": 50
+    },
+    "deliverables": {
+      "correct": 35,
+      "wrong": 3,
+      "missed": 3,
+      "extra": 9,
+      "total": 50
+    },
+    "period": {
+      "correct": 48,
+      "wrong": 0,
+      "missed": 1,
+      "extra": 1,
+      "total": 50
+    }
+  },
+  "misreads": 0,
+  "full_match": {
+    "correct": 29,
+    "total": 50
+  },
+  "unknown_terms": {
+    "expected": 137,
+    "found": 69,
+    "extra": 195
+  },
+  "mismatches": [
+    {
+      "id": "s01",
+      "sentence": "자캠 4학년인데 취업 전에 혼자 나갈만한 AI 공모전이나 코딩 해커톤 찾아줘. 기획서 길게 쓰는 건 싫고 코드나 결과물만 제출하는 걸로!",
+      "field": "deliverables",
+      "outcome": "wrong",
+      "expected": [
+        "코드·개발"
+      ],
+      "actual": [
+        "기획서·제안서",
+        "코드·개발"
+      ]
+    },
+    {
+      "id": "s01",
+      "sentence": "자캠 4학년인데 취업 전에 혼자 나갈만한 AI 공모전이나 코딩 해커톤 찾아줘. 기획서 길게 쓰는 건 싫고 코드나 결과물만 제출하는 걸로!",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "취업 전에",
+        "기획서 길게 쓰는 건 싫고"
+      ],
+      "actual": [
+        "취업",
+        "전에",
+        "AI",
+        "길게",
+        "결과물",
+        "걸로",
+        "자캠 … 전에",
+        "4학년 … 전에"
+      ]
+    },
+    {
+      "id": "s02",
+      "sentence": "인문캠 경영 2학년 팀플 과제로 같이 낼 만한 영상 공모전 있나요? 마감은 11월 말까지인 걸루요.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "11월 말까지"
+      ],
+      "actual": [
+        "경영",
+        "과제",
+        "11월",
+        "말까지인",
+        "걸루"
+      ]
+    },
+    {
+      "id": "s03",
+      "sentence": "지금 휴학 중인데도 참여 가능한 에세이나 글쓰기 대회 있을까? 상금 좀 쎈 곳이면 좋겠어ㅋㅋ",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "상금 좀 쎈"
+      ],
+      "actual": [
+        "상금",
+        "쎈",
+        "곳이면",
+        "좋겠어ᄏᄏ"
+      ]
+    },
+    {
+      "id": "s04",
+      "sentence": "편입생 3학년입니다. 아는 사람이 별로 없어서 팀원 구하기 빡센데, 무조건 개인전으로 나갈 수 있는 마케팅 기획서 공모전 찿아주세요.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "아는 사람이 별로 없어서"
+      ],
+      "actual": [
+        "아는",
+        "사람",
+        "빡센데",
+        "무조건",
+        "마케팅",
+        "찿아주세"
+      ]
+    },
+    {
+      "id": "s05",
+      "sentence": "자캠 1학기 새내기인데 스펙 하나도 없어도 걍 가볍게 낼수있는 아이디어톤 잇음? 주말에 빨리 끝나는걸루",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "스펙 하나도 없어도",
+        "주말에 빨리 끝나는"
+      ],
+      "actual": [
+        "1학기",
+        "스펙",
+        "걍",
+        "가볍게",
+        "낼수있",
+        "아이디어톤",
+        "잇음",
+        "주말",
+        "빨리",
+        "끝나는걸루"
+      ]
+    },
+    {
+      "id": "s06",
+      "sentence": "팀플 극혐하는 인문캠 3학년인데 걍 방구석에서 피피티 하나만 띡 내면 되는 아이디어 공모전 있냐? 결과 빨리 나오는 걸로 ㄱㄱ",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "결과 빨리 나오는"
+      ],
+      "actual": [
+        "걍",
+        "방구석",
+        "피피티",
+        "띡",
+        "결과",
+        "빨리",
+        "나오",
+        "걸로"
+      ]
+    },
+    {
+      "id": "s08",
+      "sentence": "인문캠 국문과 2학년인데 이번 겨울방학에 할만한 문학 공모전 있어? 시나 소설 쪽으로.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "이번 겨울방학",
+        "시나 소설"
+      ],
+      "actual": [
+        "국문과",
+        "이번",
+        "겨울방학",
+        "문학",
+        "시나",
+        "소설"
+      ]
+    },
+    {
+      "id": "s09",
+      "sentence": "자캠 막학기 ㅠㅠ 취업 스펙용으로 쓸만한 캡스톤이나 포트폴리오용 개발 대회 급하게 찾음.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "취업 스펙용"
+      ],
+      "actual": [
+        "막학기",
+        "취업",
+        "스펙용",
+        "캡스톤",
+        "포트폴리오용",
+        "급하게"
+      ]
+    },
+    {
+      "id": "s11",
+      "sentence": "영상 편집 할 줄 아는데 친구랑 둘이서 낼 만한 숏폼 공모전 잇을까? 이번 달 마감인걸로.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "둘이서"
+      ],
+      "actual": [
+        "편집",
+        "줄",
+        "아는데",
+        "잇을까",
+        "마감인걸"
+      ]
+    },
+    {
+      "id": "s13",
+      "sentence": "새내기인데 아직 아는게 없어서 ㅠㅠ 아이디어만 있으면 낼 수 있는 가벼운 공모전 있나요?",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서"
+      ]
+    },
+    {
+      "id": "s13",
+      "sentence": "새내기인데 아직 아는게 없어서 ㅠㅠ 아이디어만 있으면 낼 수 있는 가벼운 공모전 있나요?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "아이디어만 있으면"
+      ],
+      "actual": [
+        "아직",
+        "아는게",
+        "가벼운"
+      ]
+    },
+    {
+      "id": "s14",
+      "sentence": "자캠 컴공 3학년 무조건 코딩 위주 해커톤! 기획서 쓰는 건 절대 안 됨.",
+      "field": "deliverables",
+      "outcome": "wrong",
+      "expected": [
+        "코드·개발"
+      ],
+      "actual": [
+        "기획서·제안서",
+        "코드·개발"
+      ]
+    },
+    {
+      "id": "s14",
+      "sentence": "자캠 컴공 3학년 무조건 코딩 위주 해커톤! 기획서 쓰는 건 절대 안 됨.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "기획서 쓰는 건 절대 안 됨"
+      ],
+      "actual": [
+        "컴공",
+        "무조건",
+        "절대"
+      ]
+    },
+    {
+      "id": "s15",
+      "sentence": "상금 100만 원 이상인 마케팅 기획서 공모전 찾아줘. 팀원 4명 낼 수 있는 곳으로.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "상금 100만 원 이상",
+        "팀원 4명"
+      ],
+      "actual": [
+        "상금",
+        "100",
+        "원",
+        "이상인",
+        "마케팅",
+        "곳으"
+      ]
+    },
+    {
+      "id": "s16",
+      "sentence": "인문캠 경영 3학년인데 다음 달 안에 끝나는 단기 아이디어톤 같은 거 없어?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "다음 달 안에 끝나는"
+      ],
+      "actual": [
+        "경영",
+        "다음달",
+        "끝나",
+        "단기",
+        "아이디어톤"
+      ]
+    },
+    {
+      "id": "s17",
+      "sentence": "졸업 유예 중인데 참여 가능한 공모전 있나? 직무는 PM이나 기획 쪽.",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서"
+      ]
+    },
+    {
+      "id": "s17",
+      "sentence": "졸업 유예 중인데 참여 가능한 공모전 있나? 직무는 PM이나 기획 쪽.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "기획"
+      ],
+      "actual": [
+        "직무",
+        "PM"
+      ]
+    },
+    {
+      "id": "s18",
+      "sentence": "자캠 산디 2학년입니당. 제품 디자인이나 렌더링 결과물로 내는 대회 위주로 찾아주세여.",
+      "field": "grade",
+      "outcome": "missed",
+      "expected": 2,
+      "actual": null
+    },
+    {
+      "id": "s19",
+      "sentence": "글쓰기 공모전 중에서 분량 짧은 거! A4 한 장 정도로 낼 수 있는 수기 공모전.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "분량 짧은",
+        "A4 한 장 정도"
+      ],
+      "actual": [
+        "분량",
+        "짧은",
+        "A4",
+        "장"
+      ]
+    },
+    {
+      "id": "s20",
+      "sentence": "인캠 1학년! 동아리에서 5명 이상 단체로 나갈 만한 ESG 관련 영상 공모전 찾아줭.",
+      "field": "participation",
+      "outcome": "missed",
+      "expected": "팀",
+      "actual": null
+    },
+    {
+      "id": "s21",
+      "sentence": "낼모레 마감인 공모전 중에 걍 피피티 10장 내외로 낼 수 있는 아이디어 공모전 있냐",
+      "field": "period",
+      "outcome": "missed",
+      "expected": "마감임박",
+      "actual": null
+    },
+    {
+      "id": "s21",
+      "sentence": "낼모레 마감인 공모전 중에 걍 피피티 10장 내외로 낼 수 있는 아이디어 공모전 있냐",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "10장 내외"
+      ],
+      "actual": [
+        "낼모레",
+        "걍",
+        "피피티",
+        "10장",
+        "내외"
+      ]
+    },
+    {
+      "id": "s22",
+      "sentence": "자캠 교통공 3학년인데 데이터 분석이나 공간정보 활용하는 공모전 찾아줘. 파이썬 쓸 수 있는 걸로.",
+      "field": "deliverables",
+      "outcome": "missed",
+      "expected": [
+        "코드·개발"
+      ],
+      "actual": []
+    },
+    {
+      "id": "s22",
+      "sentence": "자캠 교통공 3학년인데 데이터 분석이나 공간정보 활용하는 공모전 찾아줘. 파이썬 쓸 수 있는 걸로.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "데이터 분석"
+      ],
+      "actual": [
+        "교통공",
+        "데이터",
+        "분석",
+        "공간정보",
+        "활용하",
+        "파이썬",
+        "걸로"
+      ]
+    },
+    {
+      "id": "s23",
+      "sentence": "자캠 화공 2학년인데 전공 살려서 나갈만한 화학/환경 관련 논문이나 아이디어 대회 있을까요?",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서"
+      ]
+    },
+    {
+      "id": "s23",
+      "sentence": "자캠 화공 2학년인데 전공 살려서 나갈만한 화학/환경 관련 논문이나 아이디어 대회 있을까요?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "전공 살려서",
+        "화학/환경",
+        "아이디어"
+      ],
+      "actual": [
+        "화공",
+        "전공",
+        "살려서",
+        "화학",
+        "환경",
+        "논문"
+      ]
+    },
+    {
+      "id": "s24",
+      "sentence": "팀원 구하기 귀찮아서 그런데 혼자서 1등 노려볼 만한 디자인 공모전 ㅊㅊ좀",
+      "field": "participation",
+      "outcome": "missed",
+      "expected": "개인",
+      "actual": null
+    },
+    {
+      "id": "s24",
+      "sentence": "팀원 구하기 귀찮아서 그런데 혼자서 1등 노려볼 만한 디자인 공모전 ㅊㅊ좀",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "1등 노려볼 만한"
+      ],
+      "actual": [
+        "1등",
+        "노려볼",
+        "ᄎᄎ좀",
+        "팀원 구하기 귀찮아서"
+      ]
+    },
+    {
+      "id": "s25",
+      "sentence": "인문캠 정외과 4학년, 공공정책 제안하는 거나 사회문제 해결 관련 기획 공모전 쫙 뽑아줘.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "사회문제 해결"
+      ],
+      "actual": [
+        "정외과",
+        "공공정책",
+        "제안하",
+        "사회문제",
+        "해결",
+        "쫙",
+        "뽑아줘"
+      ]
+    },
+    {
+      "id": "s26",
+      "sentence": "영어로 에세이 쓰는 대회 같은 거 있어? 교환학생 가기 전에 스펙 쌓고 싶어서.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "교환학생 가기 전에"
+      ],
+      "actual": [
+        "영어",
+        "교환학생",
+        "가기",
+        "전에",
+        "스펙",
+        "쌓고"
+      ]
+    },
+    {
+      "id": "s27",
+      "sentence": "자캠 3학년 편입생인데, 전공 무관하고 아무나 참여 가능한 IT 서비스 기획 공모전 찾습니다.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "전공 무관",
+        "IT 서비스"
+      ],
+      "actual": [
+        "전공",
+        "무관",
+        "IT",
+        "서비스"
+      ]
+    },
+    {
+      "id": "s28",
+      "sentence": "주말 이틀 동안 빡세게 해서 낼 수 있는 해커톤이나 아이디어톤! 오프라인도 괜찮음.",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "코드·개발",
+        "현장 참가"
+      ]
+    },
+    {
+      "id": "s28",
+      "sentence": "주말 이틀 동안 빡세게 해서 낼 수 있는 해커톤이나 아이디어톤! 오프라인도 괜찮음.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "주말 이틀 동안",
+        "해커톤"
+      ],
+      "actual": [
+        "주말",
+        "이틀",
+        "동안",
+        "빡세게",
+        "아이디어톤"
+      ]
+    },
+    {
+      "id": "s29",
+      "sentence": "이번 학기 복학생인데 아직 감을 못 잡아서 ㅠ 좀 쉬운 사진전이나 일상 브이로그 공모전 있나용",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "이번 학기 복학생",
+        "좀 쉬운"
+      ],
+      "actual": [
+        "이번",
+        "학기",
+        "복학생",
+        "아직",
+        "감을",
+        "못",
+        "잡아서",
+        "쉬운",
+        "사진전",
+        "일상"
+      ]
+    },
+    {
+      "id": "s31",
+      "sentence": "인문캠 아동학과 3학년인데 교구 제작이나 교육 프로그램 기획하는 공모전 있을까?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "교구 제작",
+        "교육 프로그램"
+      ],
+      "actual": [
+        "아동학과",
+        "교구",
+        "제작",
+        "교육"
+      ]
+    },
+    {
+      "id": "s33",
+      "sentence": "자캠 토목 4학년, CAD나 설계 툴 써서 도면 제출하는 경진대회 올해 남은 거 다 보여줘.",
+      "field": "deliverables",
+      "outcome": "missed",
+      "expected": [
+        "디자인"
+      ],
+      "actual": []
+    },
+    {
+      "id": "s33",
+      "sentence": "자캠 토목 4학년, CAD나 설계 툴 써서 도면 제출하는 경진대회 올해 남은 거 다 보여줘.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "CAD",
+        "설계 툴",
+        "올해 남은"
+      ],
+      "actual": [
+        "토목",
+        "CAD나",
+        "설계",
+        "툴",
+        "도면",
+        "올해"
+      ]
+    },
+    {
+      "id": "s34",
+      "sentence": "휴학생도 상금 받을 수 있는 경제/금융 관련 리포트 공모전 있나요?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "상금 받을 수 있는",
+        "경제/금융"
+      ],
+      "actual": [
+        "상금",
+        "받을",
+        "경제",
+        "금융",
+        "리포트"
+      ]
+    },
+    {
+      "id": "s35",
+      "sentence": "예체능계열인데 일러스트나 웹툰 캐릭터 그리는 공모전! 이번 주 일요일 마감인 거 빼고.",
+      "field": "period",
+      "outcome": "extra",
+      "expected": null,
+      "actual": "이번주"
+    },
+    {
+      "id": "s35",
+      "sentence": "예체능계열인데 일러스트나 웹툰 캐릭터 그리는 공모전! 이번 주 일요일 마감인 거 빼고.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "이번 주 일요일 마감인 거 빼고"
+      ],
+      "actual": [
+        "예체능계열",
+        "캐릭터",
+        "일요일"
+      ]
+    },
+    {
+      "id": "s36",
+      "sentence": "인캠 사학 2학년, 역사나 문화재 관련해서 스토리텔링 하는 공모전 잇어?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "역사"
+      ],
+      "actual": [
+        "사학",
+        "역사나",
+        "문화재",
+        "관련해서",
+        "스토리텔링",
+        "잇어"
+      ]
+    },
+    {
+      "id": "s37",
+      "sentence": "3명이서 나갈 건데 영상 제작 말고 차라리 기획서만 빡세게 쓰는 광고 공모전 찾아줘.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "3명이서"
+      ],
+      "actual": [
+        "건데",
+        "차라리",
+        "빡세게",
+        "광고",
+        "영상 제작 말고"
+      ]
+    },
+    {
+      "id": "s38",
+      "sentence": "발표 공포증 있어서 본선에서 PT 안 해도 되고 서류 제출로만 끝나는 대회 원함 ㅠㅠ",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "발표"
+      ]
+    },
+    {
+      "id": "s38",
+      "sentence": "발표 공포증 있어서 본선에서 PT 안 해도 되고 서류 제출로만 끝나는 대회 원함 ㅠㅠ",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "본선에서 PT 안 해도",
+        "서류 제출로만"
+      ],
+      "actual": [
+        "공포증",
+        "본선",
+        "서류",
+        "끝나",
+        "원함",
+        "PT 안 해도"
+      ]
+    },
+    {
+      "id": "s39",
+      "sentence": "자캠 기계 3학년! 캡스톤 디자인 수업이랑 연계해서 낼 수 있는 발명 대회 찾아주세요.",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "디자인"
+      ]
+    },
+    {
+      "id": "s39",
+      "sentence": "자캠 기계 3학년! 캡스톤 디자인 수업이랑 연계해서 낼 수 있는 발명 대회 찾아주세요.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "캡스톤 디자인 수업"
+      ],
+      "actual": [
+        "기계",
+        "캡스톤",
+        "수업",
+        "연계해서",
+        "발명"
+      ]
+    },
+    {
+      "id": "s40",
+      "sentence": "블로그 포스팅이나 SNS 홍보 같은 가벼운 서포터즈형 공모전 어디 없을까? 새내기야!",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "블로그 포스팅",
+        "SNS 홍보"
+      ],
+      "actual": [
+        "블로그",
+        "포스팅",
+        "SNS",
+        "홍보",
+        "가벼운",
+        "서포터즈형",
+        "어디"
+      ]
+    },
+    {
+      "id": "s41",
+      "sentence": "4학년 2학기 취준생인데 당장 이번 달에 이력서에 한 줄 넣을 수 있는 초단기 공모전 급함.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "이력서에 한 줄"
+      ],
+      "actual": [
+        "2학기",
+        "취준생",
+        "이력서",
+        "줄",
+        "넣을",
+        "초단기",
+        "급함"
+      ]
+    },
+    {
+      "id": "s42",
+      "sentence": "인문캠 행정 3학년, 지역사회 발전이나 지자체 정책 아이디어 내는 공모전 알려줘.",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서"
+      ]
+    },
+    {
+      "id": "s42",
+      "sentence": "인문캠 행정 3학년, 지역사회 발전이나 지자체 정책 아이디어 내는 공모전 알려줘.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "지역사회 발전",
+        "지자체 정책",
+        "아이디어"
+      ],
+      "actual": [
+        "행정",
+        "지역사회",
+        "발전",
+        "지자체",
+        "정책"
+      ]
+    },
+    {
+      "id": "s43",
+      "sentence": "자캠 컴공인데 백엔드 말고 프론트엔드나 웹 디자인만으로 승부 볼 수 있는 대회 있나?",
+      "field": "campus",
+      "outcome": "missed",
+      "expected": "자연",
+      "actual": null
+    },
+    {
+      "id": "s43",
+      "sentence": "자캠 컴공인데 백엔드 말고 프론트엔드나 웹 디자인만으로 승부 볼 수 있는 대회 있나?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "백엔드 말고"
+      ],
+      "actual": [
+        "컴공",
+        "백엔드",
+        "프론트엔드나",
+        "승부",
+        "볼",
+        "자캠 … 말고"
+      ]
+    },
+    {
+      "id": "s44",
+      "sentence": "휴학생 신분으로 참가 가능한 스타트업 창업 경진대회. 사업계획서 템플릿 주는 곳이면 좋겠음.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "스타트업 창업",
+        "템플릿 주는"
+      ],
+      "actual": [
+        "신분",
+        "스타트업",
+        "창업",
+        "템플릿",
+        "곳이면",
+        "좋겠음"
+      ]
+    },
+    {
+      "id": "s45",
+      "sentence": "혼자서 다큐멘터리나 단편 영화 찍어서 낼 수 있는 영상제? 출품비 없는 곳으로.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "출품비 없는"
+      ],
+      "actual": [
+        "다큐멘터리나",
+        "단편",
+        "영상제",
+        "출품비",
+        "곳으"
+      ]
+    },
+    {
+      "id": "s46",
+      "sentence": "편입 1년 차 3학년인데, 전공 상관없이 마케팅이나 브랜딩 아이디어 내는 쉬운 공모전 ㅊㅊ",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서"
+      ]
+    },
+    {
+      "id": "s46",
+      "sentence": "편입 1년 차 3학년인데, 전공 상관없이 마케팅이나 브랜딩 아이디어 내는 쉬운 공모전 ㅊㅊ",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "전공 상관없이",
+        "아이디어"
+      ],
+      "actual": [
+        "1년",
+        "차",
+        "전공",
+        "마케팅",
+        "브랜딩",
+        "쉬운"
+      ]
+    },
+    {
+      "id": "s47",
+      "sentence": "자캠 건축 4학년, 건축 설계 공모전 중에 3D 모델링 필수 아닌 곳 있나요?",
+      "field": "campus",
+      "outcome": "missed",
+      "expected": "자연",
+      "actual": null
+    },
+    {
+      "id": "s47",
+      "sentence": "자캠 건축 4학년, 건축 설계 공모전 중에 3D 모델링 필수 아닌 곳 있나요?",
+      "field": "deliverables",
+      "outcome": "missed",
+      "expected": [
+        "디자인"
+      ],
+      "actual": []
+    },
+    {
+      "id": "s47",
+      "sentence": "자캠 건축 4학년, 건축 설계 공모전 중에 3D 모델링 필수 아닌 곳 있나요?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "3D 모델링 필수 아닌"
+      ],
+      "actual": [
+        "건축",
+        "설계",
+        "3D",
+        "모델링",
+        "필수",
+        "곳",
+        "자캠 건축"
+      ]
+    },
+    {
+      "id": "s48",
+      "sentence": "코딩 1도 모르는 문과생인데 챗GPT나 AI 툴 써서 기획안 내는 요즘 트렌드 공모전 찾아줘.",
+      "field": "deliverables",
+      "outcome": "wrong",
+      "expected": [
+        "기획서·제안서"
+      ],
+      "actual": [
+        "기획서·제안서",
+        "코드·개발"
+      ]
+    },
+    {
+      "id": "s48",
+      "sentence": "코딩 1도 모르는 문과생인데 챗GPT나 AI 툴 써서 기획안 내는 요즘 트렌드 공모전 찾아줘.",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "코딩 1도 모르는",
+        "챗GPT",
+        "AI 툴",
+        "요즘 트렌드"
+      ],
+      "actual": [
+        "1도",
+        "문과생",
+        "챗GPT나",
+        "AI",
+        "툴",
+        "트렌드"
+      ]
+    },
+    {
+      "id": "s49",
+      "sentence": "기획서 쓰는 건 극혐. 그냥 춤이나 노래, 커버 영상 찍어서 내는 틱톡/릴스 챌린지 같은 거 있음?",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "춤",
+        "틱톡/릴스 챌린지"
+      ],
+      "actual": [
+        "춤이나",
+        "노래",
+        "커버",
+        "틱톡",
+        "기획서 쓰는 건 극혐"
+      ]
+    },
+    {
+      "id": "s50",
+      "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
+      "field": "deliverables",
+      "outcome": "extra",
+      "expected": [],
+      "actual": [
+        "기획서·제안서",
+        "코드·개발"
+      ]
+    },
+    {
+      "id": "s50",
+      "sentence": "인캠 2학년인데 다음 주 평일은 바빠서 ㅠ 이번 주말에 당일치기로 할 수 있는 아이디어 해커톤 같은 거!",
+      "field": "unknown_terms",
+      "outcome": "missed",
+      "expected": [
+        "다음 주 평일은 바빠서",
+        "아이디어 해커톤"
+      ],
+      "actual": [
+        "다음주",
+        "평일",
+        "바빠서",
+        "당일치기"
+      ]
+    }
+  ],
+  "measured_at": "2026-11-09T04:31:53.279Z",
+  "parser_sha256": "6e6d9a6028faeab4d502f49ac3cefc5b29578d3eec1a4feca21d8e1ea974c76c",
+  "sentences_sha256": "ec3864a1a2266dc59433df3df08c707b518907350dbbd48826587cf66610c0d2",
+  "writers": [
+    "hs",
+    "km",
+    "js",
+    "sw",
+    "hj",
+    "jh",
+    "su",
+    "미기록"
+  ],
+  "is_complete": true
+}
