@@ -52,6 +52,7 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
     if not isinstance(data, dict) or not isinstance(data.get("bundles"), list):
         raise ValueError("최상위에 bundles 배열이 없음")
     report, bundles = [], []
+    generated_at = data.get("generated_at")
     for number, bundle in enumerate(data["bundles"], start=1):
         if not isinstance(bundle, dict):
             raise ValueError(f"bundles {number}번이 객체가 아님")
@@ -65,15 +66,29 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
         except Exception as error:  # 카드 하나의 이상한 값이 전체 검증을 멈추지 않게. 그 카드는 검증 없이 통과하지 않는다
             reason = f"검증 중 오류 ({type(error).__name__})"
             # 모든 항목을 내린 것도 검증을 거친 결과다 (내보내기가 근거를 공개하지 않는다)
-            bundles.append(stamp_bundle({**bundle, "statuses": fail_all(extraction, bundle.get("statuses"), reason)}))
-            report.append({"card_id": card_id, "field": "*", "result": "fail", "reasons": [reason]})
+            if _append_stamped(bundles, {**bundle, "statuses": fail_all(extraction, bundle.get("statuses"), reason)},
+                               generated_at, card_id, report):
+                report.append({"card_id": card_id, "field": "*", "result": "fail", "reasons": [reason]})
             continue
-        bundles.append(stamp_bundle({**bundle, "statuses": statuses}))
+        if not _append_stamped(bundles, {**bundle, "statuses": statuses}, generated_at, card_id, report):
+            continue
         for name, check in checks.items():
             if check.result != "pass":
                 report.append({"card_id": card_id, "field": name, "result": check.result,
                                "reasons": list(dict.fromkeys(check.failures or check.unverifiable))})
     return {**data, "bundles": bundles}, report
+
+
+def _append_stamped(bundles: list, bundle: dict, generated_at, card_id: str, report: list) -> bool:
+    """표시를 붙여 넣는다. NaN·짝 없는 서로게이트처럼 JSON으로 쓸 수 없는 값이 있으면 그 묶음만 빼고 보고한다
+    (출력 파일도 쓸 수 없으므로 카드 하나 때문에 그날 검증 전체가 멈추지 않게). Returns: 넣었으면 True."""
+    try:
+        bundles.append(stamp_bundle(bundle, generated_at))
+        return True
+    except (TypeError, ValueError) as error:
+        report.append({"card_id": card_id, "field": "*", "result": "fail",
+                       "reasons": [f"JSON으로 쓸 수 없는 값이 있어 묶음을 뺌 ({type(error).__name__})"]})
+        return False
 
 
 def _printable_id(value, number: int) -> str:

@@ -15,7 +15,7 @@ from collector.config import load_sources
 from collector.rules import analyze_notice
 from collector.models import Notice
 from collector.repository import Repository
-from exporter.__main__ import read_bundles
+from exporter.__main__ import read_verified_bundles
 from exporter.cards import boards_from_sources, build_cards_json
 from extractor import claude as claude_cli
 from extractor import daily
@@ -248,7 +248,8 @@ class DailyExtractTests(unittest.TestCase):
         self.assertTrue(any(item["result"] == "fail" for item in report), "예시 출력의 근거는 이 공지에 없어 검증에서 걸린다")
         verified_path = self.folder / "verified.json"
         verified_path.write_text(json.dumps(verified, ensure_ascii=False), encoding="utf-8")
-        bundles, generated_at = read_bundles(verified_path)
+        bundles, generated_at, unverified = read_verified_bundles(verified_path)
+        self.assertEqual(unverified, [], "검증기 출력은 모두 검증 표시가 맞는다")
         boards = boards_from_sources(load_sources(PIPELINE / "config/sources.toml"))
         cards, _ = build_cards_json(bundles, boards, generated_at)
         self.assertEqual(sorted(card["id"] for card in cards["cards"]), [CTL + "100", "mju-startup-ctl-792-103"],

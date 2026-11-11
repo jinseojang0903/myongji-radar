@@ -34,18 +34,9 @@ ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_DEFAULTS = (("card_id", ""), ("notices", []), ("extraction", {}), ("statuses", {}), ("deadline_history", []), ("meta", {}))
 
 
-def read_bundles(path: Path) -> tuple[list[CardBundle], str]:
-    """묶음 파일 → (CardBundle 목록, generated_at). 값이 null인 키는 기본값으로. 검증 표시는 보지 않는다.
-
-    Raises:
-        OSError, ValueError: 파일을 읽을 수 없거나 최상위 형식이 다를 때
-    """
-    items, generated_at = _read_items(path)
-    return [_to_bundle(item) for item in items], generated_at
-
-
 def read_verified_bundles(path: Path) -> tuple[list[CardBundle], str, list[str]]:
     """검증 표시(verifier/stamp.py)가 지금 내용과 맞는 묶음만 → (CardBundle 목록, generated_at, 뺀 묶음의 id).
+    값이 null인 키는 기본값으로. 표시를 보지 않고 읽는 함수는 두지 않는다 (공개 경로에서 실수로 쓰지 않게).
 
     표시가 없거나 맞지 않으면 검증기를 거치지 않았거나 검증 뒤에 바뀐 것이라 공개하지 않는다 (#19·#49).
     뺀 id는 로그용이라 형식이 틀리면 순번으로 바꾼다.
@@ -56,7 +47,7 @@ def read_verified_bundles(path: Path) -> tuple[list[CardBundle], str, list[str]]
     items, generated_at = _read_items(path)
     bundles, unverified = [], []
     for number, item in enumerate(items, start=1):
-        if has_valid_stamp(item):
+        if has_valid_stamp(item, generated_at):
             bundles.append(_to_bundle(item))
         else:
             card_id = item.get("card_id")
