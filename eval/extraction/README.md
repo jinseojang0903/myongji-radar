@@ -118,6 +118,13 @@ foreach ($model in "haiku", "sonnet", "opus") {
 $runs = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${day}_${_}_v0.2" }
 .\.venv\Scripts\python.exe ..\eval\extraction\score.py @runs --report "..\eval\extraction\reports\${day}_models_v0.2.md"
 ```
+월 비용 환산 (공개 API 단가, `cost.py` 머리말 참고):
+```powershell
+$metas = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${day}_${_}_v0.2\meta.json" }
+.\.venv\Scripts\python.exe ..\eval\extraction\cost.py @metas --report "..\eval\extraction\reports\${day}_cost_v0.2.md"
+```
+1건 비용 = 실행에서 쓴 토큰 전부(실패·확인 호출 포함) ÷ 성공한 추출 수. 한 달 추출 수는 기본 17건(2026년 대회 관련 공지 월 평균)과 40건(몰리는 달)이다. 단가표(`PRICES`)에 없는 모델 ID가 `models_seen`에 나오면 멈추므로, 공식 가격 페이지를 보고 단가표를 고친 뒤 다시 돌린다.
+
 실행 폴더마다 `judgments_todo.csv`(대회명·혜택처럼 사람이 판정할 칸)가 생긴다. 위 "사람 판정" 순서로 채운 뒤 다시 채점한다. `'`로 시작하는 칸은 AI 값이 수식으로 실행되지 않게 붙인 것이다. **판정은 메모장·VS Code 같은 편집기로 채운다** (엑셀로 저장하면 `'`가 빠져 다른 사람이 열 때 수식이 될 수 있다).
 
 **5. 올리기**
@@ -132,4 +139,4 @@ $runs = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${
 ## 남은 것
 
 - 규칙 기준선 실제 숫자: 수집을 돌려 `analysis.json`을 만들고 정답표(#41)가 머지된 뒤에.
-- 공개 API 단가로 월 비용 환산: 위 실행의 `meta.json` `totals`(토큰 수) 뒤에.
+- 공개 API 단가로 월 비용 환산: 도구(`cost.py`)는 준비됨. 위 실행의 `meta.json`이 생기면 돌린다.
