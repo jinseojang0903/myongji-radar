@@ -196,6 +196,9 @@ python -m exporter --bundles data/card_bundles.verified.json --out ../site/data/
 - **`auto_verified`는 아직 쓰지 않는다:** 계약상 자동 검증 통과는 다른 모델과의 일치까지 봐야 한다. 교차 검증 모델이 정해질 때까지 통과 항목은 "ai"(확인 전)로 남는다.
 - **statuses는 AI 출력에서 오면 안 된다:** 검증기는 기존 `human_verified`를 믿는다. 추출(#14)·병합(#16)은 AI 출력을 `extraction`에만 넣고, `statuses`에는 사람 검수 기록만 넣는다.
 - 한 카드에서 예상 못 한 오류가 나면 그 카드의 모든 항목을 근거 문제로 내리고 나머지 카드는 계속 검증한다.
+- **검증 표시 (#19·#49):** 출력 묶음마다 `verified: {"by": "verifier", "fingerprint"}`를 붙인다(`verifier/stamp.py`). 지문은 표시를 뺀 묶음 전체의 해시다.
+  - 내보내기는 표시가 지금 내용과 맞는 묶음만 공개한다. 그래서 검증기를 빠뜨리거나, 검증한 파일을 손으로 고치거나(사람 검수는 검증기 입력에 넣는다), 검증 뒤에 병합한 묶음은 공개되지 않는다. 고쳤으면 다시 검증한다.
+  - 위조를 막는 서명이 아니라 순서를 지키게 하는 표시다.
 - 로그에는 카드 id(형식이 틀리면 대신 순번)·항목 이름·이유만 남기고 근거 문장·연락처는 남기지 않는다. `--out`이 `site/` 안이면 쓰지 않는다. 종료 코드: 0 검증함, 2 입력을 읽지 못해 출력하지 않음, 3 쓰기 실패.
 
 ## 매일 공개 (#19 뒷단)
@@ -236,10 +239,11 @@ python -m publisher --model <모델 비교로 정한 모델>
 `exporter/cards.py`가 AI 추출 결과(프롬프트 v0.2 형식)를 사이트 카드(`docs/api-contract.md` 1절)로 바꾼다. 공개 사이트로 나가는 마지막 관문이다. 매일 실행(#19)이 추출(#14)·검증(#15)·병합(#16) 뒤에 부른다.
 
 ```
-python -m exporter --bundles data/card_bundles.json --out ../site/data/cards.json
+python -m exporter --bundles data/card_bundles.verified.json --out ../site/data/cards.json
 ```
 
-**입력 묶음** (`data/card_bundles.json`, 저장소에 올리지 않음. 형식은 `exporter/__main__.py` 머리말과 `CardBundle`):
+**입력 묶음** (검증기의 출력 `data/card_bundles.verified.json`, 저장소에 올리지 않음. 형식은 `exporter/__main__.py` 머리말과 `CardBundle`):
+- `verified`: 검증 표시(위 "추출 결과 검증"). 없거나 지금 내용과 맞지 않는 묶음은 `[뺌]`으로 찍고 공개하지 않는다(종료 코드 1). 하나도 맞지 않으면(검증기를 빠뜨린 실행) `--allow-empty`여도 cards.json을 바꾸지 않는다(2).
 - `notices`: 그 대회 공지. **AI 입력과 같은 순서**(게시일 이른 것부터, 같은 날이면 출처 id순). 어긋나면 근거 번호를 믿을 수 없어 카드를 뺀다. `files`에 AI에게 넘긴 첨부·이미지 이름을 넣는다 (근거의 파일 이름 대조).
 - `statuses` (#15): `{"status", "checked_value", "note", "evidence_failed"}`. 검증 통과는 `checked_value`가 지금 추출 값과 같을 때만 쓴다 (재추출로 값이 바뀌면 `ai`로). 근거를 원문에서 못 찾았으면 `evidence_failed: true` → 근거를 공개하지 않고 원문 확인 필요. 사람이 값을 고쳤으면 고친 값을 `extraction`에 반영해서 넘긴다.
 - `is_contest`가 참이 아니거나 `kind`가 결과·취소면 건너뛴다 (오류 아님).
