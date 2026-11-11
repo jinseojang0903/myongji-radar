@@ -24,6 +24,9 @@ from exporter.cards import (
     CARD_FIELDS, MAX_CARD_QUOTE_CHARS, MAX_EVIDENCE, MAX_QUOTE_CHARS, MAX_TEXT_CHARS, CardBundle, CardExportError,
     CardSkipped, boards_from_sources, build_card, build_cards_json, write_cards_json,
 )
+from verifier.__main__ import verify_bundles
+from verifier.__main__ import write_json as verifier_write_json
+from verifier.stamp import stamp_bundle
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = json.loads((ROOT / "prompts/extract_v0.2/example_output.json").read_text(encoding="utf-8"))
@@ -666,8 +669,58 @@ class ExporterCliTests(unittest.TestCase):
                 code = cli_main()
             return code, stderr.getvalue()
 
-    def bundle_json(self, items, generated_at=GENERATED_AT):
-        return json.dumps({"generated_at": generated_at, "bundles": [asdict(item) for item in items]}, ensure_ascii=False)
+    def bundle_json(self, items, generated_at=GENERATED_AT, stamped=True):
+        # CLI는 검증기가 표시를 붙인 묶음만 받는다. 표시 규칙은 아래 test_cli_requires_verifier_stamp에서 본다
+        raw = [asdict(item) for item in items]
+        return json.dumps({"generated_at": generated_at,
+                           "bundles": [stamp_bundle(item, generated_at) for item in raw] if stamped else raw},
+                          ensure_ascii=False)
+
+    def test_cli_requires_verifier_stamp(self):
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder) / "cards.json"
+            out.write_text('{"keep": true}', encoding="utf-8")
+            # 검증기를 빠뜨린 실행: 하나도 표시가 없으면 --allow-empty여도 비우지 않는다
+            for extra in ((), ("--allow-empty",)):
+                code, errors = self.run_cli(self.bundle_json(fixture_bundles(), stamped=False), out, list(extra))
+                self.assertEqual(code, 2, extra)
+                self.assertIn("검증기를 거친 묶음이 하나도 없어", errors)
+                self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
+            # 검증 뒤에 바뀐 묶음만 빼고 나머지는 내보낸다 (statuses를 손으로 고침, 병합으로 내용이 바뀜, 표시 위조)
+            first, second = fixture_bundles()[:2]
+            tampered_cases = {
+                "statuses": lambda item: item["statuses"].update(apply={"status": "human_verified"}),
+                "extraction": lambda item: item["extraction"].update(warnings=["병합으로 바뀜"]),
+                "stamp_by": lambda item: item["verified"].update(by="someone"),
+                "stamp_missing": lambda item: item.pop("verified"),
+                "stamp_not_object": lambda item: item.update(verified="ok"),
+                # 다른 실행에서 검증한 묶음을 옮겨 붙임 (철회된 옛 카드가 되살아나지 않게)
+                "other_run": lambda item: item.update(stamp_bundle(item, "2026-11-01T09:00:00+09:00")),
+            }
+            for name, tamper in tampered_cases.items():
+                raw = json.loads(self.bundle_json([first, second]))
+                tamper(raw["bundles"][1])
+                code, errors = self.run_cli(json.dumps(raw, ensure_ascii=False), out)
+                self.assertEqual(code, 1, name)
+                self.assertIn(f"[뺌] {second.card_id}: 검증기를 거치지 않았거나", errors, name)
+                self.assertEqual([card["id"] for card in json.loads(out.read_text(encoding="utf-8"))["cards"]], [first.card_id], name)
+            # 형식이 틀린 id는 로그에 그대로 찍지 않는다
+            raw = json.loads(self.bundle_json([first]))
+            raw["bundles"].append({"card_id": "가짜\n[내보냄] 카드 99장", "notices": []})
+            code, errors = self.run_cli(json.dumps(raw, ensure_ascii=False), out)
+            self.assertEqual(code, 1)
+            self.assertIn("[뺌] (형식이 틀린 id, 2번째 묶음)", errors)
+            self.assertNotIn("카드 99장", errors)
+            # 키 순서·들여쓰기가 달라도 내용이 같으면 통과
+            pretty = json.dumps(json.loads(self.bundle_json([first])), ensure_ascii=False, indent=4, sort_keys=True)
+            self.assertEqual(self.run_cli(pretty, out)[0], 0)
+            # 검증 뒤에 파일의 generated_at(공개되는 갱신 시각)을 바꾸면 모든 묶음이 맞지 않는다
+            raw = json.loads(self.bundle_json([first, second]))
+            raw["generated_at"] = "2026-11-20T09:00:00+09:00"
+            before = out.read_text(encoding="utf-8")
+            code, errors = self.run_cli(json.dumps(raw, ensure_ascii=False), out)
+            self.assertEqual(code, 2)
+            self.assertEqual(out.read_text(encoding="utf-8"), before)
 
     def test_cli_writes_cards_and_reports_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -733,11 +786,27 @@ class ExporterCliTests(unittest.TestCase):
             self.assertEqual(loaded.call_args.args[0].resolve(), (ROOT / "pipeline" / "config" / "blocked_cards.toml").resolve(),
                              "기본값이 저장소의 차단 목록 (매일 공개는 --blocked를 넘기지 않는다)")
 
+    def test_cli_reads_the_file_the_verifier_wrote(self):
+        # 실제 경로: 검증기가 들여쓰기해서 쓴 파일(한글·실수 포함)을 내보내기가 표시를 맞춰 읽는다
+        with tempfile.TemporaryDirectory() as folder:
+            raw = json.loads(self.bundle_json(fixture_bundles(), stamped=False))
+            raw["bundles"][0]["meta"] = {"note": "검증 왕복 시험 ✓", "score": 0.1 + 0.2}
+            bundles_path, verified_path = Path(folder) / "bundles.json", Path(folder) / "verified.json"
+            bundles_path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+            data, _ = verify_bundles(json.loads(bundles_path.read_text(encoding="utf-8")), {})
+            verifier_write_json(verified_path, data)
+            out = Path(folder) / "cards.json"
+            code, errors = self.run_cli(verified_path.read_text(encoding="utf-8"), out)
+            self.assertNotIn("검증기를 거치지 않았거나", errors)
+            self.assertIn(code, (0, 1), "원문이 없어 근거 대조에 실패한 항목은 내려가도 카드는 나간다")
+            self.assertEqual(len(json.loads(out.read_text(encoding="utf-8"))["cards"]), len(fixture_bundles()))
+
     def test_cli_null_keys_use_defaults(self):
         with tempfile.TemporaryDirectory() as folder:
             out = Path(folder) / "cards.json"
-            raw = json.loads(self.bundle_json([bundle()]))
+            raw = json.loads(self.bundle_json([bundle()], stamped=False))
             raw["bundles"][0].update(statuses=None, meta=None, deadline_history=None)
+            raw["bundles"][0] = stamp_bundle(raw["bundles"][0], raw["generated_at"])
             code, _ = self.run_cli(json.dumps(raw, ensure_ascii=False), out)
             self.assertEqual(code, 0)
 

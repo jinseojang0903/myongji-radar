@@ -12,6 +12,7 @@ from exporter.cards import CardBundle, build_card
 from verifier import __main__ as verifier_main
 from verifier.__main__ import main as cli_main
 from verifier.__main__ import read_originals, verify_bundles
+from verifier.stamp import has_valid_stamp
 from verifier.checks import (NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote, evidence_fingerprint,
                              merge_statuses, normalize)
 
@@ -369,6 +370,42 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(all(entry["evidence_failed"] for entry in verified["bundles"][0]["statuses"].values()), "검증 없이 통과하지 않는다")
         self.assertEqual(len(verified["bundles"][0]["statuses"]), len(EXAMPLE["fields"]))
         self.assertEqual(verified["bundles"][1]["statuses"], {}, "다른 카드는 정상 검증")
+        self.assertTrue(all(has_valid_stamp(item, data.get("generated_at")) for item in verified["bundles"]),
+                        "모두 내린 카드도 검증을 거친 결과다")
+
+    def test_output_bundles_carry_a_stamp_for_the_exporter(self):
+        data = self.bundles(fields_copy())
+        generated_at = data.get("generated_at")
+        verified, _ = verify_bundles(data, {URL: original()})
+        item = verified["bundles"][0]
+        self.assertEqual(item["verified"]["by"], "verifier")
+        self.assertTrue(has_valid_stamp(item, generated_at))
+        self.assertFalse(has_valid_stamp(data["bundles"][0], generated_at), "입력 묶음은 표시가 없다")
+        self.assertFalse(has_valid_stamp(item, "2026-01-01T00:00:00+09:00"), "다른 실행(generated_at)의 묶음은 맞지 않는다")
+        # 검증한 파일을 다시 검증해도 표시는 새로 계산한 하나뿐 (표시가 표시를 감싸지 않는다)
+        again, _ = verify_bundles(json.loads(json.dumps(verified, ensure_ascii=False)), {URL: original()})
+        self.assertTrue(has_valid_stamp(again["bundles"][0], generated_at))
+        self.assertEqual(set(again["bundles"][0]["verified"]), {"by", "fingerprint"})
+        # 검증 뒤에 무엇이든 바꾸면 맞지 않는다
+        changed = copy.deepcopy(item)
+        changed["meta"] = {"note": "검증 뒤 추가"}
+        self.assertFalse(has_valid_stamp(changed, generated_at))
+        self.assertFalse(has_valid_stamp(item | {"verified": {"by": "verifier", "fingerprint": 1}}, generated_at))
+        self.assertFalse(has_valid_stamp("묶음 아님", generated_at))
+        # 해시를 계산할 수 없는 묶음: 표시를 그대로 둔 채 NaN만 넣어도 예외 없이 "맞지 않음"
+        self.assertFalse(has_valid_stamp(item | {"meta": {"x": float("nan")}}, generated_at))
+
+    def test_a_bundle_that_cannot_be_written_is_dropped_alone(self):
+        # NaN·짝 없는 서로게이트는 json.loads가 받아들이지만 출력 파일에 쓸 수 없다. 그 묶음만 빼고 나머지는 검증한다
+        data = self.bundles(fields_copy())
+        good = copy.deepcopy(data["bundles"][0])
+        for bad_value in (float("nan"), "\ud800"):
+            broken = copy.deepcopy(good) | {"card_id": "broken-2026", "meta": {"x": bad_value}}
+            verified, report = verify_bundles({**data, "bundles": [broken, good]}, {URL: original()})
+            self.assertEqual([item["card_id"] for item in verified["bundles"]], [good["card_id"]], repr(bad_value))
+            self.assertIn({"card_id": "broken-2026", "field": "*", "result": "fail",
+                           "reasons": [f"JSON으로 쓸 수 없는 값이 있어 묶음을 뺌 ({'ValueError' if isinstance(bad_value, float) else 'UnicodeEncodeError'})"]},
+                          report)
 
     def run_cli(self, *args):
         stderr = io.StringIO()

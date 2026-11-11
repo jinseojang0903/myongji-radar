@@ -4,7 +4,8 @@
 
 --bundles: 내보내기와 같은 묶음 파일 ({"generated_at", "bundles": [...]}, exporter/__main__.py 참고).
 --notices: 수집기가 내보낸 원문 (python -m collector export → data/notices.json). 묶음 공지의 url로 원문을 찾는다.
-출력: 묶음 파일과 같은 형식에 statuses만 고친 것. 다른 키는 그대로 옮긴다.
+출력: 묶음 파일과 같은 형식에 statuses를 고치고 묶음마다 검증 표시(`verified`, verifier/stamp.py)를 붙인 것.
+다른 키는 그대로 옮긴다. 내보내기는 표시가 지금 내용과 맞는 묶음만 공개한다 (검증 뒤에 고치면 다시 검증한다).
 보고: 검증 실패·사람 확인 근거를 항목 이름과 이유만 출력한다 (근거 문장·연락처는 출력하지 않는다).
 
 종료 코드:
@@ -22,6 +23,7 @@ from pathlib import Path
 
 from exporter.cards import CARD_ID_PATTERN
 from verifier.checks import check_extraction, fail_all, merge_statuses
+from verifier.stamp import stamp_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT.parent / "site"  # 공개 폴더. 묶음에는 정리 전 원문 인용·연락처가 있어 여기에 쓰지 않는다
@@ -50,6 +52,7 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
     if not isinstance(data, dict) or not isinstance(data.get("bundles"), list):
         raise ValueError("최상위에 bundles 배열이 없음")
     report, bundles = [], []
+    generated_at = data.get("generated_at")
     for number, bundle in enumerate(data["bundles"], start=1):
         if not isinstance(bundle, dict):
             raise ValueError(f"bundles {number}번이 객체가 아님")
@@ -62,15 +65,30 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
             statuses = merge_statuses(bundle.get("statuses"), extraction, checks)
         except Exception as error:  # 카드 하나의 이상한 값이 전체 검증을 멈추지 않게. 그 카드는 검증 없이 통과하지 않는다
             reason = f"검증 중 오류 ({type(error).__name__})"
-            bundles.append({**bundle, "statuses": fail_all(extraction, bundle.get("statuses"), reason)})
-            report.append({"card_id": card_id, "field": "*", "result": "fail", "reasons": [reason]})
+            # 모든 항목을 내린 것도 검증을 거친 결과다 (내보내기가 근거를 공개하지 않는다)
+            if _append_stamped(bundles, {**bundle, "statuses": fail_all(extraction, bundle.get("statuses"), reason)},
+                               generated_at, card_id, report):
+                report.append({"card_id": card_id, "field": "*", "result": "fail", "reasons": [reason]})
             continue
-        bundles.append({**bundle, "statuses": statuses})
+        if not _append_stamped(bundles, {**bundle, "statuses": statuses}, generated_at, card_id, report):
+            continue
         for name, check in checks.items():
             if check.result != "pass":
                 report.append({"card_id": card_id, "field": name, "result": check.result,
                                "reasons": list(dict.fromkeys(check.failures or check.unverifiable))})
     return {**data, "bundles": bundles}, report
+
+
+def _append_stamped(bundles: list, bundle: dict, generated_at, card_id: str, report: list) -> bool:
+    """표시를 붙여 넣는다. NaN·짝 없는 서로게이트처럼 JSON으로 쓸 수 없는 값이 있으면 그 묶음만 빼고 보고한다
+    (출력 파일도 쓸 수 없으므로 카드 하나 때문에 그날 검증 전체가 멈추지 않게). Returns: 넣었으면 True."""
+    try:
+        bundles.append(stamp_bundle(bundle, generated_at))
+        return True
+    except (TypeError, ValueError) as error:
+        report.append({"card_id": card_id, "field": "*", "result": "fail",
+                       "reasons": [f"JSON으로 쓸 수 없는 값이 있어 묶음을 뺌 ({type(error).__name__})"]})
+        return False
 
 
 def _printable_id(value, number: int) -> str:
