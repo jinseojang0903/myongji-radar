@@ -12,6 +12,7 @@ from exporter.cards import CardBundle, build_card
 from verifier import __main__ as verifier_main
 from verifier.__main__ import main as cli_main
 from verifier.__main__ import read_originals, verify_bundles
+from verifier.stamp import has_valid_stamp
 from verifier.checks import (NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote, evidence_fingerprint,
                              merge_statuses, normalize)
 
@@ -369,6 +370,26 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(all(entry["evidence_failed"] for entry in verified["bundles"][0]["statuses"].values()), "검증 없이 통과하지 않는다")
         self.assertEqual(len(verified["bundles"][0]["statuses"]), len(EXAMPLE["fields"]))
         self.assertEqual(verified["bundles"][1]["statuses"], {}, "다른 카드는 정상 검증")
+        self.assertTrue(all(has_valid_stamp(item) for item in verified["bundles"]), "모두 내린 카드도 검증을 거친 결과다")
+
+    def test_output_bundles_carry_a_stamp_for_the_exporter(self):
+        data = self.bundles(fields_copy())
+        verified, _ = verify_bundles(data, {URL: original()})
+        item = verified["bundles"][0]
+        self.assertEqual(item["verified"]["by"], "verifier")
+        self.assertTrue(has_valid_stamp(item))
+        self.assertFalse(has_valid_stamp(data["bundles"][0]), "입력 묶음은 표시가 없다")
+        # 검증한 파일을 다시 검증해도 표시는 새로 계산한 하나뿐 (표시가 표시를 감싸지 않는다)
+        again, _ = verify_bundles(json.loads(json.dumps(verified, ensure_ascii=False)), {URL: original()})
+        self.assertTrue(has_valid_stamp(again["bundles"][0]))
+        self.assertEqual(set(again["bundles"][0]["verified"]), {"by", "fingerprint"})
+        # 검증 뒤에 무엇이든 바꾸면 맞지 않는다
+        changed = copy.deepcopy(item)
+        changed["meta"] = {"note": "검증 뒤 추가"}
+        self.assertFalse(has_valid_stamp(changed))
+        self.assertFalse(has_valid_stamp(item | {"verified": {"by": "verifier", "fingerprint": 1}}))
+        self.assertFalse(has_valid_stamp(item | {"extraction": {"x": float("nan")}}), "해시를 계산할 수 없으면 맞지 않는 것")
+        self.assertFalse(has_valid_stamp("묶음 아님"))
 
     def run_cli(self, *args):
         stderr = io.StringIO()
