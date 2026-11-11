@@ -67,23 +67,44 @@ export function periodEndDate(period, now) {
   return null;
 }
 
+export const MAX_TITLE_QUERY_LENGTH = 30;
+
+// 띄어쓰기·영문 대소문자를 무시하고 비교하려고 둘 다 같은 꼴로 바꾼다 ("AI 해커톤" ↔ "ai해커톤")
+function foldForSearch(text) {
+  return text.normalize('NFC').replace(/\s+/g, '').toLowerCase();
+}
+
 /**
- * 대회별 판정을 4상태로 묶는다. 마감 지난 대회는 뺀다. 제출물·기간은 판정이 아니라 필터다 (계약 3절 "핵심 항목").
+ * 제목 검색어를 비교할 꼴로 바꾼다 (계약 5절 "제목 검색"). 문자열이 아니거나 비면 '' (검색하지 않음).
+ * @param {unknown} text  검색칸에 쓴 말. 30자까지만 쓴다
+ * @returns {string}
+ */
+export function normalizeTitleQuery(text) {
+  if (typeof text !== 'string') return '';
+  return foldForSearch([...text].slice(0, MAX_TITLE_QUERY_LENGTH).join(''));
+}
+
+/**
+ * 대회별 판정을 4상태로 묶는다. 마감 지난 대회는 뺀다. 제출물·기간·제목 검색은 판정이 아니라 필터다 (계약 3절 "핵심 항목", 5절).
  * @param {object[]} cards  validateCardData를 통과한 카드
  * @param {object} conditions  계약 2절 조건
  * @param {Date} now  기준 시각
+ * @param {{titleQuery?: string}} [options]  titleQuery: 제목 검색칸에 쓴 말 (비면 검색하지 않음)
  * @returns {{groups: Record<string, {card: object, judged: object, deadline: object, summary: string}[]>,
- *   closedCount: number, filteredCount: number, undatedCount: number, skippedCount: number, total: number}}
+ *   closedCount: number, filteredCount: number, undatedCount: number, titleFilteredCount: number, skippedCount: number, total: number}}
  *   filteredCount: 제출물·기간 필터로 빠진 수 (그중 undatedCount는 마감일이 없거나 읽을 수 없어 기간 안인지 모르는 대회).
+ *   titleFilteredCount: 제목에 검색어가 없어 빠진 수 (제출물·기간보다 먼저 세어 겹쳐 세지 않는다).
  *   skippedCount: 판정하다 오류가 나 뺀 대회 (한 장 때문에 목록 전체가 사라지지 않게). total: 보여 주는 대회 수
  */
-export function recommendCards(cards, conditions, now) {
+export function recommendCards(cards, conditions, now, { titleQuery = '' } = {}) {
   const groups = Object.fromEntries(RESULT_ORDER.map((result) => [result, []]));
   const periodEnd = periodEndDate(conditions.period, now);
   const tags = conditions.deliverables ?? [];
+  const query = normalizeTitleQuery(titleQuery);
   let closedCount = 0;
   let filteredCount = 0;
   let undatedCount = 0;
+  let titleFilteredCount = 0;
   let skippedCount = 0;
   for (const card of cards) {
     // 한 장이 깨져 있어도(마감 계산·판정 오류) 그 카드만 빼고 센다
@@ -91,6 +112,10 @@ export function recommendCards(cards, conditions, now) {
       const deadline = deadlineOf(card, now);
       if (deadline.state === 'closed') {
         closedCount += 1;
+        continue;
+      }
+      if (query !== '' && !foldForSearch(card.title).includes(query)) {
+        titleFilteredCount += 1;
         continue;
       }
       // 기간을 고르면 마감일을 읽을 수 있는 대회만 (마감일 없음·읽을 수 없음은 그 기간 안인지 알 수 없다)
@@ -110,7 +135,7 @@ export function recommendCards(cards, conditions, now) {
   }
   for (const items of Object.values(groups)) items.sort(compareDeadline);
   const total = Object.values(groups).reduce((sum, items) => sum + items.length, 0);
-  return { groups, closedCount, filteredCount, undatedCount, skippedCount, total };
+  return { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total };
 }
 
 function compareDeadline(a, b) {
