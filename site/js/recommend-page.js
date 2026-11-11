@@ -8,7 +8,7 @@ import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
 import { inquiryDraft } from './detail.js';
-import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, RESULT_ORDER, RESULT_VIEW } from './recommend.js';
+import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW } from './recommend.js';
 
 // 칩 묶음: [조건 이름, 보이는 이름, [값, 칩 글자]]. 한 묶음에서 하나만 고르고, 다시 누르면 고르지 않은 상태(null)
 const CHIP_GROUPS = [
@@ -21,7 +21,10 @@ const CHIP_GROUPS = [
 ];
 const FIELD_NAMES = { campus: '캠퍼스', grade: '학년', is_transfer: '편입', enrollment: '학적', participation: '참가', period: '마감', deliverables: '제출물' };
 
-const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [] };
+// titleQuery: 제목 검색칸의 말. 조건이 아니라 목록 필터이고, 문장처럼 저장하지 않는다 (계약 5절 "제목 검색")
+const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '' };
+// "이해하지 못한 표현"의 "제목에서 찾기"가 부른다. 데이터를 받은 뒤 main()이 채운다
+let searchTitle = () => {};
 
 main().catch((error) => {
   console.error('맞춤 추천을 그리지 못함', error);
@@ -66,12 +69,37 @@ async function main() {
   };
 
   onSubmit = () => interpret(input.value, update);
+  const titleInput = document.getElementById('title-q');
+  titleInput.maxLength = MAX_TITLE_QUERY_LENGTH;
+  // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
+  const readTitleQuery = () => {
+    state.titleQuery = clipTitleQuery(titleInput.value);
+    renderResults(data.cards, now);
+  };
+  // 버튼으로 바꿀 때만 입력칸에 쓴다
+  const setTitleQuery = (text) => {
+    titleInput.value = clipTitleQuery(text);
+    readTitleQuery();
+  };
+  titleInput.addEventListener('input', readTitleQuery);
+  // 데이터를 받기 전에 친 검색어도 첫 그리기에 쓴다
+  state.titleQuery = clipTitleQuery(titleInput.value);
+  document.getElementById('title-clear').addEventListener('click', () => {
+    setTitleQuery('');
+    titleInput.focus();
+  });
+  searchTitle = (term) => {
+    setTitleQuery(term);
+    titleInput.focus();
+  };
   document.getElementById('clear-saved').addEventListener('click', () => {
     const isCleared = clearSavedConditions();
     state.conditions = emptyConditions();
     state.unknownTerms = [];
     state.changed = [];
     state.read = [];
+    state.titleQuery = '';
+    titleInput.value = '';
     input.value = '';
     document.getElementById('parse-status').textContent = '';
     render();
@@ -181,23 +209,35 @@ function renderParsed() {
     target.replaceChildren();
     return;
   }
-  const { shown, hiddenCount } = limitTerms(state.unknownTerms);
+  const { shown, originals, hiddenCount } = limitTerms(state.unknownTerms);
   // replaceChildren은 null을 글자 "null"로 넣으므로 빈 값은 걸러 낸다
   target.replaceChildren(...[
     el('span', { class: 'small' }, '이해하지 못한 표현'),
     ...(shown.length > 0
-      ? shown.map((term) => el('span', { class: 'term', dir: 'auto' }, term))
+      ? shown.flatMap((term, index) => [
+        el('span', { class: 'term', dir: 'auto' }, term),
+        findInTitleButton(originals[index]),
+      ])
       : [el('span', { class: 'small' }, '없음')]),
     hiddenCount > 0 ? el('span', { class: 'small' }, `외 ${hiddenCount}개`) : null,
-    shown.length > 0 ? el('span', { class: 'small' }, '→ 조건으로 쓰지 않았습니다. 필요하면 아래 칩으로 고르세요.') : null,
+    shown.length > 0 ? el('span', { class: 'small' }, '→ 조건으로 쓰지 않았습니다. 필요하면 아래 칩으로 고르거나 제목에서 찾아보세요.') : null,
   ].filter(Boolean));
 }
 
+// 조건으로 바꾸지 못한 말("해커톤")을 제목 검색으로 잇는다 (#85)
+function findInTitleButton(term) {
+  const button = el('button', { type: 'button', class: 'btn', 'aria-label': `"${term}" 제목에서 찾기` }, '제목에서 찾기');
+  button.addEventListener('click', () => searchTitle(term.trim()));
+  return button;
+}
+
 function renderResults(cards, now) {
-  const { groups, closedCount, filteredCount, undatedCount, skippedCount, total } = recommendCards(cards, state.conditions, now);
+  const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
   const periodEnd = periodEndDate(state.conditions.period, now);
+  const isSearching = state.titleQuery.trim() !== '';
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
   document.getElementById('result-meta').textContent = [
+    isSearching ? `제목에 "${state.titleQuery.trim()}"이(가) 없는 ${titleFilteredCount}건 숨김` : null,
     periodEnd ? `마감 ${formatShortDate(periodEnd)}까지` : null,
     filteredCount > 0 ? `제출물·마감 조건으로 ${filteredCount}건 숨김${undatedCount > 0 ? ` (그중 마감일이 없거나 읽을 수 없는 ${undatedCount}건)` : ''}` : null,
     closedCount > 0 ? `마감 지난 대회 ${closedCount}건 제외` : null,
@@ -206,7 +246,9 @@ function renderResults(cards, now) {
 
   const list = document.getElementById('result-list');
   if (total === 0) {
-    list.replaceChildren(el('p', { class: 'empty' }, '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.'));
+    list.replaceChildren(el('p', { class: 'empty' }, isSearching
+      ? '제목 검색과 조건에 맞는 마감 전 대회가 없습니다. 검색어를 바꾸거나 제출물·마감 조건을 풀어 보세요.'
+      : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.'));
     return;
   }
   list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateCardData } from '../site/js/cards.js';
 import { parseConditions } from '../site/js/parser.js';
-import { applyParsed, periodEndDate, recommendCards, reasonSummary, hasUnverifiedFail, limitTerms, RESULT_ORDER } from '../site/js/recommend.js';
+import { applyParsed, periodEndDate, recommendCards, reasonSummary, hasUnverifiedFail, limitTerms, normalizeTitleQuery, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER } from '../site/js/recommend.js';
 import { emptyConditions, clearSavedConditions, saveConditions, readSavedConditions, CONDITIONS_STORAGE_KEY } from '../site/js/conditions.js';
 
 const SAMPLE = validateCardData(JSON.parse(readFileSync(new URL('../site/data/cards.sample.json', import.meta.url), 'utf8'))).data;
@@ -65,6 +65,55 @@ test('필터: 기간·제출물은 판정이 아니라 목록에서 숨기기', 
   assert.equal(none.total, 4);
 });
 
+test('제목 검색: 조건이 아닌 목록 필터, 띄어쓰기·대소문자 무시 (계약 5절, #85)', () => {
+  const shown = (result) => RESULT_ORDER.flatMap((name) => ids(result.groups[name])).sort();
+  // "해커톤"은 해석기가 조건으로 바꾸지 않는 말이다. 제목 검색으로는 찾을 수 있어야 한다
+  const hackathon = recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: '해커톤' });
+  assert.deepEqual(shown(hackathon), ['abix-hackathon-2026']);
+  assert.equal(hackathon.titleFilteredCount, 3);
+  assert.equal(hackathon.filteredCount, 0, '제목으로 빠진 수는 제출물·기간 숨김과 따로 센다');
+  // 띄어쓰기·영문 대소문자를 무시한다 ("english video" ↔ "English Video", "역사영상" ↔ "역사 영상")
+  assert.deepEqual(shown(recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: ' english  VIDEO ' })), ['evc-13-nature']);
+  assert.deepEqual(shown(recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: '역사영상' })), ['history-video-5']);
+  // 판정은 바뀌지 않는다: 자연캠 학생에게 인문캠 해커톤은 검색해도 불가
+  const natural = { ...emptyConditions(), campus: '자연' };
+  const judged = recommendCards(SAMPLE.cards, natural, AT_SAMPLE, { titleQuery: '해커톤' });
+  assert.deepEqual(ids(judged.groups.ineligible), ['abix-hackathon-2026']);
+  // 다른 필터와 함께 걸린다: 영상 제출물 + "해커톤" → 없음
+  const both = recommendCards(SAMPLE.cards, { ...emptyConditions(), deliverables: ['영상'] }, AT_SAMPLE, { titleQuery: '해커톤' });
+  assert.equal(both.total, 0);
+  // 빈 검색어·공백뿐·문자열 아님은 검색하지 않는다
+  for (const titleQuery of ['', '   ', null, 42]) {
+    const all = recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery });
+    assert.equal(all.total, 4, String(titleQuery));
+    assert.equal(all.titleFilteredCount, 0);
+  }
+  assert.equal(recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE).titleFilteredCount, 0, '옵션 없이 부르면 검색하지 않음');
+});
+
+test('제목 검색어는 30자까지만 쓴다', () => {
+  assert.equal(normalizeTitleQuery('가'.repeat(40)), '가'.repeat(MAX_TITLE_QUERY_LENGTH));
+  assert.equal(normalizeTitleQuery('AI 리터러시'), 'ai리터러시');
+  assert.equal(normalizeTitleQuery(undefined), '');
+  assert.equal(normalizeTitleQuery(' \t\n '), '', '공백뿐이면 검색하지 않음');
+  // 글자 단위로 자른다: 30번째가 이모지여도 반쪽(서로게이트)만 남지 않는다
+  const clipped = clipTitleQuery(`${'가'.repeat(29)}🏆🏆`);
+  assert.equal([...clipped].length, MAX_TITLE_QUERY_LENGTH);
+  assert.ok(clipped.endsWith('🏆'));
+  assert.equal(clipTitleQuery(7), '');
+});
+
+test('제목 검색: 자모가 나뉜(NFD) 입력도 찾고, 마감 지난 대회는 검색 숨김으로 세지 않는다', () => {
+  const shown = (result) => RESULT_ORDER.flatMap((name) => ids(result.groups[name])).sort();
+  // macOS 등에서 붙여 넣은 글자는 자모가 나뉘어 있을 수 있다
+  assert.deepEqual(shown(recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: '해커톤'.normalize('NFD') })), ['abix-hackathon-2026']);
+  // 10/22에는 EVC·AI 리터러시가 마감. "해커톤"으로 숨기는 것은 남은 2장 중 역사 영상 1장뿐
+  const late = recommendCards(SAMPLE.cards, emptyConditions(), new Date('2026-10-22T00:00:00+09:00'), { titleQuery: '해커톤' });
+  assert.equal(late.closedCount, 2);
+  assert.equal(late.titleFilteredCount, 1);
+  assert.deepEqual(shown(late), ['abix-hackathon-2026']);
+});
+
 test('마감 지난 대회는 빼고 건수만 센다, 같은 상태 안에서는 마감 가까운 순', () => {
   const late = new Date('2026-10-22T00:00:00+09:00');
   const { groups, closedCount, total } = recommendCards(SAMPLE.cards, emptyConditions(), late);
@@ -88,10 +137,11 @@ test('사유 요약: 신청 가능은 맞은 조건 ✓, 나머지는 결과를 
 
 test('이해하지 못한 표현 칩: 10개·20자까지, 나머지는 "외 N개"', () => {
   const terms = Array.from({ length: 13 }, (_, index) => `표현${index}`);
-  assert.deepEqual(limitTerms(terms), { shown: terms.slice(0, 10), hiddenCount: 3 });
-  assert.deepEqual(limitTerms(['가'.repeat(25)]).shown, [`${'가'.repeat(20)}…`]);
-  assert.deepEqual(limitTerms(['', ' ', null, '대학원생']).shown, ['대학원생']);
-  assert.deepEqual(limitTerms(undefined), { shown: [], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(terms), { shown: terms.slice(0, 10), originals: terms.slice(0, 10), hiddenCount: 3 });
+  // 화면에는 줄인 글자, "제목에서 찾기"에는 줄이기 전 표현
+  assert.deepEqual(limitTerms(['가'.repeat(25)]), { shown: [`${'가'.repeat(20)}…`], originals: ['가'.repeat(25)], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(['', ' ', null, '대학원생']), { shown: ['대학원생'], originals: ['대학원생'], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(undefined), { shown: [], originals: [], hiddenCount: 0 });
 });
 
 test('저장된 조건 지우기 (공용 PC에 학년·학적이 남지 않게)', () => {
