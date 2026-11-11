@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateCardData } from '../site/js/cards.js';
 import { parseConditions } from '../site/js/parser.js';
-import { applyParsed, periodEndDate, recommendCards, reasonSummary, hasUnverifiedFail, limitTerms, normalizeTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER } from '../site/js/recommend.js';
+import { applyParsed, periodEndDate, recommendCards, reasonSummary, hasUnverifiedFail, limitTerms, normalizeTitleQuery, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER } from '../site/js/recommend.js';
 import { emptyConditions, clearSavedConditions, saveConditions, readSavedConditions, CONDITIONS_STORAGE_KEY } from '../site/js/conditions.js';
 
 const SAMPLE = validateCardData(JSON.parse(readFileSync(new URL('../site/data/cards.sample.json', import.meta.url), 'utf8'))).data;
@@ -95,6 +95,23 @@ test('제목 검색어는 30자까지만 쓴다', () => {
   assert.equal(normalizeTitleQuery('가'.repeat(40)), '가'.repeat(MAX_TITLE_QUERY_LENGTH));
   assert.equal(normalizeTitleQuery('AI 리터러시'), 'ai리터러시');
   assert.equal(normalizeTitleQuery(undefined), '');
+  assert.equal(normalizeTitleQuery(' \t\n '), '', '공백뿐이면 검색하지 않음');
+  // 글자 단위로 자른다: 30번째가 이모지여도 반쪽(서로게이트)만 남지 않는다
+  const clipped = clipTitleQuery(`${'가'.repeat(29)}🏆🏆`);
+  assert.equal([...clipped].length, MAX_TITLE_QUERY_LENGTH);
+  assert.ok(clipped.endsWith('🏆'));
+  assert.equal(clipTitleQuery(7), '');
+});
+
+test('제목 검색: 자모가 나뉜(NFD) 입력도 찾고, 마감 지난 대회는 검색 숨김으로 세지 않는다', () => {
+  const shown = (result) => RESULT_ORDER.flatMap((name) => ids(result.groups[name])).sort();
+  // macOS 등에서 붙여 넣은 글자는 자모가 나뉘어 있을 수 있다
+  assert.deepEqual(shown(recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: '해커톤'.normalize('NFD') })), ['abix-hackathon-2026']);
+  // 10/22에는 EVC·AI 리터러시가 마감. "해커톤"으로 숨기는 것은 남은 2장 중 역사 영상 1장뿐
+  const late = recommendCards(SAMPLE.cards, emptyConditions(), new Date('2026-10-22T00:00:00+09:00'), { titleQuery: '해커톤' });
+  assert.equal(late.closedCount, 2);
+  assert.equal(late.titleFilteredCount, 1);
+  assert.deepEqual(shown(late), ['abix-hackathon-2026']);
 });
 
 test('마감 지난 대회는 빼고 건수만 센다, 같은 상태 안에서는 마감 가까운 순', () => {

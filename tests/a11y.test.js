@@ -62,6 +62,7 @@ test('포커스 표시가 보인다 (주변 색과 3:1 이상, 짙은 머리글 
 
 test('입력창 경계가 흰 배경과 3:1 이상이다', () => {
   cssRule(CSS, /\.ask input\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '입력창 경계');
+  cssRule(CSS, /\.title-search\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '제목 검색칸 경계');
   assert.ok(contrast('input-line', 'card') >= 3, `--input-line / --card = ${contrast('input-line', 'card').toFixed(2)}:1`);
 });
 

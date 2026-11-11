@@ -8,7 +8,7 @@ import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
 import { inquiryDraft } from './detail.js';
-import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW } from './recommend.js';
+import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW } from './recommend.js';
 
 // 칩 묶음: [조건 이름, 보이는 이름, [값, 칩 글자]]. 한 묶음에서 하나만 고르고, 다시 누르면 고르지 않은 상태(null)
 const CHIP_GROUPS = [
@@ -71,12 +71,19 @@ async function main() {
   onSubmit = () => interpret(input.value, update);
   const titleInput = document.getElementById('title-q');
   titleInput.maxLength = MAX_TITLE_QUERY_LENGTH;
-  const setTitleQuery = (text) => {
-    titleInput.value = [...text].slice(0, MAX_TITLE_QUERY_LENGTH).join('');
-    state.titleQuery = titleInput.value;
+  // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
+  const readTitleQuery = () => {
+    state.titleQuery = clipTitleQuery(titleInput.value);
     renderResults(data.cards, now);
   };
-  titleInput.addEventListener('input', () => setTitleQuery(titleInput.value));
+  // 버튼으로 바꿀 때만 입력칸에 쓴다
+  const setTitleQuery = (text) => {
+    titleInput.value = clipTitleQuery(text);
+    readTitleQuery();
+  };
+  titleInput.addEventListener('input', readTitleQuery);
+  // 데이터를 받기 전에 친 검색어도 첫 그리기에 쓴다
+  state.titleQuery = clipTitleQuery(titleInput.value);
   document.getElementById('title-clear').addEventListener('click', () => {
     setTitleQuery('');
     titleInput.focus();

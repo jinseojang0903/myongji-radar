@@ -75,13 +75,21 @@ function foldForSearch(text) {
 }
 
 /**
+ * 제목 검색어를 30자로 자른다 (글자 단위라 이모지 같은 서로게이트 쌍을 반으로 가르지 않는다).
+ * @param {unknown} text
+ * @returns {string}  문자열이 아니면 ''
+ */
+export function clipTitleQuery(text) {
+  return typeof text === 'string' ? [...text].slice(0, MAX_TITLE_QUERY_LENGTH).join('') : '';
+}
+
+/**
  * 제목 검색어를 비교할 꼴로 바꾼다 (계약 5절 "제목 검색"). 문자열이 아니거나 비면 '' (검색하지 않음).
  * @param {unknown} text  검색칸에 쓴 말. 30자까지만 쓴다
  * @returns {string}
  */
 export function normalizeTitleQuery(text) {
-  if (typeof text !== 'string') return '';
-  return foldForSearch([...text].slice(0, MAX_TITLE_QUERY_LENGTH).join(''));
+  return foldForSearch(clipTitleQuery(text));
 }
 
 /**
