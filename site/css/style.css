@@ -145,6 +145,7 @@ h2 { font-size: 16.5px; margin: 0; }
 /* 입력 */
 .ask { display: flex; gap: 8px; }
 .ask input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border: 1px solid var(--input-line); border-radius: 8px; }
+.title-search { flex: 1; min-width: 0; max-width: 320px; font: inherit; padding: 6px 10px; border: 1px solid var(--input-line); border-radius: 8px; }
 
 /* 수치 표 */
 .metrics { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }

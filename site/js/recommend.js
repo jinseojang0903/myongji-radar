@@ -172,11 +172,13 @@ export function hasUnverifiedFail(judged) {
 
 /**
  * "이해하지 못한 표현" 칩을 화면에 맞게 줄인다 (PR #36 보안 리뷰: 칩 개수·길이 상한).
- * @returns {{shown: string[], hiddenCount: number}}
+ * @returns {{shown: string[], originals: string[], hiddenCount: number}}
+ *   originals: shown과 같은 순서의 줄이기 전 표현 ("제목에서 찾기"가 잘린 글자로 찾지 않게)
  */
 export function limitTerms(terms, { maxCount = 10, maxLength = 20 } = {}) {
   const list = Array.isArray(terms) ? terms.filter((term) => typeof term === 'string' && term.trim() !== '') : [];
-  const shown = list.slice(0, maxCount).map((term) => ([...term].length > maxLength ? `${[...term].slice(0, maxLength).join('')}…` : term));
-  return { shown, hiddenCount: Math.max(0, list.length - maxCount) };
+  const originals = list.slice(0, maxCount);
+  const shown = originals.map((term) => ([...term].length > maxLength ? `${[...term].slice(0, maxLength).join('')}…` : term));
+  return { shown, originals, hiddenCount: Math.max(0, list.length - maxCount) };
 }
 

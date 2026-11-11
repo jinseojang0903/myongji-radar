@@ -120,10 +120,11 @@ test('사유 요약: 신청 가능은 맞은 조건 ✓, 나머지는 결과를 
 
 test('이해하지 못한 표현 칩: 10개·20자까지, 나머지는 "외 N개"', () => {
   const terms = Array.from({ length: 13 }, (_, index) => `표현${index}`);
-  assert.deepEqual(limitTerms(terms), { shown: terms.slice(0, 10), hiddenCount: 3 });
-  assert.deepEqual(limitTerms(['가'.repeat(25)]).shown, [`${'가'.repeat(20)}…`]);
-  assert.deepEqual(limitTerms(['', ' ', null, '대학원생']).shown, ['대학원생']);
-  assert.deepEqual(limitTerms(undefined), { shown: [], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(terms), { shown: terms.slice(0, 10), originals: terms.slice(0, 10), hiddenCount: 3 });
+  // 화면에는 줄인 글자, "제목에서 찾기"에는 줄이기 전 표현
+  assert.deepEqual(limitTerms(['가'.repeat(25)]), { shown: [`${'가'.repeat(20)}…`], originals: ['가'.repeat(25)], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(['', ' ', null, '대학원생']), { shown: ['대학원생'], originals: ['대학원생'], hiddenCount: 0 });
+  assert.deepEqual(limitTerms(undefined), { shown: [], originals: [], hiddenCount: 0 });
 });
 
 test('저장된 조건 지우기 (공용 PC에 학년·학적이 남지 않게)', () => {
