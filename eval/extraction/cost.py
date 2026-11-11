@@ -74,23 +74,23 @@ def run_cost(meta: dict, label: str) -> RunCost:
     if not isinstance(totals, dict):
         raise CostError(f"{label}: totals가 없음")
     extractions = totals.get("calls")
-    if not isinstance(extractions, int) or extractions <= 0:
+    if not _is_count(extractions) or extractions <= 0:
         raise CostError(f"{label}: 성공한 추출이 없어 1건 비용을 낼 수 없음")
     tokens = {}
     for key in TOKEN_KEYS:
         value = totals.get(key, 0)
-        if not isinstance(value, int) or value < 0:
+        if not _is_count(value):
             raise CostError(f"{label}: totals.{key}가 0 이상의 정수가 아님")
         tokens[key] = value
     seen = [name for name in meta.get("models_seen") or [] if isinstance(name, str)]
-    known = sorted({name for name in seen if name in PRICES})
-    if len(known) != 1:
-        # claude -p가 다른 모델을 함께 쓰면 합계를 모델별로 나눌 수 없다. 모르는 ID면 단가표를 먼저 고친다
-        raise CostError(f"{label}: 단가표의 모델이 하나가 아님 (models_seen={seen[:5]})")
-    model_id = known[0]
+    model_id = _main_model(seen, meta.get("model"))
+    if model_id is None:
+        # 모르는 ID면 틀린 단가로 계산하지 않는다. 공식 가격 페이지를 보고 단가표를 먼저 고친다
+        raise CostError(f"{label}: 실행 모델(--model)에 맞는 단가표 모델을 하나로 정할 수 없음 (models_seen={seen[:5]})")
     notes = []
     if len(seen) > 1:
-        notes.append(f"models_seen에 {len(seen)}개 모델: 합계를 모두 {model_id} 단가로 계산 (조금 높게 잡힘)")
+        notes.append(f"models_seen에 {len(seen)}개 모델: 토큰 합계를 모두 {model_id} 단가로 계산 "
+                     "(보조 모델 토큰이 합계에 들어 있으면 조금 높게 잡힘. 아래 Claude Code 추정과 대조)")
     price = PRICES[model_id]
     calls_total = extractions + _count(totals, "calls_failed") + _count(totals, "probe_calls")
     prompt_per_call = sum(tokens[key] for key in TOKEN_KEYS if key != "output_tokens") / calls_total
@@ -106,20 +106,42 @@ def run_cost(meta: dict, label: str) -> RunCost:
                    notes=notes)
 
 
+def _is_count(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 def _count(totals: dict, key: str) -> int:
     value = totals.get(key, 0)
-    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+    return value if _is_count(value) else 0
+
+
+def _priced_id(name: str) -> str | None:
+    """단가표의 ID. 날짜가 붙은 ID("claude-sonnet-5-5-20261001")도 같은 모델로 본다."""
+    return next((model for model in PRICES if name == model or name.startswith(model + "-")), None)
+
+
+def _main_model(seen: list[str], alias) -> str | None:
+    """실행한 모델. claude -p가 보조 모델을 함께 쓰면 models_seen에 둘 이상 나오므로 --model 별칭(haiku 등)으로 고른다."""
+    priced = sorted({model for model in map(_priced_id, seen) if model})
+    if isinstance(alias, str) and alias:
+        # --model haiku로 돌렸는데 Opus만 보이면 이상한 실행이라 멈춘다
+        priced = [model for model in priced if alias in model]
+    return priced[0] if len(priced) == 1 else None
 
 
 def render_report(costs: list[RunCost], calls_per_month: list[int]) -> str:
     months = " | ".join(f"월 {calls}건" for calls in calls_per_month)
+    batch_months = " | ".join(f"Batch 월 {calls}건" for calls in calls_per_month)
     lines = [
         "# 모델별 월 비용 환산 (#9)", "",
         f"- 단가: {PRICES_SOURCE}. 5분 캐시 쓰기, 전 세계 라우팅(기본) 기준.",
-        "- 1건 = 성공한 추출 하나. 실패한 호출·확인 호출의 토큰도 넣어 나눈다.",
-        "- 월 비용 = 1건 비용 × 한 달 추출 수. Batch는 매일 추출을 Batch API로 돌릴 때(50% 할인).",
+        "- 추출 1건 비용 = 실행에서 쓴 토큰 전부(실패한 호출·확인 호출 포함)의 값 ÷ 성공한 추출 수. "
+        "확인 호출은 실행마다 한 번이라 대회 수가 적은 실행에서는 1건 비용이 조금 높게 나온다.",
+        "- 호출당 평균 입력·출력은 모든 호출(성공·실패·확인)로 나눈 값이다. Haiku 긴 프롬프트 단가(10만 토큰 초과)도 이 평균으로 "
+        "고르므로, 몇 건만 10만을 넘으면 놓친다.",
+        "- 월 비용 = 추출 1건 비용 × 한 달 추출 수. Batch는 매일 추출을 Batch API로 돌릴 때(50% 할인).",
         "- 구독 로그인으로 잰 토큰 수를 공개 API 단가로 바꾼 추정이다 (실제 청구액 아님).", "",
-        f"| 실행 | 모델 | 추출(실패·확인) | 1건 평균 입력 | 1건 평균 출력 | 1건 비용 | {months} | Batch {months} |",
+        f"| 실행 | 모델 | 추출(실패·확인) | 호출당 평균 입력 | 호출당 평균 출력 | 추출 1건 비용 | {months} | {batch_months} |",
         "|---|---|---|---|---|---|" + "---|" * (len(calls_per_month) * 2),
     ]
     for item in costs:
@@ -159,7 +181,7 @@ def main(argv=None) -> int:
         return 2
     try:
         # 이름은 실행 폴더 이름 (예: 2026-11-12_haiku_v0.2). 전체 경로는 보고서에 넣지 않는다 (PC 사용자 이름)
-        costs = [run_cost(json.loads(path.read_text(encoding="utf-8")), path.parent.name) for path in args.meta]
+        costs = [run_cost(json.loads(path.read_text(encoding="utf-8")), path.resolve().parent.name) for path in args.meta]
     except CostError as error:
         print(f"[오류] {error}", file=sys.stderr)
         return 2

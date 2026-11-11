@@ -20,7 +20,8 @@ def meta(model_id="claude-sonnet-5-5", calls=10, failed=0, probes=1, **tokens):
     totals = {"calls": calls, "calls_failed": failed, "probe_calls": probes, "cost_usd_estimate": 0.5,
               "input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 0}
     totals.update(tokens)
-    return {"model": "sonnet", "models_seen": [model_id], "totals": totals}
+    alias = next((name for name in ("haiku", "sonnet", "opus") if name in model_id), "sonnet")  # 실행기 --model 값
+    return {"model": alias, "models_seen": [model_id], "totals": totals}
 
 
 class RunCostTests(unittest.TestCase):
@@ -56,13 +57,28 @@ class RunCostTests(unittest.TestCase):
             "추출 0건": meta(calls=0),
             "totals 없음": {"models_seen": ["claude-sonnet-5-5"]},
             "모르는 모델": meta("claude-sonnet-9"),
-            "모델 둘": {**meta(), "models_seen": ["claude-sonnet-5-5", "claude-opus-5-5"]},
+            "별칭으로도 못 고름": {**meta(), "model": None, "models_seen": ["claude-sonnet-5-5", "claude-opus-5-5"]},
+            "별칭과 다른 모델뿐": {**meta("claude-opus-5-5"), "model": "haiku"},
             "음수 토큰": meta(output_tokens=-1),
             "문자열 토큰": meta(output_tokens="많음"),
+            "참거짓 토큰": meta(output_tokens=True),
+            "참거짓 추출 수": meta(calls=True),
         }
         for name, item in cases.items():
             with self.assertRaises(cost.CostError, msg=name):
                 cost.run_cost(item, "run")
+
+    def test_main_model_is_chosen_by_the_run_alias(self):
+        # claude -p가 보조 모델(Haiku 등)을 함께 쓰면 models_seen에 둘이 나온다. 실행한 --model 별칭으로 고른다
+        item = cost.run_cost({**meta("claude-opus-5-5"), "model": "opus",
+                              "models_seen": ["claude-haiku-5-5", "claude-opus-5-5"]}, "run")
+        self.assertEqual(item.model_id, "claude-opus-5-5")
+        self.assertIn("2개 모델", item.notes[0])
+        # 날짜가 붙은 ID도 같은 모델
+        dated = cost.run_cost(meta("claude-sonnet-5-5-20261001", calls=1, probes=0, output_tokens=1_000_000), "run")
+        self.assertEqual(dated.model_id, "claude-sonnet-5-5")
+        self.assertAlmostEqual(dated.per_extraction, 10)
+        self.assertIsNone(cost._priced_id("claude-sonnet-5-50"), "다른 버전 번호와 섞이지 않는다")
 
     def test_extra_unpriced_model_is_noted(self):
         item = cost.run_cost({**meta(), "models_seen": ["claude-sonnet-5-5", "보조-모델"]}, "run")
@@ -86,6 +102,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("| 2026-11-12_sonnet_v0.2 | `claude-sonnet-5-5` | 2(0·0) |", out)
         self.assertIn("| $1.00 | $10.00 | $100.00 | $5.00 | $50.00 |", out, "1건 $1 → 월 10건 $10, 100건 $100, Batch 절반")
+        self.assertIn("| 월 10건 | 월 100건 | Batch 월 10건 | Batch 월 100건 |", out)
         self.assertNotIn("비밀사용자", out, "전체 경로(PC 사용자 이름)는 넣지 않는다")
         self.assertIn("Claude Code 추정 합계 $0.5000", out)
 
@@ -98,7 +115,7 @@ class ReportTests(unittest.TestCase):
             broken.write_text(json.dumps(meta("claude-sonnet-9")), encoding="utf-8")
             code, _, errors = self.run_cli(broken)
             self.assertEqual(code, 2)
-            self.assertIn("단가표의 모델이 하나가 아님", errors)
+            self.assertIn("단가표 모델을 하나로 정할 수 없음", errors)
             broken.write_text(json.dumps(meta()), encoding="utf-8")
             self.assertEqual(self.run_cli(broken, "--calls-per-month", "0")[0], 2)
 
