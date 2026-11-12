@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from collector.locking import AlreadyRunning, CollectorLock
+from collector.locking import CollectorLock
 from exporter.blocklist import load_blocked
 from extractor.common import write_json
 from .core import preview
@@ -12,6 +12,8 @@ from .groups import load_groups
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT.parent / "site"
+REPO = ROOT.parent
+PRIVATE_PREVIEW = ROOT / "preview-data"
 OUTPUT_NAME = "contest-preview.json"
 
 
@@ -27,6 +29,7 @@ def main(argv=None):
         target = args.out.resolve()
         inputs = [path.resolve() for path in (args.bundles, args.notices, args.groups, args.blocked)]
         if (target.name != OUTPUT_NAME or target.is_relative_to(SITE.resolve())
+                or (target.is_relative_to(REPO.resolve()) and not target.is_relative_to(PRIVATE_PREVIEW.resolve()))
                 or target in inputs or any(target.is_relative_to(path.parent) for path in inputs)
                 or any(path.is_relative_to(SITE.resolve()) for path in inputs)):
             raise ValueError("미리보기는 site 밖 별도 폴더의 고정 파일명으로 저장해야 합니다")
@@ -36,13 +39,15 @@ def main(argv=None):
             if not isinstance(raw, dict) or not isinstance(raw.get("notices"), list):
                 raise ValueError("원문 notices 배열 없음")
             result = preview(data, raw["notices"], load_groups(args.groups), set(load_blocked(args.blocked)))
-            write_json(args.out, result)
-    except (AlreadyRunning, OSError, ValueError, TypeError, KeyError):
-        print("[중단] 미리보기 입력 또는 경로를 확인하세요. 기존 출력은 유지합니다.", file=sys.stderr)
+            candidate_count = len(result["candidates"])
+            fallback = sum(group["action"] == "fallback" for group in result["report"]["groups"])
+            code = 1 if fallback or result["report"]["blocked"]["unmatched_requested_ids"] else 0
+            write_json(target, result)
+    except Exception as exc:
+        print(f"[중단] 미리보기 실패 ({type(exc).__name__}). 기존 출력은 유지합니다.", file=sys.stderr)
         return 2
-    fallback = sum(group["action"] == "fallback" for group in result["report"]["groups"])
-    print(f"[미리보기] 후보 {len(result['candidates'])}개, 개별 카드 유지 {fallback}그룹", file=sys.stderr)
-    return 1 if fallback or result["report"]["blocked"]["unmatched_requested_ids"] else 0
+    print(f"[미리보기] 후보 {candidate_count}개, 개별 카드 유지 {fallback}그룹", file=sys.stderr)
+    return code
 
 
 if __name__ == "__main__":

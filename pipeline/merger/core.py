@@ -5,6 +5,7 @@ import json
 from collector.repository import content_hash
 from extractor.common import posted_day
 from extractor.daily import card_id_of
+from verifier.stamp import STAMP_KEY
 from .groups import CARD_ID, validate_groups
 
 
@@ -78,6 +79,7 @@ def _reason(bundles, originals):
         for name, field in fields.items():
             if (not isinstance(field, dict) or field.get("flag") not in ("found", "missing")
                     or field.get("flag") != expected[name].get("flag")
+                    or _canonical(field.get("note")) != _canonical(expected[name].get("note"))
                     or _canonical(field.get("value")) != _canonical(expected[name].get("value"))):
                 return "different_or_uncertain_fields"
             for key in ("evidence", "alternatives"):
@@ -92,6 +94,8 @@ def _merge(group, bundles):
     ordered = sorted(bundles, key=lambda item: (posted_day(item["notices"][0]["published_at"], ""),
                                                *identity(item["notices"][0])))
     result = copy.deepcopy(ordered[-1])
+    # 합쳐진 내용은 검증된 원래 묶음과 다르므로 이전 검증 표시는 승계하지 않는다.
+    result.pop(STAMP_KEY, None)
     result.update(card_id=group.id, notices=[copy.deepcopy(item["notices"][0]) for item in ordered],
                   statuses={}, deadline_history=[])
     for name, field in result["extraction"]["fields"].items():
