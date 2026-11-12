@@ -49,8 +49,9 @@ eval/extraction/runs/2026-11-06_sonnet_v0.2/
 ## 사람 판정
 
 1. 채점기를 돌리면 실행 폴더에 `judgments_todo.csv`가 생긴다 (`answer`·`ai` 열을 보고 `judgment`에 `정답` 또는 `오답`. 다른 값은 경고하고 버린다).
-2. 채운 파일을 `eval/extraction/judgments/<실행 폴더 이름>.csv`로 저장하고 다시 채점한다. `judgments_todo.csv`에 채운 판정이 남아 있으면 덮어쓰지 않고 새 할 일을 `judgments_todo.new.csv`에 쓴다. 옮긴 뒤 두 파일을 지운다.
-   - 판정은 판정할 때의 `ai` 값과 함께 저장된다. 다시 추출해 AI 값이 바뀌면 옛 판정을 쓰지 않고 다시 판정 전으로 돌린다.
+2. 채운 뒤 `score.py <실행 폴더들> --save-judgments --report ...`로 다시 채점한다. 채운 판정이 `eval/extraction/judgments/<실행 폴더 이름>.csv`로 옮겨지고(이미 있는 판정에 더함), 그 판정으로 채점한다. 옮긴 뒤 `judgments_todo*.csv`는 지워도 된다. `judgments_todo.csv`에 채운 판정이 남아 있으면 덮어쓰지 않고 새 할 일을 `judgments_todo.new.csv`에 쓴다.
+   - **`judgments_todo.csv`를 손으로 `judgments/`에 복사하지 않는다.** 그 파일의 `ai` 열에는 AI 값(공지 인용·연락처가 섞일 수 있음)이 있다. `--save-judgments`는 AI 값 대신 지문(`ai_sha256`)만 저장한다. 예전 형식(`ai` 열에 값) 파일은 읽되 경고한다.
+   - 다시 추출해 AI 값이 바뀌면 지문이 달라져 옛 판정을 쓰지 않고 판정 전으로 돌린다.
 3. 판정자는 그 대회 정답표를 쓰지 않은 사람이 좋다. 판정 기준은 "학생이 이 값을 보고 같은 행동을 하는가".
 
 ## 규칙 분석기 기준선
@@ -132,7 +133,7 @@ $metas = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\$
 실행 폴더마다 `judgments_todo.csv`(대회명·혜택처럼 사람이 판정할 칸)가 생긴다. 위 "사람 판정" 순서로 채운 뒤 다시 채점한다. `'`로 시작하는 칸은 AI 값이 수식으로 실행되지 않게 붙인 것이다. **판정은 메모장·VS Code 같은 편집기로 채운다** (엑셀로 저장하면 `'`가 빠져 다른 사람이 열 때 수식이 될 수 있다).
 
 **5. 올리기**
-- PR로 올리는 것: `eval/extraction/reports/`의 보고서, `eval/extraction/judgments/`의 판정. 각 실행 `meta.json`의 `totals`·`models_seen` 값은 PR 설명에 옮겨 적는다 (월 비용 환산에 쓴다).
+- PR로 올리는 것: `eval/extraction/reports/`의 보고서, `eval/extraction/judgments/`의 판정(`--save-judgments`로 저장한 것, AI 값 없음). 각 실행 `meta.json`의 `totals`·`models_seen` 값은 PR 설명에 옮겨 적는다 (월 비용 환산에 쓴다).
 - **올리지 않는 것:** `eval/extraction/runs/`(AI 원본 출력에 공지 인용문·연락처), `pipeline/data/`. 둘 다 `.gitignore`에 있다.
 - `totals.cost_usd_estimate`는 공개 단가로 계산한 추정치다. 구독 로그인이면 실제 청구액이 아니다. 실패한 호출(`calls_failed`)·확인 호출(`probe_calls`)의 토큰도 들어간다.
 
