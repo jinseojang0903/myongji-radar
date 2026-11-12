@@ -562,15 +562,33 @@ def score_json(score: RunScore) -> dict:
     }
 
 
-def render_report(scores: list[RunScore], answer_key: AnswerKey) -> str:
-    lines = ["# 추출 정확도 (#9)", "",
-             f"정답표: 대회 {sum(1 for truths in answer_key.contests.values() if truths)}건. "
-             "채점 규칙은 `eval/answer_key/README.md` \"채점 방식\". 정확도 = 정답 칸 / (전체 칸 - 판정 전). "
-             "과잉 보류·출력 실패 칸은 정답이 아니라서 정확도를 낮춘다. 잴 대상이 없으면 \"-\".", ""]
+PRIVATE_ERRORS_NAME = "errors_private.md"  # 실행 폴더(runs/, 저장소에 올리지 않음)에만 쓴다
+
+
+def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str] | tuple = ()) -> str:
+    """공개 저장소에 올리는 보고서. AI가 낸 값은 넣지 않는다 (공지 인용·연락처·공지 속 지시로 만든 글이 섞일 수 있음).
+
+    notes: 실행 조건 중 meta.json에 없는 것 (예: 정답표 공지 보충 수집). 보고서 "실행 메모"에 그대로 쓴다.
+    """
+    lines = ["# 추출 정확도 (#9)", ""]
+    pending_total = sum(result.category == "needs_human" for score in scores for result in score.results)
+    if pending_total:
+        # 숫자만 발표 자료로 옮겨 가지 않게 맨 위에 둔다
+        lines += [f"> **사람 판정 전 숫자다.** 사람이 판정할 칸 {pending_total}개가 남아 있어 정확도가 바뀐다. "
+                  "발표·모델 결정에는 판정을 채워 다시 채점한 숫자를 쓴다.", ""]
+    lines += [f"정답표: 대회 {sum(1 for truths in answer_key.contests.values() if truths)}건. "
+              "채점 규칙은 `eval/answer_key/README.md` \"채점 방식\". 정확도 = 정답 칸 / (전체 칸 - 판정 전). "
+              "과잉 보류·출력 실패 칸은 정답이 아니라서 정확도를 낮춘다. 잴 대상이 없으면 \"-\".", ""]
     if answer_key.problems:
         lines += ["## 정답표 형식 문제 (해당 칸은 채점에서 뺌)", ""] + [f"- {problem}" for problem in answer_key.problems] + [""]
     if not scores:
         return "\n".join(lines + ["실행 결과가 없다. 측정 중.", ""])
+    lines += ["## 실행 조건", "", "| 실행 | 실행일 | 모델 (--model) | 실제 모델 ID | Claude Code | 프롬프트 | AI 입력 |",
+              "|---|---|---|---|---|---|---|"]
+    lines += [_condition_row(score) for score in scores]
+    if notes:
+        lines += ["", "**실행 메모:**"] + [f"- {note}" for note in notes]
+    lines.append("")
     summaries = [score_json(score) for score in scores]
     header = "| 항목 | " + " | ".join(_run_label(summary) for summary in summaries) + " |"
     lines += ["## 실행별 비교", "", header, "|---|" + "---|" * len(summaries)]
@@ -593,24 +611,62 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey) -> str:
         marker = " (중요)" if item in KEY_ITEMS else (" (사람 판정)" if item in HUMAN_ITEMS else "")
         lines.append(f"| `{item}`{marker} | " + " | ".join(_accuracy_cell(summary["by_item"][item]) for summary in summaries) + " |")
     for score in scores:
-        lines += ["", f"## {score.name} 오류 목록", ""]
-        if score.failed_contests:
-            lines.append(f"- 출력 실패 (없음·깨짐·대회 아님으로 판단): {', '.join(score.failed_contests)}")
-        if score.extra_outputs:
-            lines.append(f"- 정답표에 없는 대회 출력 (채점 안 함): {', '.join(score.extra_outputs)}")
-        for warning in dict.fromkeys(score.warnings):
-            lines.append(f"- 주의: {warning}")
-        errors = [result for result in score.results if result.category in ERROR_CATEGORIES - {"failed"}]
-        if not errors:
-            lines.append("- 오류 없음")
-        for result in errors:
-            risk = " **위험**" if result.is_risky else ""
-            lines.append(f"- {result.contest_id} `{result.item}` {CATEGORY_LABELS[result.category]}{risk}: "
-                         f"정답 {display(result.truth, limit=120)} ({result.truth_flag}) / AI {display(result.predicted, limit=120)} ({result.predicted_flag})")
-        pending = sum(result.category == "needs_human" for result in score.results)
-        if pending:
-            lines.append(f"- 판정 전 {pending}칸: 실행 폴더의 `judgments_todo.csv`를 채워 `eval/extraction/judgments/{score.name}.csv`로 저장")
+        lines += ["", f"## {score.name} 오류 목록", "",
+                  f"AI가 낸 값은 넣지 않는다 (공개 저장소). 값까지 보려면 실행 폴더의 `{PRIVATE_ERRORS_NAME}`(올리지 않음)를 연다.", ""]
+        lines += _error_lines(score, with_ai_values=False)
     return "\n".join(lines) + "\n"
+
+
+def render_private_errors(score: RunScore) -> str:
+    """실행 폴더에만 쓰는 오류 목록 (AI 값 포함). runs/는 .gitignore에 있다."""
+    return "\n".join([f"# {score.name} 오류 목록 (AI 값 포함, 저장소에 올리지 않음)", ""]
+                     + _error_lines(score, with_ai_values=True)) + "\n"
+
+
+def _error_lines(score: RunScore, with_ai_values: bool) -> list[str]:
+    lines = []
+    if score.failed_contests:
+        lines.append(f"- 출력 실패 (없음·깨짐·대회 아님으로 판단): {', '.join(score.failed_contests)}")
+    if score.extra_outputs:
+        lines.append(f"- 정답표에 없는 대회 출력 (채점 안 함): {', '.join(score.extra_outputs)}")
+    for warning in dict.fromkeys(score.warnings):
+        lines.append(f"- 주의: {warning}")
+    errors = [result for result in score.results if result.category in ERROR_CATEGORIES - {"failed"}]
+    if not errors:
+        lines.append("- 오류 없음")
+    for result in errors:
+        risk = " **위험**" if result.is_risky else ""
+        # 정답은 이미 공개된 정답표 값이다. AI 쪽은 공개 보고서에서 상태만 쓴다
+        ai = (f"AI {display(result.predicted, limit=120)} ({result.predicted_flag})" if with_ai_values
+              else f"AI {_ai_state(result)}")
+        lines.append(f"- {result.contest_id} `{result.item}` {CATEGORY_LABELS[result.category]}{risk}: "
+                     f"정답 {display(result.truth, limit=120)} ({result.truth_flag}) / {ai}")
+    pending = sum(result.category == "needs_human" for result in score.results)
+    if pending:
+        lines.append(f"- 판정 전 {pending}칸: 실행 폴더의 `judgments_todo.csv`를 채워 `eval/extraction/judgments/{score.name}.csv`로 저장")
+    return lines
+
+
+def _ai_state(result: ItemResult) -> str:
+    """AI 값 없이 상태만. "찾음"이라면서 값을 비운 모순된 출력은 따로 적는다 (놓침으로 채점됨)."""
+    if result.predicted_flag is None:
+        return "출력 없음"
+    if result.predicted is None:
+        return f"값 없음 ({result.predicted_flag})"
+    return f"값 있음 ({result.predicted_flag})"
+
+
+def _condition_row(score: RunScore) -> str:
+    meta = score.meta
+    seen = meta.get("models_seen")
+    inputs = meta.get("inputs") if isinstance(meta.get("inputs"), dict) else {}
+    labels = (("body", "본문"), ("images", "이미지"), ("attachments", "첨부"), ("result_notice_bodies", "결과 공지 본문"))
+    used = ", ".join(f"{name} {'O' if inputs.get(key) else 'X'}" for key, name in labels if key in inputs) or "?"
+    cells = [score.name, str(meta.get("started_at") or "?")[:10], str(meta.get("model") or "?"),
+             ", ".join(map(str, seen)) if isinstance(seen, list) and seen else "?",
+             str(meta.get("claude_version") or "?"), str(meta.get("prompt_version") or "?"), used]
+    # 표 칸을 깨는 글자는 빼고 길이를 줄인다 (meta.json은 실행기가 쓰지만 손으로 고칠 수도 있다)
+    return "| " + " | ".join(re.sub(r"[|\r\n]", " ", cell)[:60] for cell in cells) + " |"
 
 
 def _run_label(summary: dict) -> str:
@@ -666,6 +722,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("runs", nargs="*", type=Path, help="실행 폴더 (meta.json + outputs/)")
     parser.add_argument("--answers", type=Path, default=DEFAULT_ANSWERS)
     parser.add_argument("--report", type=Path, help="보고서 마크다운 경로 (없으면 화면에만)")
+    parser.add_argument("--note", action="append", default=[],
+                        help="보고서 \"실행 메모\"에 넣을 실행 조건 (meta.json에 없는 것, 여러 번 가능). 공지 내용·경로는 쓰지 않는다")
     args = parser.parse_args(argv)
     try:
         answer_key = read_answer_key(args.answers)
@@ -680,12 +738,13 @@ def main(argv: list[str] | None = None) -> int:
         score = score_run(run_dir, answer_key)
         (run_dir / "score.json").write_text(json.dumps(score_json(score), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         pending = write_judgment_todo(score, run_dir)
+        (run_dir / PRIVATE_ERRORS_NAME).write_text(render_private_errors(score), encoding="utf-8")
         for warning in dict.fromkeys(score.warnings):
             print(f"[주의] {run_dir.name}: {warning}", file=sys.stderr)
         if pending:
             print(f"[판정 전] {run_dir.name}: {pending}칸 → {run_dir / 'judgments_todo.csv'}", file=sys.stderr)
         scores.append(score)
-    report = render_report(scores, answer_key)
+    report = render_report(scores, answer_key, args.note)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(report, encoding="utf-8")

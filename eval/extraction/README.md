@@ -116,8 +116,12 @@ foreach ($model in "haiku", "sonnet", "opus") {
 **4. 채점과 보고서**
 ```powershell
 $runs = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${day}_${_}_v0.2" }
-.\.venv\Scripts\python.exe ..\eval\extraction\score.py @runs --report "..\eval\extraction\reports\${day}_models_v0.2.md"
+.\.venv\Scripts\python.exe ..\eval\extraction\score.py @runs --report "..\eval\extraction\reports\${day}_models_v0.2.md" `
+  --note "meta.json에 없는 실행 조건 (예: 정답표 공지 일부를 정기 수집 밖에서 보충 수집)"
 ```
+- 보고서(공개 저장소에 올림)에는 AI가 낸 값을 넣지 않고 상태만 쓴다(값 있음·값 없음). 공지 인용·연락처나 공지 속 지시로 만든 글이 섞일 수 있어서다. 값까지 보려면 실행 폴더의 `errors_private.md`(올리지 않음)를 연다.
+- 실행일·실제 모델 ID·Claude Code 버전·AI 입력 범위는 meta.json에서 "실행 조건" 표로 들어간다. 그 밖의 조건은 `--note`로 적는다(공지 내용·PC 경로는 쓰지 않는다).
+- 사람 판정 칸이 남아 있으면 보고서 맨 위에 "사람 판정 전 숫자" 경고가 붙는다. 발표·모델 결정에는 판정을 채워 다시 채점한 숫자를 쓴다.
 월 비용 환산 (공개 API 단가, `cost.py` 머리말 참고):
 ```powershell
 $metas = "haiku", "sonnet", "opus" | ForEach-Object { "..\eval\extraction\runs\${day}_${_}_v0.2\meta.json" }
