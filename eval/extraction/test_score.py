@@ -165,7 +165,7 @@ class ScoreTests(unittest.TestCase):
         (judgments_dir / "dup.csv").write_text("run,contest_id,item,answer,ai,judgment\nx,a,title,,v,정답\nx,a,title,,v,오답\n",
                                                encoding="utf-8-sig")
         warnings = []
-        self.assertEqual(score.read_judgments("dup", judgments_dir, warnings), {("a", "title"): ("오답", "v")})
+        self.assertEqual(score.read_judgments("dup", judgments_dir, warnings), {("a", "title"): ("오답", score.ai_fingerprint("v"))})
         self.assertTrue(any("두 번" in warning for warning in warnings))
 
     def test_hold_flags_and_missing(self):
@@ -342,6 +342,51 @@ class ScoreTests(unittest.TestCase):
         with_note = score.render_report([broken], self.answer_key, ["메모\n- 가짜 항목"])
         self.assertIn("- 메모 - 가짜 항목", with_note, "메모 줄바꿈으로 목록 항목을 늘리지 못한다")
         self.assertIn("## run x 오류 목록", with_note, "실행 폴더 이름도 정리")
+
+    def test_saved_judgments_keep_only_ai_fingerprints(self):
+        # 저장소에 올리는 판정 파일에는 AI 값(공지 인용·연락처가 섞일 수 있음) 대신 지문만
+        run_score, by_key = self.results()
+        score.write_judgment_todo(run_score, self.run)
+        todo = self.run / "judgments_todo.csv"
+        with open(todo, encoding="utf-8-sig", newline="") as file:
+            rows = list(csv.DictReader(file))
+        ai_texts = [score._uncell(row["ai"]) for row in rows]
+        for row in rows:
+            row["judgment"] = "정답"
+        with open(todo, "w", encoding="utf-8-sig", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        judgments_dir = self.folder / "judgments_saved"
+        moved, target = score.save_judgments(self.run, judgments_dir)
+        self.assertEqual(moved, len(rows))
+        saved_text = target.read_text(encoding="utf-8-sig")
+        self.assertEqual(saved_text.splitlines()[0], ",".join(score.JUDGMENT_COLUMNS), "ai 열이 없다")
+        for text in ai_texts:
+            self.assertNotIn(text, saved_text)
+        # 지문으로도 판정이 그대로 쓰이고, 경고도 없다
+        warnings = []
+        judgments = score.read_judgments(self.run.name, judgments_dir, warnings)
+        self.assertEqual(warnings, [])
+        rescored = score.score_run(self.run, self.answer_key, judgments)
+        self.assertFalse(any(result.category == "needs_human" for result in rescored.results))
+        # 다시 저장해도 판정이 남는다 (할 일 파일을 지운 뒤)
+        todo.unlink()
+        self.assertEqual(score.save_judgments(self.run, judgments_dir)[0], 0)
+        self.assertEqual(len(score.read_judgments(self.run.name, judgments_dir)), len(rows))
+        # AI 값이 바뀌면 지문이 달라 옛 판정을 쓰지 않는다
+        changed = dict(judgments)
+        key = next(iter(changed))
+        changed[key] = ("정답", score.ai_fingerprint("판정할 때와 다른 값"))
+        self.assertEqual({(r.contest_id, r.item): r.category for r in score.score_run(self.run, self.answer_key, changed).results}[key],
+                         "needs_human")
+        # 예전 형식(ai 열에 값)은 읽되 올리지 말라고 경고한다
+        legacy_dir = self.folder / "judgments_legacy"
+        legacy_dir.mkdir()
+        (legacy_dir / "old.csv").write_text("run,contest_id,item,answer,ai,judgment\nx,a,title,,값,정답\n", encoding="utf-8-sig")
+        warnings = []
+        score.read_judgments("old", legacy_dir, warnings)
+        self.assertTrue(any("--save-judgments" in warning for warning in warnings))
 
     def test_private_errors_only_where_git_ignores(self):
         self.assertFalse(score.is_tracked_place(score.RUNS_DIR / "2026-11-12_opus_v0.2"))
