@@ -87,7 +87,10 @@ def build_command(claude: str, model: str) -> list[str]:
     """Raises: ClaudeError (모델 이름 형식·명령줄 길이)."""
     if not MODEL_NAME.fullmatch(model):
         raise ClaudeError(f"모델 이름 형식이 다름: {model[:40]!r}")
-    schema = json.dumps(json.loads((PROMPT_DIR / "schema.json").read_text(encoding="utf-8")), ensure_ascii=False, separators=(",", ":"))
+    schema = json.loads((PROMPT_DIR / "schema.json").read_text(encoding="utf-8"))
+    # CLI(2.1.322)의 검사기가 draft 2020-12 선언을 몰라 거부한다. 쓰는 키워드는 draft-07과 같아 선언만 뺀다 (#9)
+    schema.pop("$schema", None)
+    schema = json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
     command = [claude, "-p", "--output-format", "stream-json", "--verbose", "--json-schema", schema, "--model", model,
                "--system-prompt-file", str(PROMPT_DIR / "system.md"), "--tools", "", "--disallowedTools", "mcp__*",
                "--safe-mode", "--strict-mcp-config", "--settings", '{"disableAllHooks": true}', "--no-session-persistence"]
