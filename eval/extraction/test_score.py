@@ -325,16 +325,28 @@ class ScoreTests(unittest.TestCase):
         self.assertTrue(report.split("\n")[2].startswith("> **사람 판정 전 숫자다.**"), "숫자보다 먼저 경고")
         self.assertIn("| sonnet-v0.2 | 2026-11-12 | 시험 모델 | claude-opus-5-5 | 2.1.322 (Claude Code) | v0.2 | "
                       "본문 O, 이미지 X, 첨부 X, 결과 공지 본문 X |", report)
-        self.assertIn("- 정답표 공지 19건은 1회용 | 스크립트로 보충 수집", report, "메모는 목록이라 그대로")
+        self.assertIn("- 정답표 공지 19건은 1회용   스크립트로 보충 수집", report, "메모도 표·목록을 깨는 글자는 뺀다")
         # 판정이 끝나면 경고가 없다
         _, by_key = self.results()
         judgments = {(r.contest_id, r.item): ("정답", score.display(r.predicted, limit=None))
                      for r in by_key.values() if r.category == "needs_human"}
         judged, _ = self.results(judgments)
         self.assertNotIn("사람 판정 전 숫자다", score.render_report([judged], self.answer_key))
+        self.assertIn("(시험 모델 (v0.2) 4칸)", report, "실행마다 남은 칸 수")
         # 표 칸을 깨는 글자는 빼고, 모르는 값은 ?
         broken = score.RunScore("run|x", {"model": "a|b\nc"}, [], [], [])
         self.assertEqual(score._condition_row(broken), "| run x | ? | a b c | ? | ? | ? | ? |")
+        self.assertEqual(score._run_label(score.score_json(broken)), "a b c (?)", "표 머리도 같은 정리")
+        broken.warnings.append("첫 줄\n| 표를 깨는 줄")
+        self.assertIn("- 주의: 첫 줄   표를 깨는 줄", score.render_report([broken], self.answer_key, ["메모\n- 가짜 항목"]))
+        with_note = score.render_report([broken], self.answer_key, ["메모\n- 가짜 항목"])
+        self.assertIn("- 메모 - 가짜 항목", with_note, "메모 줄바꿈으로 목록 항목을 늘리지 못한다")
+        self.assertIn("## run x 오류 목록", with_note, "실행 폴더 이름도 정리")
+
+    def test_private_errors_only_where_git_ignores(self):
+        self.assertFalse(score.is_tracked_place(score.RUNS_DIR / "2026-11-12_opus_v0.2"))
+        self.assertTrue(score.is_tracked_place(score.ROOT / "eval" / "extraction" / "reports"), "저장소 안 runs/ 밖")
+        self.assertFalse(score.is_tracked_place(self.folder), "저장소 밖 (시험 임시 폴더)")
 
     def test_cli_writes_score_and_judgment_todo(self):
         report_path = self.folder / "reports" / "compare.md"

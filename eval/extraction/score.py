@@ -563,6 +563,13 @@ def score_json(score: RunScore) -> dict:
 
 
 PRIVATE_ERRORS_NAME = "errors_private.md"  # 실행 폴더(runs/, 저장소에 올리지 않음)에만 쓴다
+RUNS_DIR = Path(__file__).resolve().parent / "runs"
+
+
+def is_tracked_place(run_dir: Path) -> bool:
+    """저장소 안인데 .gitignore가 막는 runs/ 밖인지 (그런 곳에는 AI 값을 쓰지 않는다)."""
+    place = run_dir.resolve()
+    return place.is_relative_to(ROOT.resolve()) and not place.is_relative_to(RUNS_DIR)
 
 
 def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str] | tuple = ()) -> str:
@@ -571,10 +578,11 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str
     notes: 실행 조건 중 meta.json에 없는 것 (예: 정답표 공지 보충 수집). 보고서 "실행 메모"에 그대로 쓴다.
     """
     lines = ["# 추출 정확도 (#9)", ""]
-    pending_total = sum(result.category == "needs_human" for score in scores for result in score.results)
-    if pending_total:
+    pending = [(score, sum(result.category == "needs_human" for result in score.results)) for score in scores]
+    if any(count for _, count in pending):
         # 숫자만 발표 자료로 옮겨 가지 않게 맨 위에 둔다
-        lines += [f"> **사람 판정 전 숫자다.** 사람이 판정할 칸 {pending_total}개가 남아 있어 정확도가 바뀐다. "
+        counts = ", ".join(f"{_run_label(score_json(score))} {count}칸" for score, count in pending)
+        lines += [f"> **사람 판정 전 숫자다.** 사람이 판정할 칸이 남아 있어 정확도가 바뀐다 ({counts}). "
                   "발표·모델 결정에는 판정을 채워 다시 채점한 숫자를 쓴다.", ""]
     lines += [f"정답표: 대회 {sum(1 for truths in answer_key.contests.values() if truths)}건. "
               "채점 규칙은 `eval/answer_key/README.md` \"채점 방식\". 정확도 = 정답 칸 / (전체 칸 - 판정 전). "
@@ -587,7 +595,7 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str
               "|---|---|---|---|---|---|---|"]
     lines += [_condition_row(score) for score in scores]
     if notes:
-        lines += ["", "**실행 메모:**"] + [f"- {note}" for note in notes]
+        lines += ["", "**실행 메모:**"] + [f"- {_one_line(note, limit=300)}" for note in notes]
     lines.append("")
     summaries = [score_json(score) for score in scores]
     header = "| 항목 | " + " | ".join(_run_label(summary) for summary in summaries) + " |"
@@ -611,7 +619,7 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str
         marker = " (중요)" if item in KEY_ITEMS else (" (사람 판정)" if item in HUMAN_ITEMS else "")
         lines.append(f"| `{item}`{marker} | " + " | ".join(_accuracy_cell(summary["by_item"][item]) for summary in summaries) + " |")
     for score in scores:
-        lines += ["", f"## {score.name} 오류 목록", "",
+        lines += ["", f"## {_one_line(score.name, limit=80)} 오류 목록", "",
                   f"AI가 낸 값은 넣지 않는다 (공개 저장소). 값까지 보려면 실행 폴더의 `{PRIVATE_ERRORS_NAME}`(올리지 않음)를 연다.", ""]
         lines += _error_lines(score, with_ai_values=False)
     return "\n".join(lines) + "\n"
@@ -630,7 +638,8 @@ def _error_lines(score: RunScore, with_ai_values: bool) -> list[str]:
     if score.extra_outputs:
         lines.append(f"- 정답표에 없는 대회 출력 (채점 안 함): {', '.join(score.extra_outputs)}")
     for warning in dict.fromkeys(score.warnings):
-        lines.append(f"- 주의: {warning}")
+        # 경고에는 meta.json·판정표에서 온 글이 들어갈 수 있어 한 줄로 줄인다 (목록·표가 깨지지 않게)
+        lines.append(f"- 주의: {_one_line(warning, limit=200)}")
     errors = [result for result in score.results if result.category in ERROR_CATEGORIES - {"failed"}]
     if not errors:
         lines.append("- 오류 없음")
@@ -665,14 +674,19 @@ def _condition_row(score: RunScore) -> str:
     cells = [score.name, str(meta.get("started_at") or "?")[:10], str(meta.get("model") or "?"),
              ", ".join(map(str, seen)) if isinstance(seen, list) and seen else "?",
              str(meta.get("claude_version") or "?"), str(meta.get("prompt_version") or "?"), used]
-    # 표 칸을 깨는 글자는 빼고 길이를 줄인다 (meta.json은 실행기가 쓰지만 손으로 고칠 수도 있다)
-    return "| " + " | ".join(re.sub(r"[|\r\n]", " ", cell)[:60] for cell in cells) + " |"
+    return "| " + " | ".join(_one_line(cell, limit=60) for cell in cells) + " |"
+
+
+def _one_line(text, limit: int) -> str:
+    """보고서 표·목록에 넣는 글. 표 칸을 깨는 |와 줄바꿈을 빼고 길이를 줄인다
+    (meta.json은 실행기가 쓰지만 손으로 고칠 수 있고, models_seen은 CLI 응답에서 온다)."""
+    return re.sub(r"[|\r\n]", " ", str(text))[:limit]
 
 
 def _run_label(summary: dict) -> str:
     meta = summary["meta"]
     model = meta.get("model") or summary["run"]
-    return f"{model} ({meta.get('prompt_version', '?')})"
+    return _one_line(f"{model} ({meta.get('prompt_version', '?')})", limit=60)
 
 
 def _accuracy_cell(summary: dict) -> str:
@@ -738,7 +752,11 @@ def main(argv: list[str] | None = None) -> int:
         score = score_run(run_dir, answer_key)
         (run_dir / "score.json").write_text(json.dumps(score_json(score), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         pending = write_judgment_todo(score, run_dir)
-        (run_dir / PRIVATE_ERRORS_NAME).write_text(render_private_errors(score), encoding="utf-8")
+        if is_tracked_place(run_dir):
+            # AI 값이 든 파일을 저장소에 커밋될 수 있는 곳에 쓰지 않는다 (.gitignore는 eval/extraction/runs/만 막는다)
+            print(f"[주의] {run_dir.name}: 실행 폴더가 eval/extraction/runs/ 밖이라 {PRIVATE_ERRORS_NAME}를 쓰지 않음", file=sys.stderr)
+        else:
+            (run_dir / PRIVATE_ERRORS_NAME).write_text(render_private_errors(score), encoding="utf-8")
         for warning in dict.fromkeys(score.warnings):
             print(f"[주의] {run_dir.name}: {warning}", file=sys.stderr)
         if pending:
