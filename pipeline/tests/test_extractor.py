@@ -113,6 +113,11 @@ class CallTests(unittest.TestCase):
         sent_schema = json.loads(command[command.index("--json-schema") + 1])
         self.assertEqual(sent_schema["type"], "object")
         self.assertNotIn("$schema", sent_schema, "CLI 검사기가 draft 2020-12 선언을 거부한다 (#9)")
+        # 선언만 빼고 required·enum·pattern 같은 제약은 하나도 잃지 않는다 (공개 경로의 출력 형식 강제)
+        original = json.loads((claude_cli.PROMPT_DIR / "schema.json").read_text(encoding="utf-8"))
+        self.assertIn("$schema", original, "원본 파일은 그대로")
+        del original["$schema"]
+        self.assertEqual(sent_schema, original)
         self.assertLess(sum(len(part) for part in command), claude_cli.MAX_COMMAND_CHARS)
         self.assertEqual(sent["timeout"], 12)
         self.assertEqual(result.output, EXAMPLE)
