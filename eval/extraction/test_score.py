@@ -380,6 +380,25 @@ class ScoreTests(unittest.TestCase):
         changed[key] = ("정답", score.ai_fingerprint("판정할 때와 다른 값"))
         self.assertEqual({(r.contest_id, r.item): r.category for r in score.score_run(self.run, self.answer_key, changed).results}[key],
                          "needs_human")
+        # 편집기가 칸 안 줄바꿈을 \r\n으로 바꿔도 같은 지문
+        self.assertEqual(score.ai_fingerprint("첫 줄\r\n둘째 줄"), score.ai_fingerprint("첫 줄\n둘째 줄"))
+        # 정답·오답이 아닌 값은 옮기지 않고 경고한다. 기존 판정은 그대로
+        with open(todo, "w", encoding="utf-8-sig", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerow({**rows[0], "judgment": "맞음"})
+        save_warnings = []
+        self.assertEqual(score.save_judgments(self.run, judgments_dir, save_warnings)[0], 0)
+        self.assertTrue(any("정답·오답만" in warning for warning in save_warnings))
+        self.assertEqual(len(score.read_judgments(self.run.name, judgments_dir)), len(rows))
+        # 쓰다가 실패해도 이미 저장한 판정 파일은 그대로, 임시 파일도 남지 않는다
+        before = target.read_text(encoding="utf-8-sig")
+        from unittest import mock
+        with mock.patch.object(score.csv, "writer", side_effect=OSError("디스크")):
+            with self.assertRaises(OSError):
+                score.save_judgments(self.run, judgments_dir)
+        self.assertEqual(target.read_text(encoding="utf-8-sig"), before)
+        self.assertEqual(list(judgments_dir.glob("*.tmp")), [])
         # 예전 형식(ai 열에 값)은 읽되 올리지 말라고 경고한다
         legacy_dir = self.folder / "judgments_legacy"
         legacy_dir.mkdir()

@@ -483,8 +483,11 @@ JUDGMENT_COLUMNS = ["run", "contest_id", "item", "answer", "ai_sha256", "judgmen
 
 def ai_fingerprint(text: str) -> str:
     """판정할 때의 AI 값 지문. 저장소에 올리는 판정 파일에는 값 대신 이것만 둔다 (공지 인용·연락처가 섞일 수 있음).
-    값이 바뀌었는지(옛 판정을 쓰면 안 되는지)는 지문으로도 알 수 있다."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    값이 바뀌었는지(옛 판정을 쓰면 안 되는지)는 지문으로도 알 수 있다.
+    편집기가 칸 안의 줄바꿈을 \\r\\n으로 바꿔도 판정이 풀리지 않게 줄바꿈을 맞춘 뒤 계산한다.
+    소금 없는 해시라 짧고 추측 가능한 값은 되살릴 수 있다. 사람 판정 항목(대회명·혜택·신청 방법 등)은 연락처가 아니고
+    공지에 공개된 글이라 이 정도로 둔다."""
+    return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
 def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list | None = None) -> dict:
@@ -518,39 +521,52 @@ def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list |
     return judgments
 
 
-def save_judgments(run_dir: Path, folder: Path = JUDGMENTS_DIR) -> tuple[int, Path]:
+def save_judgments(run_dir: Path, folder: Path = JUDGMENTS_DIR, warnings: list | None = None) -> tuple[int, Path]:
     """실행 폴더의 채운 판정표(judgments_todo*.csv) → judgments/<실행>.csv (AI 값 없이 지문만). 이미 있는 판정에 더한다.
 
-    Returns: (이번에 옮긴 판정 수, 쓴 파일). Raises: OSError (읽기·쓰기 실패)
+    뒤에 읽은 것이 이긴다: 기존 파일 → judgments_todo.csv → judgments_todo.new.csv. 정답·오답 밖의 값은 옮기지 않고 경고한다.
+    Returns: (이번에 옮긴 판정 수, 쓴 파일). Raises: OSError, ValueError(인코딩), csv.Error (기존 파일은 그대로)
     """
+    warnings = warnings if warnings is not None else []
     saved = {}
     target = folder / f"{run_dir.name}.csv"
     if target.exists():
         with open(target, encoding="utf-8-sig", newline="") as file:
             for row in csv.DictReader(file):
+                key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
                 fingerprint = (row.get("ai_sha256") or "").strip() or ai_fingerprint(_uncell(row.get("ai") or ""))
-                saved[(row.get("contest_id") or "", row.get("item") or "")] = [
-                    row.get("run") or run_dir.name, row.get("contest_id") or "", row.get("item") or "",
-                    row.get("answer") or "", fingerprint, (row.get("judgment") or "").strip()]
+                saved[key] = [row.get("run") or run_dir.name, key[0], key[1], row.get("answer") or "", fingerprint,
+                              (row.get("judgment") or "").strip()]
     moved = 0
     for name in ("judgments_todo.csv", "judgments_todo.new.csv"):
         source = run_dir / name
         if not source.exists():
             continue
         with open(source, encoding="utf-8-sig", newline="") as file:
-            for row in csv.DictReader(file):
+            reader = csv.DictReader(file)
+            for row in reader:
                 judgment = (row.get("judgment") or "").strip()
                 if not judgment:
                     continue
-                key = (row.get("contest_id") or "", row.get("item") or "")
+                if judgment not in ("정답", "오답"):
+                    warnings.append(f"{name} {reader.line_num}줄: judgment는 정답·오답만 (옮기지 않음)")
+                    continue
+                key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
                 saved[key] = [run_dir.name, key[0], key[1], row.get("answer") or "",
                               ai_fingerprint(_uncell(row.get("ai") or "")), judgment]
                 moved += 1
     folder.mkdir(parents=True, exist_ok=True)
-    with open(target, "w", encoding="utf-8-sig", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(JUDGMENT_COLUMNS)
-        writer.writerows(saved[key] for key in sorted(saved))
+    # 다 쓴 뒤 바꿔 끼운다 (쓰다 실패해도 이미 저장한 판정이 사라지지 않게)
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        with open(temporary, "w", encoding="utf-8-sig", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(JUDGMENT_COLUMNS)
+            writer.writerows(saved[key] for key in sorted(saved))
+        temporary.replace(target)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
     return moved, target
 
 
@@ -808,11 +824,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[오류] {run_dir}에 outputs/ 폴더가 없음", file=sys.stderr)
             return 2
         if args.save_judgments:
+            save_warnings: list[str] = []
             try:
-                moved, target = save_judgments(run_dir)
-            except (OSError, csv.Error) as error:
-                print(f"[오류] {run_dir.name}: 판정을 옮기지 못함 ({type(error).__name__})", file=sys.stderr)
+                moved, target = save_judgments(run_dir, warnings=save_warnings)
+            except (OSError, ValueError, csv.Error) as error:  # ValueError: 판정표 인코딩이 UTF-8이 아님
+                print(f"[오류] {run_dir.name}: 판정을 옮기지 못함, 기존 판정 파일은 그대로 ({type(error).__name__})", file=sys.stderr)
                 return 2
+            for warning in save_warnings:
+                print(f"[주의] {run_dir.name}: {warning}", file=sys.stderr)
             print(f"[판정 저장] {run_dir.name}: {moved}칸 → {target} (AI 값 없이 지문만)", file=sys.stderr)
         score = score_run(run_dir, answer_key)
         (run_dir / "score.json").write_text(json.dumps(score_json(score), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
