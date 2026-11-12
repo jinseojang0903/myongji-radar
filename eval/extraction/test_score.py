@@ -300,6 +300,54 @@ class ScoreTests(unittest.TestCase):
         self.assertIn("판정 전", report)
         self.assertIn("broken-2026", report, "정답표 형식 문제를 보고한다")
 
+    def test_public_report_has_no_ai_values(self):
+        # 공개 저장소에 올리는 보고서: AI가 낸 값(공지 인용·연락처·공지 속 지시로 만든 글)은 넣지 않는다
+        run_score, by_key = self.results()
+        ai_values = [score.display(result.predicted, limit=120) for result in run_score.results
+                     if result.category in score.ERROR_CATEGORIES - {"failed"} and result.predicted is not None]
+        fabricated_email = score.display(by_key[("trap-2026", "contact.email")].predicted, limit=120)
+        self.assertIn(fabricated_email, ai_values, "지어낸 이메일이 오류 목록 대상이다")
+        report = score.render_report([run_score], self.answer_key)
+        self.assertNotIn(fabricated_email, report)
+        self.assertIn("trap-2026 `contact.email` 지어냄: 정답 (없음) (missing) / AI 값 있음 (found)", report)
+        private = score.render_private_errors(run_score)
+        self.assertIn(fabricated_email, private, "값은 올리지 않는 실행 폴더 쪽에만 남긴다")
+        # "찾음"이라면서 값을 비운 출력은 따로 표시한다 (놓침으로 채점)
+        hollow = score.ItemResult("x-2026", "contact.email", "missed", "a@b.c", None, "found", "found")
+        self.assertEqual(score._ai_state(hollow), "값 없음 (found)")
+
+    def test_report_warns_before_human_judgment_and_records_conditions(self):
+        run_score, _ = self.results()
+        run_score.meta.update(started_at="2026-11-12T21:00:00+09:00", models_seen=["claude-opus-5-5"],
+                              claude_version="2.1.322 (Claude Code)",
+                              inputs={"body": True, "images": False, "attachments": False, "result_notice_bodies": False})
+        report = score.render_report([run_score], self.answer_key, ["정답표 공지 19건은 1회용 | 스크립트로 보충 수집"])
+        self.assertTrue(report.split("\n")[2].startswith("> **사람 판정 전 숫자다.**"), "숫자보다 먼저 경고")
+        self.assertIn("| sonnet-v0.2 | 2026-11-12 | 시험 모델 | claude-opus-5-5 | 2.1.322 (Claude Code) | v0.2 | "
+                      "본문 O, 이미지 X, 첨부 X, 결과 공지 본문 X |", report)
+        self.assertIn("- 정답표 공지 19건은 1회용   스크립트로 보충 수집", report, "메모도 표·목록을 깨는 글자는 뺀다")
+        # 판정이 끝나면 경고가 없다
+        _, by_key = self.results()
+        judgments = {(r.contest_id, r.item): ("정답", score.display(r.predicted, limit=None))
+                     for r in by_key.values() if r.category == "needs_human"}
+        judged, _ = self.results(judgments)
+        self.assertNotIn("사람 판정 전 숫자다", score.render_report([judged], self.answer_key))
+        self.assertIn("(시험 모델 (v0.2) 4칸)", report, "실행마다 남은 칸 수")
+        # 표 칸을 깨는 글자는 빼고, 모르는 값은 ?
+        broken = score.RunScore("run|x", {"model": "a|b\nc"}, [], [], [])
+        self.assertEqual(score._condition_row(broken), "| run x | ? | a b c | ? | ? | ? | ? |")
+        self.assertEqual(score._run_label(score.score_json(broken)), "a b c (?)", "표 머리도 같은 정리")
+        broken.warnings.append("첫 줄\n| 표를 깨는 줄")
+        self.assertIn("- 주의: 첫 줄   표를 깨는 줄", score.render_report([broken], self.answer_key, ["메모\n- 가짜 항목"]))
+        with_note = score.render_report([broken], self.answer_key, ["메모\n- 가짜 항목"])
+        self.assertIn("- 메모 - 가짜 항목", with_note, "메모 줄바꿈으로 목록 항목을 늘리지 못한다")
+        self.assertIn("## run x 오류 목록", with_note, "실행 폴더 이름도 정리")
+
+    def test_private_errors_only_where_git_ignores(self):
+        self.assertFalse(score.is_tracked_place(score.RUNS_DIR / "2026-11-12_opus_v0.2"))
+        self.assertTrue(score.is_tracked_place(score.ROOT / "eval" / "extraction" / "reports"), "저장소 안 runs/ 밖")
+        self.assertFalse(score.is_tracked_place(self.folder), "저장소 밖 (시험 임시 폴더)")
+
     def test_cli_writes_score_and_judgment_todo(self):
         report_path = self.folder / "reports" / "compare.md"
         import contextlib
@@ -314,6 +362,14 @@ class ScoreTests(unittest.TestCase):
             todo = list(csv.DictReader(file))
         self.assertEqual({(row["contest_id"], row["item"]) for row in todo},
                          {("exact-2026", "benefits"), ("trap-2026", "benefits"), ("trap-2026", "title"), ("trap-2026", "deliverables.text")})
+        # AI 값이 든 오류 목록은 실행 폴더(runs/, 올리지 않음)에, 보고서에는 상태만
+        private = (self.run / score.PRIVATE_ERRORS_NAME).read_text(encoding="utf-8")
+        self.assertIn("/ AI ", private)
+        self.assertIn("AI 값 있음 (found)", report_path.read_text(encoding="utf-8"))
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            score.main([str(self.run), "--answers", str(self.folder / "answers"), "--report", str(report_path),
+                        "--note", "첫 메모", "--note", "둘째 메모"])
+        self.assertIn("**실행 메모:**\n- 첫 메모\n- 둘째 메모", report_path.read_text(encoding="utf-8"))
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(score.main([str(self.folder / "없는 폴더"), "--answers", str(self.folder / "answers")]), 2)
 
