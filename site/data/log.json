@@ -92,6 +92,26 @@
       }
     },
     {
+      "method": "자연어 해석기 (같은 시험 문장, 계약 수정·사전 보완 후)",
+      "filled": null,
+      "field_accuracy": {
+        "value": 338,
+        "total": 350,
+        "unit": "칸",
+        "note": "첫 측정에서 틀린 문장을 보고 계약을 고치고(정답 3칸 바뀜, #80) 사전을 보완했다(#79·#81~#87). 같은 문장에 맞춘 보완이라 처음 보는 문장의 정확도는 이보다 낮을 수 있다. 발표 기준은 위 첫 측정",
+        "measured_at": "2026-11-09",
+        "source": "eval/parser/runs/2026-11-09T06-34-56-125Z_v0.2.json"
+      },
+      "risky_misreads": {
+        "value": 0,
+        "total": 250,
+        "unit": "칸",
+        "note": "판정에 쓰는 조건 5칸 × 50문장 중 틀린 값으로 읽은 수 (첫 측정 7)",
+        "measured_at": "2026-11-09",
+        "source": "eval/parser/runs/2026-11-09T06-34-56-125Z_v0.2.json"
+      }
+    },
+    {
       "method": "판정 규칙 (무작위로 만든 카드·조건)",
       "filled": null,
       "field_accuracy": null,
