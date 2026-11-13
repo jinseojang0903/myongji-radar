@@ -97,6 +97,9 @@ test('좁은 화면에서 넓은 표·버튼이 화면 전체를 가로로 밀�
   assert.match(narrow, /\.btn\s*{\s*white-space:\s*normal;?\s*}/, '긴 버튼 글자는 줄을 바꾼다');
   const touch = cssRule(narrow, /\n\s*([^{}\n]*)\{\s*min-height:\s*44px;?\s*}/, '휴대폰 터치 대상 44px 규칙')[1].split(',').map((part) => part.trim());
   for (const selector of ['.chip', '.btn', 'nav a']) assert.ok(touch.includes(selector), `${selector}: 휴대폰에서 44px 이상 (#104)`);
+  // 높이를 늘린 링크 버튼·메뉴는 글자를 가운데로 (두 줄로 바뀌어도)
+  assert.match(narrow, /\.btn, nav a\s*{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*text-align:\s*center/);
+  assert.match(narrow, /\.chip\s*{\s*border-radius:\s*22px/, '높이 44px에서도 칩은 알약 모양');
   // 넓은 화면의 상태 칸 width: 1%가 남으면 칸 안 글자가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저 360px로 확인, #104)
   assert.match(narrow, /\.fields td\.st\s*{[^}]*width:\s*auto/, '좁은 화면에서 상태 칸 너비를 푼다');
   assert.doesNotMatch(CSS, /\.metrics\s*{[^}]*display:\s*block/, '표를 block으로 바꾸면 화면 읽기 프로그램의 표 탐색이 사라진다');
