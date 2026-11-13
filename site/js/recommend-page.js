@@ -124,6 +124,9 @@ async function main() {
   } else {
     render();
   }
+  // 주소로 받은 문장이 공백뿐이거나 해석에 실패하면 interpret가 그리지 않아 결과가 "불러오는 중…"으로 남는다
+  if (!hasRenderedResults) render();
+  isReadyToAnnounce = true;
 }
 
 // 주소의 #q= (또는 예전 ?q=)를 읽고 주소에서 지운다. 200자로 자른다
@@ -234,22 +237,22 @@ function findInTitleButton(term) {
 }
 
 // 칩·문장·제목 검색으로 결과가 바뀌면 건수를 화면 읽기에 알린다. 바뀐 결과가 화면에만 보이고 들리지 않았다 (#104).
-// 검색칸은 칠 때마다 다시 그리므로 입력이 멈춘 뒤 한 번만 알린다. 첫 그리기는 제목(h2)으로 충분해 알리지 않는다
+// 검색칸은 칠 때마다 다시 그리므로 입력이 멈춘 뒤 한 번만 알린다. 페이지를 처음 준비하는 동안의 그리기는
+// 제목(h2)으로 충분해 알리지 않는다 (main 끝에서 isReadyToAnnounce를 켠다)
 const RESULT_ANNOUNCE_DELAY_MS = 700;
 let resultAnnounceTimer = null;
+let isReadyToAnnounce = false;
 let hasRenderedResults = false;
 function announceResults(message) {
-  if (!hasRenderedResults) {
-    hasRenderedResults = true;
-    return;
-  }
+  if (!isReadyToAnnounce) return;
   clearTimeout(resultAnnounceTimer);
   resultAnnounceTimer = setTimeout(() => announce(document.getElementById('result-status'), message), RESULT_ANNOUNCE_DELAY_MS);
 }
 
 function renderResults(cards, now, rejectedCount) {
-  const result = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
-  const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = result;
+  hasRenderedResults = true;
+  const recommended = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
+  const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommended;
   const periodEnd = periodEndDate(state.conditions.period, now);
   const isSearching = state.titleQuery.trim() !== '';
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
@@ -267,10 +270,10 @@ function renderResults(cards, now, rejectedCount) {
       ? '제목 검색과 조건에 맞는 마감 전 대회가 없습니다. 검색어를 바꾸거나 제출물·마감 조건을 풀어 보세요.'
       : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.');
     list.replaceChildren(el('p', { class: 'empty' }, message));
-    announceResults(resultAnnouncement(result, message));
+    announceResults(resultAnnouncement(recommended, message));
     return;
   }
-  announceResults(resultAnnouncement(result, ''));
+  announceResults(resultAnnouncement(recommended, ''));
   list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
