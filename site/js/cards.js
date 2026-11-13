@@ -170,6 +170,15 @@ export function latestDeadlineChange(card) {
   return changes.length > 0 ? changes[changes.length - 1] : null;
 }
 
+/**
+ * 상세 화면 제목 아래 "주관 · 교내/외부" 줄. 계약상 둘 다 비거나 null일 수 있어 있는 것만 잇는다.
+ * @returns {string|null}  둘 다 없으면 null (줄을 그리지 않음)
+ */
+export function organizerLine(card) {
+  const parts = [card.organizer, card.scope].filter((part) => typeof part === 'string' && part.trim() !== '');
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 /** 목록 한 줄 요약: 마감 · 인원 · 마일리지 */
 export function summaryLine(card, deadline) {
   const parts = [];

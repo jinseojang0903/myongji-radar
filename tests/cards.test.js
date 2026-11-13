@@ -4,8 +4,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline,
-  cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames, bannerText, STALE_HOURS,
+  cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames, bannerText, STALE_HOURS, organizerLine,
 } from '../site/js/cards.js';
+
+test('상세 화면의 주관·구분 줄은 있는 값만 잇고, 둘 다 없으면 그리지 않는다 (#104)', () => {
+  assert.equal(organizerLine({ organizer: '교수학습센터', scope: '교내' }), '교수학습센터 · 교내');
+  assert.equal(organizerLine({ organizer: '', scope: '교내' }), '교내');
+  assert.equal(organizerLine({ organizer: null, scope: '외부' }), '외부');
+  assert.equal(organizerLine({ organizer: '  ', scope: null }), null);
+  assert.equal(organizerLine({}), null);
+});
 import { safeUrl } from '../site/js/html.js';
 import { loadCardData } from '../site/js/data.js';
 import { judgeCard, KEY_FIELDS } from '../site/js/rules.js';

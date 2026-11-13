@@ -2,7 +2,7 @@
 // 계산은 detail.js·ics.js(Node 테스트), 여기서는 그리기와 버튼만 다룬다. 글자는 모두 el()/textContent로 넣는다.
 import { el, externalLink } from './html.js';
 import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
-import { deadlineOf, formatDeadline } from './cards.js';
+import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
 import { judgeCard } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
@@ -61,7 +61,7 @@ function renderHeader(card, now, conditions) {
   const deadlineText = formatDeadline(deadline);
   const section = el('section', { class: 'panel', 'aria-labelledby': 'h-card' },
     el('h1', { id: 'h-card' }, card.title),
-    el('p', { class: 'lead' }, `${card.organizer} · ${card.scope}`),
+    organizerLine(card) ? el('p', { class: 'lead' }, organizerLine(card)) : null,
     el('div', { class: 'row' },
       ddayElement(deadline),
       deadlineText ? el('span', { class: 'small' }, `신청 마감 ${deadlineText}`) : null,
