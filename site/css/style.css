@@ -174,6 +174,12 @@ h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note,
   /* 좁은 화면: 열이 많은 표는 표 안에서만 가로로 밀어 본다 (화면 전체 가로 스크롤 없음, #27) */
   .metrics th, .metrics td { min-width: 6em; }  /* 칸이 한 글자 폭으로 짓눌리지 않게 (넘치면 .table-scroll 안에서 민다) */
   .btn { white-space: normal; }
+  /* 손가락으로 누르는 대상은 44px 이상 (칩 약 31px·버튼 약 35px·메뉴 약 30px·"근거" 약 26px였다, #104).
+     링크로 된 버튼·메뉴는 높이를 늘리면 글자가 위로 붙으므로 flex로 가운데 맞춘다 */
+  .chip, .btn, nav a { min-height: 44px; }
+  .btn, nav a { display: inline-flex; align-items: center; justify-content: center; }
+  .chip { border-radius: 22px; }  /* 높이가 늘어도 알약 모양 유지 */
+  .small-btn { padding: 2px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
