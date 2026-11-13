@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import re
 import sys
@@ -364,8 +365,9 @@ def score_item(truth: Truth, predicted: Predicted | None, item: str, judgment=No
     elif predicted.value == FORMAT_ERROR:
         category = "wrong"  # 형식이 틀린 값은 사람에게 판정을 맡기지 않는다
     elif item in HUMAN_ITEMS:
-        # judgment: (판정, 판정할 때의 AI 값). AI 값이 바뀌었으면 옛 판정을 쓰지 않는다
-        verdict = judgment[0] if judgment and judgment[1] == display(predicted.value, limit=None) else None
+        # judgment: (판정, 판정할 때의 AI 값 또는 그 지문). AI 값이 바뀌었으면 옛 판정을 쓰지 않는다
+        shown = display(predicted.value, limit=None)
+        verdict = judgment[0] if judgment and judgment[1] in (shown, ai_fingerprint(shown)) else None
         category = {"정답": "correct", "오답": "wrong"}.get(verdict or "", "needs_human")
     else:
         category = "wrong"
@@ -476,14 +478,33 @@ def _scored_items(meta: dict, warnings: list) -> list[str]:
     return scored
 
 
+JUDGMENT_COLUMNS = ["run", "contest_id", "item", "answer", "ai_sha256", "judgment"]  # 저장소에 올리는 판정 파일
+
+
+def ai_fingerprint(text: str) -> str:
+    """판정할 때의 AI 값 지문. 저장소에 올리는 판정 파일에는 값 대신 이것만 둔다 (공지 인용·연락처가 섞일 수 있음).
+    값이 바뀌었는지(옛 판정을 쓰면 안 되는지)는 지문으로도 알 수 있다.
+    편집기가 칸 안의 줄바꿈을 \\r\\n으로 바꿔도 판정이 풀리지 않게 줄바꿈을 맞춘 뒤 계산한다.
+    소금 없는 해시라 짧고 추측 가능한 값은 되살릴 수 있다. 사람 판정 항목(대회명·혜택·신청 방법 등)은 연락처가 아니고
+    공지에 공개된 글이라 이 정도로 둔다."""
+    return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+
+
 def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list | None = None) -> dict:
-    """judgments/<실행>.csv → {(contest_id, item): (판정, 판정할 때의 AI 값)}. 정답·오답 밖의 값은 경고하고 버린다."""
+    """judgments/<실행>.csv → {(contest_id, item): (판정, AI 값 지문)}. 정답·오답 밖의 값은 경고하고 버린다.
+
+    예전 형식(ai 열에 값)도 읽지만, 그 파일은 저장소에 올리면 안 되므로 경고한다 (--save-judgments로 다시 저장).
+    """
     path = folder / f"{run_name}.csv"
     warnings = warnings if warnings is not None else []
     if not path.exists():
         return {}
     judgments = {}
     with open(path, encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        if any((row.get("ai") or "").strip() for row in reader):
+            warnings.append(f"판정 파일 {path.name}에 AI 값(ai 열)이 있음: 저장소에 올리지 말고 --save-judgments로 다시 저장")
+        file.seek(0)
         reader = csv.DictReader(file)
         for row in reader:
             judgment = (row.get("judgment") or "").strip()
@@ -495,12 +516,62 @@ def read_judgments(run_name: str, folder: Path = JUDGMENTS_DIR, warnings: list |
             key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
             if key in judgments:
                 warnings.append(f"판정 파일 {reader.line_num}줄: {key[0]} {key[1]}이 두 번 나와 뒤 줄을 씀")
-            judgments[((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())] = (judgment, _uncell(row.get("ai") or ""))
+            fingerprint = (row.get("ai_sha256") or "").strip() or ai_fingerprint(_uncell(row.get("ai") or ""))
+            judgments[key] = (judgment, fingerprint)
     return judgments
 
 
+def save_judgments(run_dir: Path, folder: Path = JUDGMENTS_DIR, warnings: list | None = None) -> tuple[int, Path]:
+    """실행 폴더의 채운 판정표(judgments_todo*.csv) → judgments/<실행>.csv (AI 값 없이 지문만). 이미 있는 판정에 더한다.
+
+    뒤에 읽은 것이 이긴다: 기존 파일 → judgments_todo.csv → judgments_todo.new.csv. 정답·오답 밖의 값은 옮기지 않고 경고한다.
+    Returns: (이번에 옮긴 판정 수, 쓴 파일). Raises: OSError, ValueError(인코딩), csv.Error (기존 파일은 그대로)
+    """
+    warnings = warnings if warnings is not None else []
+    saved = {}
+    target = folder / f"{run_dir.name}.csv"
+    if target.exists():
+        with open(target, encoding="utf-8-sig", newline="") as file:
+            for row in csv.DictReader(file):
+                key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
+                fingerprint = (row.get("ai_sha256") or "").strip() or ai_fingerprint(_uncell(row.get("ai") or ""))
+                saved[key] = [row.get("run") or run_dir.name, key[0], key[1], row.get("answer") or "", fingerprint,
+                              (row.get("judgment") or "").strip()]
+    moved = 0
+    for name in ("judgments_todo.csv", "judgments_todo.new.csv"):
+        source = run_dir / name
+        if not source.exists():
+            continue
+        with open(source, encoding="utf-8-sig", newline="") as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                judgment = (row.get("judgment") or "").strip()
+                if not judgment:
+                    continue
+                if judgment not in ("정답", "오답"):
+                    warnings.append(f"{name} {reader.line_num}줄: judgment는 정답·오답만 (옮기지 않음)")
+                    continue
+                key = ((row.get("contest_id") or "").strip(), (row.get("item") or "").strip())
+                saved[key] = [run_dir.name, key[0], key[1], row.get("answer") or "",
+                              ai_fingerprint(_uncell(row.get("ai") or "")), judgment]
+                moved += 1
+    folder.mkdir(parents=True, exist_ok=True)
+    # 다 쓴 뒤 바꿔 끼운다 (쓰다 실패해도 이미 저장한 판정이 사라지지 않게)
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        with open(temporary, "w", encoding="utf-8-sig", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(JUDGMENT_COLUMNS)
+            writer.writerows(saved[key] for key in sorted(saved))
+        temporary.replace(target)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    return moved, target
+
+
 def write_judgment_todo(score: RunScore, run_dir: Path) -> int:
-    """사람이 판정할 줄(뜻이 같으면 정답인 항목)을 실행 폴더에 남긴다. 판정한 것은 judgments/<실행>.csv로 옮긴다."""
+    """사람이 판정할 줄(뜻이 같으면 정답인 항목)을 실행 폴더에 남긴다. 판정한 것은 --save-judgments가 judgments/<실행>.csv로 옮긴다."""
     todo = [result for result in score.results if result.category == "needs_human"]
     path = run_dir / "judgments_todo.csv"
     if path.exists():
@@ -512,6 +583,7 @@ def write_judgment_todo(score: RunScore, run_dir: Path) -> int:
                 path = run_dir / "judgments_todo.new.csv"
     with open(path, "w", encoding="utf-8-sig", newline="") as file:
         writer = csv.writer(file)
+        # ai 열은 판정하는 사람이 보라고 둔다. 이 파일은 runs/에 있어 올라가지 않고, 올리는 판정 파일은 --save-judgments가 지문만 남긴다
         writer.writerow(["run", "contest_id", "item", "answer", "ai", "judgment"])
         for result in todo:
             writer.writerow([score.name, result.contest_id, result.item, _cell(display(result.truth, limit=None)),
@@ -562,15 +634,41 @@ def score_json(score: RunScore) -> dict:
     }
 
 
-def render_report(scores: list[RunScore], answer_key: AnswerKey) -> str:
-    lines = ["# 추출 정확도 (#9)", "",
-             f"정답표: 대회 {sum(1 for truths in answer_key.contests.values() if truths)}건. "
-             "채점 규칙은 `eval/answer_key/README.md` \"채점 방식\". 정확도 = 정답 칸 / (전체 칸 - 판정 전). "
-             "과잉 보류·출력 실패 칸은 정답이 아니라서 정확도를 낮춘다. 잴 대상이 없으면 \"-\".", ""]
+PRIVATE_ERRORS_NAME = "errors_private.md"  # 실행 폴더(runs/, 저장소에 올리지 않음)에만 쓴다
+RUNS_DIR = Path(__file__).resolve().parent / "runs"
+
+
+def is_tracked_place(run_dir: Path) -> bool:
+    """저장소 안인데 .gitignore가 막는 runs/ 밖인지 (그런 곳에는 AI 값을 쓰지 않는다)."""
+    place = run_dir.resolve()
+    return place.is_relative_to(ROOT.resolve()) and not place.is_relative_to(RUNS_DIR)
+
+
+def render_report(scores: list[RunScore], answer_key: AnswerKey, notes: list[str] | tuple = ()) -> str:
+    """공개 저장소에 올리는 보고서. AI가 낸 값은 넣지 않는다 (공지 인용·연락처·공지 속 지시로 만든 글이 섞일 수 있음).
+
+    notes: 실행 조건 중 meta.json에 없는 것 (예: 정답표 공지 보충 수집). 보고서 "실행 메모"에 그대로 쓴다.
+    """
+    lines = ["# 추출 정확도 (#9)", ""]
+    pending = [(score, sum(result.category == "needs_human" for result in score.results)) for score in scores]
+    if any(count for _, count in pending):
+        # 숫자만 발표 자료로 옮겨 가지 않게 맨 위에 둔다
+        counts = ", ".join(f"{_run_label(score_json(score))} {count}칸" for score, count in pending)
+        lines += [f"> **사람 판정 전 숫자다.** 사람이 판정할 칸이 남아 있어 정확도가 바뀐다 ({counts}). "
+                  "발표·모델 결정에는 판정을 채워 다시 채점한 숫자를 쓴다.", ""]
+    lines += [f"정답표: 대회 {sum(1 for truths in answer_key.contests.values() if truths)}건. "
+              "채점 규칙은 `eval/answer_key/README.md` \"채점 방식\". 정확도 = 정답 칸 / (전체 칸 - 판정 전). "
+              "과잉 보류·출력 실패 칸은 정답이 아니라서 정확도를 낮춘다. 잴 대상이 없으면 \"-\".", ""]
     if answer_key.problems:
         lines += ["## 정답표 형식 문제 (해당 칸은 채점에서 뺌)", ""] + [f"- {problem}" for problem in answer_key.problems] + [""]
     if not scores:
         return "\n".join(lines + ["실행 결과가 없다. 측정 중.", ""])
+    lines += ["## 실행 조건", "", "| 실행 | 실행일 | 모델 (--model) | 실제 모델 ID | Claude Code | 프롬프트 | AI 입력 |",
+              "|---|---|---|---|---|---|---|"]
+    lines += [_condition_row(score) for score in scores]
+    if notes:
+        lines += ["", "**실행 메모:**"] + [f"- {_one_line(note, limit=300)}" for note in notes]
+    lines.append("")
     summaries = [score_json(score) for score in scores]
     header = "| 항목 | " + " | ".join(_run_label(summary) for summary in summaries) + " |"
     lines += ["## 실행별 비교", "", header, "|---|" + "---|" * len(summaries)]
@@ -593,30 +691,74 @@ def render_report(scores: list[RunScore], answer_key: AnswerKey) -> str:
         marker = " (중요)" if item in KEY_ITEMS else (" (사람 판정)" if item in HUMAN_ITEMS else "")
         lines.append(f"| `{item}`{marker} | " + " | ".join(_accuracy_cell(summary["by_item"][item]) for summary in summaries) + " |")
     for score in scores:
-        lines += ["", f"## {score.name} 오류 목록", ""]
-        if score.failed_contests:
-            lines.append(f"- 출력 실패 (없음·깨짐·대회 아님으로 판단): {', '.join(score.failed_contests)}")
-        if score.extra_outputs:
-            lines.append(f"- 정답표에 없는 대회 출력 (채점 안 함): {', '.join(score.extra_outputs)}")
-        for warning in dict.fromkeys(score.warnings):
-            lines.append(f"- 주의: {warning}")
-        errors = [result for result in score.results if result.category in ERROR_CATEGORIES - {"failed"}]
-        if not errors:
-            lines.append("- 오류 없음")
-        for result in errors:
-            risk = " **위험**" if result.is_risky else ""
-            lines.append(f"- {result.contest_id} `{result.item}` {CATEGORY_LABELS[result.category]}{risk}: "
-                         f"정답 {display(result.truth, limit=120)} ({result.truth_flag}) / AI {display(result.predicted, limit=120)} ({result.predicted_flag})")
-        pending = sum(result.category == "needs_human" for result in score.results)
-        if pending:
-            lines.append(f"- 판정 전 {pending}칸: 실행 폴더의 `judgments_todo.csv`를 채워 `eval/extraction/judgments/{score.name}.csv`로 저장")
+        lines += ["", f"## {_one_line(score.name, limit=80)} 오류 목록", "",
+                  f"AI가 낸 값은 넣지 않는다 (공개 저장소). 값까지 보려면 실행 폴더의 `{PRIVATE_ERRORS_NAME}`(올리지 않음)를 연다.", ""]
+        lines += _error_lines(score, with_ai_values=False)
     return "\n".join(lines) + "\n"
+
+
+def render_private_errors(score: RunScore) -> str:
+    """실행 폴더에만 쓰는 오류 목록 (AI 값 포함). runs/는 .gitignore에 있다."""
+    return "\n".join([f"# {score.name} 오류 목록 (AI 값 포함, 저장소에 올리지 않음)", ""]
+                     + _error_lines(score, with_ai_values=True)) + "\n"
+
+
+def _error_lines(score: RunScore, with_ai_values: bool) -> list[str]:
+    lines = []
+    if score.failed_contests:
+        lines.append(f"- 출력 실패 (없음·깨짐·대회 아님으로 판단): {', '.join(score.failed_contests)}")
+    if score.extra_outputs:
+        lines.append(f"- 정답표에 없는 대회 출력 (채점 안 함): {', '.join(score.extra_outputs)}")
+    for warning in dict.fromkeys(score.warnings):
+        # 경고에는 meta.json·판정표에서 온 글이 들어갈 수 있어 한 줄로 줄인다 (목록·표가 깨지지 않게)
+        lines.append(f"- 주의: {_one_line(warning, limit=200)}")
+    errors = [result for result in score.results if result.category in ERROR_CATEGORIES - {"failed"}]
+    if not errors:
+        lines.append("- 오류 없음")
+    for result in errors:
+        risk = " **위험**" if result.is_risky else ""
+        # 정답은 이미 공개된 정답표 값이다. AI 쪽은 공개 보고서에서 상태만 쓴다
+        ai = (f"AI {display(result.predicted, limit=120)} ({result.predicted_flag})" if with_ai_values
+              else f"AI {_ai_state(result)}")
+        lines.append(f"- {result.contest_id} `{result.item}` {CATEGORY_LABELS[result.category]}{risk}: "
+                     f"정답 {display(result.truth, limit=120)} ({result.truth_flag}) / {ai}")
+    pending = sum(result.category == "needs_human" for result in score.results)
+    if pending:
+        lines.append(f"- 판정 전 {pending}칸: 실행 폴더의 `judgments_todo.csv`를 채워 `eval/extraction/judgments/{score.name}.csv`로 저장")
+    return lines
+
+
+def _ai_state(result: ItemResult) -> str:
+    """AI 값 없이 상태만. "찾음"이라면서 값을 비운 모순된 출력은 따로 적는다 (놓침으로 채점됨)."""
+    if result.predicted_flag is None:
+        return "출력 없음"
+    if result.predicted is None:
+        return f"값 없음 ({result.predicted_flag})"
+    return f"값 있음 ({result.predicted_flag})"
+
+
+def _condition_row(score: RunScore) -> str:
+    meta = score.meta
+    seen = meta.get("models_seen")
+    inputs = meta.get("inputs") if isinstance(meta.get("inputs"), dict) else {}
+    labels = (("body", "본문"), ("images", "이미지"), ("attachments", "첨부"), ("result_notice_bodies", "결과 공지 본문"))
+    used = ", ".join(f"{name} {'O' if inputs.get(key) else 'X'}" for key, name in labels if key in inputs) or "?"
+    cells = [score.name, str(meta.get("started_at") or "?")[:10], str(meta.get("model") or "?"),
+             ", ".join(map(str, seen)) if isinstance(seen, list) and seen else "?",
+             str(meta.get("claude_version") or "?"), str(meta.get("prompt_version") or "?"), used]
+    return "| " + " | ".join(_one_line(cell, limit=60) for cell in cells) + " |"
+
+
+def _one_line(text, limit: int) -> str:
+    """보고서 표·목록에 넣는 글. 표 칸을 깨는 |와 줄바꿈을 빼고 길이를 줄인다
+    (meta.json은 실행기가 쓰지만 손으로 고칠 수 있고, models_seen은 CLI 응답에서 온다)."""
+    return re.sub(r"[|\r\n]", " ", str(text))[:limit]
 
 
 def _run_label(summary: dict) -> str:
     meta = summary["meta"]
     model = meta.get("model") or summary["run"]
-    return f"{model} ({meta.get('prompt_version', '?')})"
+    return _one_line(f"{model} ({meta.get('prompt_version', '?')})", limit=60)
 
 
 def _accuracy_cell(summary: dict) -> str:
@@ -666,6 +808,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("runs", nargs="*", type=Path, help="실행 폴더 (meta.json + outputs/)")
     parser.add_argument("--answers", type=Path, default=DEFAULT_ANSWERS)
     parser.add_argument("--report", type=Path, help="보고서 마크다운 경로 (없으면 화면에만)")
+    parser.add_argument("--save-judgments", action="store_true",
+                        help="실행 폴더의 채운 judgments_todo.csv를 judgments/<실행>.csv로 옮긴 뒤 채점 (AI 값 없이 지문만 저장)")
+    parser.add_argument("--note", action="append", default=[],
+                        help="보고서 \"실행 메모\"에 넣을 실행 조건 (meta.json에 없는 것, 여러 번 가능). 공지 내용·경로는 쓰지 않는다")
     args = parser.parse_args(argv)
     try:
         answer_key = read_answer_key(args.answers)
@@ -677,15 +823,30 @@ def main(argv: list[str] | None = None) -> int:
         if not (run_dir / "outputs").is_dir():
             print(f"[오류] {run_dir}에 outputs/ 폴더가 없음", file=sys.stderr)
             return 2
+        if args.save_judgments:
+            save_warnings: list[str] = []
+            try:
+                moved, target = save_judgments(run_dir, warnings=save_warnings)
+            except (OSError, ValueError, csv.Error) as error:  # ValueError: 판정표 인코딩이 UTF-8이 아님
+                print(f"[오류] {run_dir.name}: 판정을 옮기지 못함, 기존 판정 파일은 그대로 ({type(error).__name__})", file=sys.stderr)
+                return 2
+            for warning in save_warnings:
+                print(f"[주의] {run_dir.name}: {warning}", file=sys.stderr)
+            print(f"[판정 저장] {run_dir.name}: {moved}칸 → {target} (AI 값 없이 지문만)", file=sys.stderr)
         score = score_run(run_dir, answer_key)
         (run_dir / "score.json").write_text(json.dumps(score_json(score), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         pending = write_judgment_todo(score, run_dir)
+        if is_tracked_place(run_dir):
+            # AI 값이 든 파일을 저장소에 커밋될 수 있는 곳에 쓰지 않는다 (.gitignore는 eval/extraction/runs/만 막는다)
+            print(f"[주의] {run_dir.name}: 실행 폴더가 eval/extraction/runs/ 밖이라 {PRIVATE_ERRORS_NAME}를 쓰지 않음", file=sys.stderr)
+        else:
+            (run_dir / PRIVATE_ERRORS_NAME).write_text(render_private_errors(score), encoding="utf-8")
         for warning in dict.fromkeys(score.warnings):
             print(f"[주의] {run_dir.name}: {warning}", file=sys.stderr)
         if pending:
             print(f"[판정 전] {run_dir.name}: {pending}칸 → {run_dir / 'judgments_todo.csv'}", file=sys.stderr)
         scores.append(score)
-    report = render_report(scores, answer_key)
+    report = render_report(scores, answer_key, args.note)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(report, encoding="utf-8")
