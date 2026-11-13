@@ -9,6 +9,7 @@ from exporter.blocklist import load_blocked
 from extractor.common import write_json
 from .core import preview
 from .groups import load_groups
+from .safety import validate_preview_paths
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT.parent / "site"
@@ -28,11 +29,8 @@ def main(argv=None):
     try:
         target = args.out.resolve()
         inputs = [path.resolve() for path in (args.bundles, args.notices, args.groups, args.blocked)]
-        if (target.name != OUTPUT_NAME or target.is_relative_to(SITE.resolve())
-                or (target.is_relative_to(REPO.resolve()) and not target.is_relative_to(PRIVATE_PREVIEW.resolve()))
-                or target in inputs or any(target.is_relative_to(path.parent) for path in inputs)
-                or any(path.is_relative_to(SITE.resolve()) for path in inputs)):
-            raise ValueError("미리보기는 site 밖 별도 폴더의 고정 파일명으로 저장해야 합니다")
+        target, inputs = validate_preview_paths(target, inputs, name=OUTPUT_NAME,
+            repo=REPO, site=SITE, private=PRIVATE_PREVIEW)
         with CollectorLock(args.notices.parent):
             data = json.loads(args.bundles.read_text(encoding="utf-8"))
             raw = json.loads(args.notices.read_text(encoding="utf-8"))

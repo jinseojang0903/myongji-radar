@@ -2,6 +2,9 @@
 data/
 # 병합 미리보기에는 비공개 원문 인용·해시가 포함된다. 경로와 관계없이 제외한다.
 contest-preview.json
+contest-preview.json.*.tmp
+deadline-review.json
+deadline-review.json.*.tmp
 pipeline/preview-data/
 # 예외: 사이트가 배포하는 카드 JSON(요약·짧은 근거·원문 링크만)만 올린다.
 # 폴더 전체를 열면 디버그 덤프·원문이 실수로 Pages에 공개될 수 있어 파일 이름으로 한정한다.
