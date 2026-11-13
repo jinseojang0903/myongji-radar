@@ -55,3 +55,51 @@
 - AI에 공지 **본문만** 넣는다. 포스터 이미지와 첨부 파일은 아직 넣지 않아서, 포스터에만 있는 정보는 놓친다.
 - 다른 모델로 한 번 더 뽑아 비교하는 교차 검증은 아직이다. 그래서 근거 대조를 통과해도 신청기간·자격은 팀이 원문과 대조하기 전까지 화면에 "확인 전"으로 보인다.
 - 수집은 각 게시판의 최근 목록만 본다. 그 밖의 과거 공지는 찾지 않는다.
+
+## 폴더 구조
+
+```
+site/        정적 웹사이트 (Vercel이 이 폴더만 배포). 해석·판정·캘린더는 브라우저에서 처리
+pipeline/    매일 공개 파이프라인 (Python)
+  collector/   공개 게시판 수집·규칙 분석
+  extractor/   AI 추출 (claude -p, 매일 추출·모델 비교)
+  verifier/    근거 대조와 검증 표시
+  exporter/    cards.json 내보내기 (안전 검사·수동 차단 목록)
+  publisher/   위 단계를 차례로 돌리고 cards.json만 main에 올림
+  merger/      같은 대회 공지 병합 미리보기 (공개 경로와 분리)
+  config/      출처(sources.toml)·규칙(rules.toml)·차단 목록
+prompts/     추출 프롬프트 버전별 원문과 바꾼 이유
+eval/        정답표(answer_key)와 정확도 측정(extraction: AI 추출, parser: 자연어 해석기)
+tests/       사이트 쪽 시험 (판정 규칙·해석기·화면 계산)
+docs/        데이터 계약(api-contract.md), 화면 설계, 수집기 기록
+```
+
+## 원칙
+
+- **로그인 없는 공개 게시판만** 수집한다.
+- 공지 **원문과 첨부는 저장소에 올리지 않는다** (`data/`, AI 원본 출력은 커밋 제외). 사이트에는 요약, 짧은 근거 문장, 원문 링크만 싣는다.
+- AI는 공지를 정리하고, 신청 가능 여부는 **규칙 코드**가 판정한다. 확실하지 않으면 "확인 필요"로 표시한다.
+- API 키와 로그인 정보는 저장소에 두지 않는다 (`.env`는 커밋 제외, 예시는 `.env.example`).
+
+## 실행 방법
+
+**사이트 시험** (Node.js, 저장소 루트):
+
+```powershell
+npm test                 # 판정 규칙·해석기·화면 계산 시험
+npm run eval:parser      # 자연어 해석기 정확도 측정 (eval/parser/)
+```
+
+사이트는 빌드 없이 정적 서버로 연다 (`cd site` → `python -m http.server 8000` → http://localhost:8000, [site/README.md](site/README.md)). 파일을 직접 열면 브라우저 보안 때문에 데이터를 읽지 못한다.
+
+**파이프라인** (Python 3.11 이상, Windows PowerShell):
+
+```powershell
+cd pipeline
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+.\launcher.bat test      # 시험
+.\launcher.bat run       # 공개 게시판 수집
+```
+
+AI 추출과 매일 공개(`python -m publisher --model <모델> --push`)는 실행하는 사람의 Claude Code 로그인이 필요하다. 단계별 설명은 [pipeline/README.md](pipeline/README.md), 데이터 형식은 [데이터 계약](docs/api-contract.md)을 따른다.
