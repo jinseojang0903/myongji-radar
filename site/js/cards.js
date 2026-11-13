@@ -179,6 +179,19 @@ export function organizerLine(card) {
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
+/**
+ * 목록이 비었을 때의 안내. 필터를 고르지 않은 학생에게 "필터를 줄여 보세요"가 나가지 않게 이유를 나눈다 (#104).
+ * @param {{cardCount: number, unavailableCount: number}} counts
+ *   cardCount: 형식 검사를 통과한 전체 카드 수, unavailableCount: 그중 마감됐거나 읽지 못해 목록에서 뺀 수
+ * @param {string} filteredMessage  필터·조건 때문에 0건일 때의 안내 (화면마다 다름)
+ * @returns {string}
+ */
+export function emptyListMessage({ cardCount, unavailableCount }, filteredMessage) {
+  if (cardCount === 0) return '아직 모은 대회가 없습니다. 학교 게시판에서 직접 확인해 주세요.';
+  if (unavailableCount >= cardCount) return '지금 신청할 수 있는 대회가 없습니다. 마감이 지난 대회는 목록에서 뺐습니다.';
+  return filteredMessage;
+}
+
 /** 목록 한 줄 요약: 마감 · 인원 · 마일리지 */
 export function summaryLine(card, deadline) {
   const parts = [];

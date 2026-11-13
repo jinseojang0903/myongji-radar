@@ -3,7 +3,7 @@
 // 입력 문장과 "이해하지 못한 표현"은 저장하지도 보내지도 않는다 (이름·학번이 들어 있을 수 있음, 계약 5절).
 import { el } from './html.js';
 import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
-import { latestDeadlineChange, deliverableTags } from './cards.js';
+import { latestDeadlineChange, deliverableTags, emptyListMessage } from './cards.js';
 import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
@@ -246,9 +246,10 @@ function renderResults(cards, now) {
 
   const list = document.getElementById('result-list');
   if (total === 0) {
-    list.replaceChildren(el('p', { class: 'empty' }, isSearching
+    const message = emptyListMessage({ cardCount: cards.length, unavailableCount: closedCount + skippedCount }, isSearching
       ? '제목 검색과 조건에 맞는 마감 전 대회가 없습니다. 검색어를 바꾸거나 제출물·마감 조건을 풀어 보세요.'
-      : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.'));
+      : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.');
+    list.replaceChildren(el('p', { class: 'empty' }, message));
     return;
   }
   list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {
