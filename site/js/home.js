@@ -80,7 +80,7 @@ function renderList(data, now, rejectedCount, isSample) {
 
   const list = document.getElementById('card-list');
   if (items.length === 0) {
-    const message = emptyListMessage({ cardCount: data.cards.length, unavailableCount: closedCount },
+    const message = emptyListMessage({ cardCount: data.cards.length, closedCount, rejectedCount },
       '조건에 맞는 대회가 없습니다. 필터를 줄여 보세요.');
     list.replaceChildren(el('p', { class: 'empty' }, message));
     return;

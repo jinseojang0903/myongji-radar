@@ -59,9 +59,10 @@ async function main() {
 function renderHeader(card, now, conditions) {
   const deadline = deadlineOf(card, now);
   const deadlineText = formatDeadline(deadline);
+  const byline = organizerLine(card);
   const section = el('section', { class: 'panel', 'aria-labelledby': 'h-card' },
     el('h1', { id: 'h-card' }, card.title),
-    organizerLine(card) ? el('p', { class: 'lead' }, organizerLine(card)) : null,
+    byline ? el('p', { class: 'lead' }, byline) : null,
     el('div', { class: 'row' },
       ddayElement(deadline),
       deadlineText ? el('span', { class: 'small' }, `신청 마감 ${deadlineText}`) : null,

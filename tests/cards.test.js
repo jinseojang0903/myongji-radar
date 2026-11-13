@@ -9,13 +9,17 @@ import {
 
 test('빈 목록 안내는 이유를 나눈다: 모은 대회 없음 / 모두 마감 / 필터 때문 (#104)', () => {
   const filtered = '필터를 줄여 보세요.';
-  assert.match(emptyListMessage({ cardCount: 0, unavailableCount: 0 }, filtered), /아직 모은 대회가 없습니다/);
-  assert.match(emptyListMessage({ cardCount: 3, unavailableCount: 3 }, filtered), /지금 신청할 수 있는 대회가 없습니다/);
-  assert.equal(emptyListMessage({ cardCount: 3, unavailableCount: 1 }, filtered), filtered);
+  assert.match(emptyListMessage({ cardCount: 0, closedCount: 0 }, filtered), /^아직 모은 대회가 없습니다/);
+  assert.match(emptyListMessage({ cardCount: 0, closedCount: 0, rejectedCount: 2 }, filtered), /형식이 맞지 않는 대회는 목록에서 뺐습니다/);
+  assert.equal(emptyListMessage({ cardCount: 3, closedCount: 1 }, filtered), filtered);
+  // 뺀 이유는 실제로 일어난 것만: 판정 오류로만 빠졌는데 "마감"이라고 하지 않는다
+  assert.equal(emptyListMessage({ cardCount: 3, closedCount: 3 }, filtered), '지금 신청할 수 있는 대회가 없습니다. 마감이 지난 대회는 목록에서 뺐습니다.');
+  assert.equal(emptyListMessage({ cardCount: 2, closedCount: 0, skippedCount: 2 }, filtered), '지금 신청할 수 있는 대회가 없습니다. 정보를 읽지 못한 대회는 목록에서 뺐습니다.');
+  assert.equal(emptyListMessage({ cardCount: 3, closedCount: 2, skippedCount: 1 }, filtered), '지금 신청할 수 있는 대회가 없습니다. 마감이 지난 대회와 정보를 읽지 못한 대회는 목록에서 뺐습니다.');
   // 예시 데이터를 실제 오늘 날짜로 보면 모두 마감이다: 필터를 고르지 않았는데 "필터를 줄여 보세요"가 나오면 안 된다
   const { items, closedCount } = listCards(SAMPLE.cards, { sort: 'deadline', tags: [] }, new Date('2027-01-01T00:00:00+09:00'));
   assert.equal(items.length, 0);
-  assert.notEqual(emptyListMessage({ cardCount: SAMPLE.cards.length, unavailableCount: closedCount }, filtered), filtered);
+  assert.notEqual(emptyListMessage({ cardCount: SAMPLE.cards.length, closedCount }, filtered), filtered);
 });
 
 test('상세 화면의 주관·구분 줄은 있는 값만 잇고, 둘 다 없으면 그리지 않는다 (#104)', () => {

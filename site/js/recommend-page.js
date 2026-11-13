@@ -50,13 +50,15 @@ async function main() {
     document.getElementById('result-heading').textContent = '대회 정보를 불러오지 못했습니다';
     return;
   }
-  const { data, now } = page;
+  const { data, now, rejected } = page;
+  // 게시판은 형식 검사에서 빠져도 카드 건수와 상관없다 (홈과 같은 기준)
+  const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
   const saveStatus = document.getElementById('save-status');
 
   const render = () => {
     renderChips();
     renderParsed();
-    renderResults(data.cards, now);
+    renderResults(data.cards, now, rejectedCardCount);
     showConditionSummary(state.conditions);
   };
   // shouldSave=false: 화면에만 반영 (주소로 받은 문장은 학생이 칩·버튼을 누르기 전까지 저장하지 않는다)
@@ -74,7 +76,7 @@ async function main() {
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
   const readTitleQuery = () => {
     state.titleQuery = clipTitleQuery(titleInput.value);
-    renderResults(data.cards, now);
+    renderResults(data.cards, now, rejectedCardCount);
   };
   // 버튼으로 바꿀 때만 입력칸에 쓴다
   const setTitleQuery = (text) => {
@@ -231,7 +233,7 @@ function findInTitleButton(term) {
   return button;
 }
 
-function renderResults(cards, now) {
+function renderResults(cards, now, rejectedCount) {
   const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
   const periodEnd = periodEndDate(state.conditions.period, now);
   const isSearching = state.titleQuery.trim() !== '';
@@ -246,7 +248,7 @@ function renderResults(cards, now) {
 
   const list = document.getElementById('result-list');
   if (total === 0) {
-    const message = emptyListMessage({ cardCount: cards.length, unavailableCount: closedCount + skippedCount }, isSearching
+    const message = emptyListMessage({ cardCount: cards.length, closedCount, skippedCount, rejectedCount }, isSearching
       ? '제목 검색과 조건에 맞는 마감 전 대회가 없습니다. 검색어를 바꾸거나 제출물·마감 조건을 풀어 보세요.'
       : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.');
     list.replaceChildren(el('p', { class: 'empty' }, message));
