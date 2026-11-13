@@ -128,7 +128,6 @@ function renderFieldRow(row, link) {
     const isOpen = row.isConflict;
     const evidence = el('div', { id: evidenceId }, ...row.evidence.map(renderEvidence));
     evidence.hidden = !isOpen;
-    valueCell.append(evidence);
     const button = el('button', {
       type: 'button', class: 'btn small-btn', 'aria-expanded': String(isOpen), 'aria-controls': evidenceId,
       // 열림·닫힘은 aria-expanded가 알린다. 이름은 고정 (보이는 글자 "근거"와 맞춤)
@@ -140,7 +139,9 @@ function renderFieldRow(row, link) {
       button.setAttribute('aria-expanded', String(willOpen));
       button.textContent = willOpen ? '근거 ▲' : '근거 ▼';
     });
-    statusCell.append(el('br'), button);
+    // 버튼 바로 뒤에 근거를 둔다. 상태 칸에 두면 펼친 근거(값 칸)가 버튼보다 앞이라,
+    // 펼친 뒤 Tab·화면 읽기로 나아가면 근거와 "원문 보기"를 지나쳐 다음 행으로 간다 (#104)
+    valueCell.append(el('div', {}, button), evidence);
   }
   return el('tr', {}, el('th', { scope: 'row' }, row.label), valueCell, statusCell);
 }

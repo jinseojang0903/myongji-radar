@@ -92,7 +92,7 @@ test('좁은 화면에서 넓은 표·버튼이 화면 전체를 가로로 밀�
   cssRule(CSS, /\.table-scroll\s*{\s*overflow-x:\s*auto;?\s*}/, '표 감싸개의 가로 스크롤');
   const narrow = cssRule(CSS, /@media \(max-width: 520px\)\s*{([\s\S]*?)\n}/, '좁은 화면 규칙')[1];
   assert.match(narrow, /\.btn\s*{\s*white-space:\s*normal;?\s*}/, '긴 버튼 글자는 줄을 바꾼다');
-  // 넓은 화면의 상태 칸 width: 1%가 남으면 "근거 ▼"가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저 360px로 확인, #104)
+  // 넓은 화면의 상태 칸 width: 1%가 남으면 칸 안 글자가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저 360px로 확인, #104)
   assert.match(narrow, /\.fields td\.st\s*{[^}]*width:\s*auto/, '좁은 화면에서 상태 칸 너비를 푼다');
   assert.doesNotMatch(CSS, /\.metrics\s*{[^}]*display:\s*block/, '표를 block으로 바꾸면 화면 읽기 프로그램의 표 탐색이 사라진다');
 });
@@ -104,8 +104,14 @@ test('공지에서 온 긴 낱말은 칸 안에서 줄을 바꾼다 (#104)', () 
   for (const selector of ['.item .title', '.item .org', '.ev', '.quote', '.fields td:not(.st)', '.timeline', '.term', 'h1']) {
     assert.ok(selectors.includes(selector), `${selector}의 긴 낱말이 넘칠 수 있다`);
   }
-  // 너비 1%인 상태 칸에 anywhere를 주면 "근거 ▼" 버튼 글자가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저로 확인)
+  // 너비 1%인 상태 칸에 anywhere를 주면 칸 안 글자가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저로 확인)
   assert.ok(!selectors.includes('.fields td'), '상태 칸까지 anywhere를 주지 않는다');
+});
+
+test('근거 펼침 버튼 바로 뒤에 근거가 온다 (펼친 뒤 Tab으로 근거·원문 링크에 닿게, #104)', () => {
+  const CARD_PAGE = readFileSync(new URL('../site/js/card-page.js', import.meta.url), 'utf8');
+  assert.match(CARD_PAGE, /valueCell\.append\(el\('div', \{\}, button\), evidence\)/);
+  assert.doesNotMatch(CARD_PAGE, /statusCell\.append\([^)]*button/, '버튼을 상태 칸에 두면 근거보다 뒤에 온다');
 });
 
 test('가로로 밀리는 표는 키보드로도 닿는다 (이름 붙은 영역 + tabindex)', () => {

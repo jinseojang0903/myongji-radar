@@ -13,6 +13,20 @@ export const RESULT_VIEW = {
   check: { cls: 'j-check', text: '? 확인 필요' },
   ineligible: { cls: 'j-no', text: '✕ 불가' },
 };
+/**
+ * 결과가 바뀔 때 화면 읽기에 알릴 한 줄. 건수만 말하고 대회 이름은 읽지 않는다(목록에서 직접 듣는다).
+ * 배지 기호(●·◆·?·✕)는 소리 내 읽으면 방해가 되어 뺀다.
+ * @param {{groups: Record<string, unknown[]>, total: number}} result  recommendCards 결과
+ * @param {string} emptyMessage  0건일 때 화면에 보이는 안내
+ * @returns {string}
+ */
+export function resultAnnouncement({ groups, total }, emptyMessage) {
+  if (total === 0) return `마감 전 대회 0건. ${emptyMessage}`;
+  const parts = RESULT_ORDER.filter((result) => groups[result].length > 0)
+    .map((result) => `${RESULT_VIEW[result].text.replace(/^\P{L}+/u, '')} ${groups[result].length}건`);
+  return `마감 전 대회 ${total}건: ${parts.join(', ')}`;
+}
+
 const URGENT_DAYS = 7; // 계약 2절 5: 마감임박 = 마감 7일 이내 (홈 필터와 같다)
 const CONDITION_FIELDS = ['campus', 'grade', 'is_transfer', 'enrollment', 'participation', 'period'];
 
