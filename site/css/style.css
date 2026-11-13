@@ -10,8 +10,8 @@
   --team: #3d4fb8; --team-bg: #e6e9fb;
   --no: #b3261e; --no-bg: #fde8e6;
   --muted: #5f6673; --muted-bg: #eef0f3;
-  --line-strong: #b9c4d6; --line-dashed: #9aa3b2;
-  --input-line: #7d8799;  /* 입력창 경계는 흰 배경과 3:1 이상 (WCAG 1.4.11, #27) */
+  --line-dashed: #9aa3b2;
+  --input-line: #7d8799;  /* 입력창·버튼·칩 경계는 흰 배경과 3:1 이상 (WCAG 1.4.11, #27·#104) */
   --demo-bg: #fff7d6; --demo-text: #6b4e00; --demo-line: #f0dc8c;
   --tag-bg: #e9edf4; --tag-text: #3b4a63;
   --ev-bg: #f6f9ff; --note-bg: #fffaf0;
@@ -68,7 +68,7 @@ h2 { font-size: 16.5px; margin: 0; }
 /* 필터 칩: 묶음마다 role="group"과 aria-labelledby로 무엇을 고르는지 알린다 */
 .filter-label { min-width: 52px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip { border: 1px solid var(--line-strong); background: var(--card); border-radius: 16px; padding: 4px 12px; font-size: 14px; color: var(--text); cursor: pointer; font-family: inherit; }
+.chip { border: 1px solid var(--input-line); background: var(--card); border-radius: 16px; padding: 4px 12px; font-size: 14px; color: var(--text); cursor: pointer; font-family: inherit; }
 .chip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--on-dark); font-weight: 700; }
 
 /* 대회 목록 카드 */
@@ -82,7 +82,7 @@ h2 { font-size: 16.5px; margin: 0; }
 .reason { font-size: 13.5px; color: var(--sub); }
 
 /* 버튼 */
-.btn { display: inline-block; padding: 6px 12px; border-radius: 7px; font-size: 14px; font-weight: 700; border: 1px solid var(--line); background: var(--card); color: var(--text); text-decoration: none; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.btn { display: inline-block; padding: 6px 12px; border-radius: 7px; font-size: 14px; font-weight: 700; border: 1px solid var(--input-line); background: var(--card); color: var(--text); text-decoration: none; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .btn.primary { background: var(--blue); border-color: var(--blue); color: var(--on-dark); }
 
 /* 카드 상세 항목 표 */

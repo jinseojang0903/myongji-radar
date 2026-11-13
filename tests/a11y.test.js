@@ -60,9 +60,12 @@ test('포커스 표시가 보인다 (주변 색과 3:1 이상, 짙은 머리글 
   assert.ok(contrast('on-dark', 'navy') >= 3);
 });
 
-test('입력창 경계가 흰 배경과 3:1 이상이다', () => {
+test('입력창·칩·버튼 경계가 흰 배경과 3:1 이상이다', () => {
   cssRule(CSS, /\.ask input\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '입력창 경계');
   cssRule(CSS, /\.title-search\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '제목 검색칸 경계');
+  // 누르지 않은 칩과 보조 버튼도 경계로 버튼임을 알아본다 (#104: 예전 색은 1.76:1, 1.30:1)
+  cssRule(CSS, /\n\.chip\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '칩 경계');
+  cssRule(CSS, /\n\.btn\s*{[^}]*border:\s*1px solid var\(--input-line\)/, '버튼 경계');
   assert.ok(contrast('input-line', 'card') >= 3, `--input-line / --card = ${contrast('input-line', 'card').toFixed(2)}:1`);
 });
 
