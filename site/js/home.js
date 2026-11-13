@@ -1,6 +1,6 @@
 // 홈 화면 (#21): 대회 목록, 필터, 기준일·게시판 목록.
 import { el, externalLink } from './html.js';
-import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames } from './cards.js';
+import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage } from './cards.js';
 import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 
@@ -80,7 +80,9 @@ function renderList(data, now, rejectedCount, isSample) {
 
   const list = document.getElementById('card-list');
   if (items.length === 0) {
-    list.replaceChildren(el('p', { class: 'empty' }, '조건에 맞는 대회가 없습니다. 필터를 줄여 보세요.'));
+    const message = emptyListMessage({ cardCount: data.cards.length, closedCount, rejectedCount },
+      '조건에 맞는 대회가 없습니다. 필터를 줄여 보세요.');
+    list.replaceChildren(el('p', { class: 'empty' }, message));
     return;
   }
   let failedCount = 0;

@@ -92,7 +92,20 @@ test('좁은 화면에서 넓은 표·버튼이 화면 전체를 가로로 밀�
   cssRule(CSS, /\.table-scroll\s*{\s*overflow-x:\s*auto;?\s*}/, '표 감싸개의 가로 스크롤');
   const narrow = cssRule(CSS, /@media \(max-width: 520px\)\s*{([\s\S]*?)\n}/, '좁은 화면 규칙')[1];
   assert.match(narrow, /\.btn\s*{\s*white-space:\s*normal;?\s*}/, '긴 버튼 글자는 줄을 바꾼다');
+  // 넓은 화면의 상태 칸 width: 1%가 남으면 "근거 ▼"가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저 360px로 확인, #104)
+  assert.match(narrow, /\.fields td\.st\s*{[^}]*width:\s*auto/, '좁은 화면에서 상태 칸 너비를 푼다');
   assert.doesNotMatch(CSS, /\.metrics\s*{[^}]*display:\s*block/, '표를 block으로 바꾸면 화면 읽기 프로그램의 표 탐색이 사라진다');
+});
+
+test('공지에서 온 긴 낱말은 칸 안에서 줄을 바꾼다 (#104)', () => {
+  const selectors = cssRule(CSS, /\n([^{}\n]*)\{\s*overflow-wrap:\s*anywhere;\s*\}/, '긴 낱말 줄바꿈 규칙')[1]
+    .split(',').map((part) => part.trim());
+  // 제목·주관·근거·항목 값·마감 이력·이해하지 못한 표현: 모두 공지나 학생 입력에서 그대로 온 글이다
+  for (const selector of ['.item .title', '.item .org', '.ev', '.quote', '.fields td:not(.st)', '.timeline', '.term', 'h1']) {
+    assert.ok(selectors.includes(selector), `${selector}의 긴 낱말이 넘칠 수 있다`);
+  }
+  // 너비 1%인 상태 칸에 anywhere를 주면 "근거 ▼" 버튼 글자가 한 자씩 세로로 쪼개진다 (헤드리스 브라우저로 확인)
+  assert.ok(!selectors.includes('.fields td'), '상태 칸까지 anywhere를 주지 않는다');
 });
 
 test('가로로 밀리는 표는 키보드로도 닿는다 (이름 붙은 영역 + tabindex)', () => {

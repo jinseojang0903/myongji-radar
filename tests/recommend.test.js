@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { validateCardData } from '../site/js/cards.js';
+import { validateCardData, emptyListMessage } from '../site/js/cards.js';
 import { parseConditions } from '../site/js/parser.js';
 import { applyParsed, periodEndDate, recommendCards, reasonSummary, hasUnverifiedFail, limitTerms, normalizeTitleQuery, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER } from '../site/js/recommend.js';
 import { emptyConditions, clearSavedConditions, saveConditions, readSavedConditions, CONDITIONS_STORAGE_KEY } from '../site/js/conditions.js';
@@ -200,6 +200,21 @@ test('판정하다 오류가 나는 카드는 그 카드만 빼고 센다 (목�
   const result = recommendCards([broken, ...SAMPLE.cards], emptyConditions(), AT_SAMPLE);
   assert.equal(result.skippedCount, 1);
   assert.equal(result.total, 4);
+});
+
+test('빈 결과 안내: 제목 검색으로 0건이면 필터 문구, 판정 오류로만 빠지면 마감이라고 하지 않는다 (#104)', () => {
+  const filtered = '조건을 풀어 보세요.';
+  const searched = recommendCards(SAMPLE.cards, emptyConditions(), AT_SAMPLE, { titleQuery: '없는제목검색어' });
+  assert.equal(searched.total, 0);
+  assert.equal(emptyListMessage({ cardCount: SAMPLE.cards.length, ...searched }, filtered), filtered);
+
+  const broken = structuredClone(SAMPLE.cards[0]);
+  Object.defineProperty(broken, 'fields', { get() { throw new Error('깨진 카드'); } });
+  const onlyBroken = recommendCards([broken], emptyConditions(), AT_SAMPLE);
+  assert.equal(onlyBroken.total, 0);
+  const message = emptyListMessage({ cardCount: 1, ...onlyBroken }, filtered);
+  assert.match(message, /정보를 읽지 못한 대회/);
+  assert.doesNotMatch(message, /마감/);
 });
 
 test('사유 요약: 근거 문장은 60자까지, 신청 가능인데 맞은 사유가 없으면 기본 문구', () => {

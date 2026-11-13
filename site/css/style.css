@@ -102,6 +102,11 @@ h2 { font-size: 16.5px; margin: 0; }
 /* 화면 읽기 프로그램에만 읽히는 글자 */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .stack-top { margin-top: 4px; }
+/* 공지에서 온 글의 긴 낱말(띄어쓰기 없는 영문·주소·파일명)이 좁은 화면에서 카드 밖으로 넘치지 않게 (#104).
+   격자·표 칸은 내용의 최소 폭만큼 넓어지므로 break-word로는 부족하고 anywhere여야 칸이 줄어든다 */
+body { overflow-wrap: break-word; }
+h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note, .fields td:not(.st), .timeline, .term { overflow-wrap: anywhere; }
+/* 상태 칸(너비 1%)은 배지·"근거" 버튼만 담는다. anywhere를 주면 버튼 글자가 한 자씩 세로로 쪼개진다 */
 .note-box { background: var(--note-bg); }
 /* 제작 기록의 처리 단계 라벨 (검수 상태 배지와 구분) */
 .step { display: inline-block; font-size: 12.5px; font-weight: 700; color: var(--tag-text); background: var(--tag-bg); border-radius: 6px; padding: 0 7px; }
@@ -163,7 +168,8 @@ h2 { font-size: 16.5px; margin: 0; }
   .list { grid-template-columns: 1fr; }
   .fields th, .fields td { display: block; width: auto; border: 0; padding: 2px 0; }
   .fields tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; }
-  .fields td.st { text-align: left; }
+  /* 넓은 화면의 width: 1%가 위 규칙보다 구체적이라 그대로 남으면 "근거 ▼" 글자가 한 자씩 세로로 쪼개진다 (#104) */
+  .fields td.st { text-align: left; width: auto; }
   .ask { flex-direction: column; }
   /* 좁은 화면: 열이 많은 표는 표 안에서만 가로로 밀어 본다 (화면 전체 가로 스크롤 없음, #27) */
   .metrics th, .metrics td { min-width: 6em; }  /* 칸이 한 글자 폭으로 짓눌리지 않게 (넘치면 .table-scroll 안에서 민다) */

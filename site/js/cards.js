@@ -170,6 +170,35 @@ export function latestDeadlineChange(card) {
   return changes.length > 0 ? changes[changes.length - 1] : null;
 }
 
+/**
+ * 상세 화면 제목 아래 "주관 · 교내/외부" 줄. 계약상 둘 다 비거나 null일 수 있어 있는 것만 잇는다.
+ * @returns {string|null}  둘 다 없으면 null (줄을 그리지 않음)
+ */
+export function organizerLine(card) {
+  const parts = [card.organizer, card.scope].filter((part) => typeof part === 'string' && part.trim() !== '');
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/**
+ * 목록이 비었을 때의 안내. 필터를 고르지 않은 학생에게 "필터를 줄여 보세요"가 나가지 않게 이유를 나눈다 (#104).
+ * 뺀 이유는 실제로 일어난 것만 말한다 (판정 오류로만 빠졌는데 "마감"이라고 하지 않게).
+ * @param {{cardCount: number, closedCount: number, skippedCount?: number, rejectedCount?: number}} counts
+ *   cardCount: 형식 검사를 통과한 카드 수, closedCount: 그중 마감이 지나 뺀 수,
+ *   skippedCount: 그중 정보를 읽지 못해(판정 오류) 뺀 수, rejectedCount: 형식 검사에서 빠진 카드 수
+ * @param {string} filteredMessage  필터·조건 때문에 0건일 때의 안내 (화면마다 다름)
+ * @returns {string}
+ */
+export function emptyListMessage({ cardCount, closedCount, skippedCount = 0, rejectedCount = 0 }, filteredMessage) {
+  if (cardCount === 0) {
+    return rejectedCount > 0
+      ? '표시할 수 있는 대회가 없습니다. 형식이 맞지 않는 대회는 목록에서 뺐습니다. 학교 게시판에서 직접 확인해 주세요.'
+      : '아직 모은 대회가 없습니다. 학교 게시판에서 직접 확인해 주세요.';
+  }
+  if (closedCount + skippedCount < cardCount) return filteredMessage;
+  const removed = [closedCount > 0 ? '마감이 지난 대회' : null, skippedCount > 0 ? '정보를 읽지 못한 대회' : null].filter(Boolean);
+  return `지금 신청할 수 있는 대회가 없습니다. ${removed.join('와 ')}는 목록에서 뺐습니다.`;
+}
+
 /** 목록 한 줄 요약: 마감 · 인원 · 마일리지 */
 export function summaryLine(card, deadline) {
   const parts = [];
