@@ -63,8 +63,13 @@ const probe = (text) => text.normalize('NFKC').replace(INVISIBLE, '').replace(DA
 const cardLabel = (card, index) => (typeof card?.id === 'string' && CARD_ID_PATTERN.test(card.id) ? card.id : `카드 #${index + 1}(id 형식 오류)`);
 const boardLabel = (board, index) => `board:${typeof board?.id === 'string' && BOARD_ID_PATTERN.test(board.id) ? board.id : `#${index + 1}(id 형식 오류)`}`;
 const keyLabel = (key) => (/^\d+$/.test(key) || KNOWN_KEYS.has(key) ? key : '(모르는 키)');
-// 화면 검사 사유는 고정 문구지만 항목 이름(파일의 키)이 앞에 붙을 수 있어 알려진 이름만 남긴다
-const reasonLabel = (reason) => reason.replace(/^(.+?)의 /, (whole, name) => (KNOWN_KEYS.has(name) ? whole : '(모르는 항목)의 '));
+// 화면 검사 사유는 고정 문구지만 두 사유는 앞에 항목 이름(파일의 키)이 붙는다 (site/js/cards.js findCardProblem).
+// 키에 "의 "가 들어 있어도 새지 않게 고정 꼬리로 끝까지 맞춘 뒤 키 전체를 keyLabel로 거른다
+const KEYED_REASON = /^([\s\S]*)의 (status가 계약 값이 아님|evidence가 배열이 아님)$/;
+const reasonLabel = (reason) => {
+  const match = KEYED_REASON.exec(reason);
+  return match ? `${keyLabel(match[1])}의 ${match[2]}` : reason;
+};
 
 /**
  * cards.json 내용을 점검한다. 값은 돌려주지 않고 위치와 사유만 돌려준다.
@@ -234,7 +239,11 @@ class CheckError extends Error {}
 async function loadCards(options, fetchImpl) {
   let text;
   if (options.file) {
-    text = await readFile(options.file, 'utf8');
+    try {
+      text = await readFile(options.file, 'utf8');
+    } catch {
+      throw new CheckError('파일을 읽을 수 없음'); // 오류 메시지에는 경로가 들어간다
+    }
   } else {
     const response = await fetchImpl(new URL('/data/cards.json', options.base),
       { cache: 'no-store', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });

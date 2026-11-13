@@ -130,7 +130,24 @@ test('점검 중 예상 밖 예외와 없는 파일은 메시지 없이 종류�
 
   const missing = [];
   assert.equal(await main(['--file', join(tmpdir(), '없는-비밀-경로.json')], { log: (line) => missing.push(line) }), 2);
-  assert.deepEqual(missing, ['실패: 점검 중 오류 (Error)']);
+  assert.deepEqual(missing, ['실패: 파일을 읽을 수 없음']);
+});
+
+test('화면 검사의 최상위 오류 문구 네 가지를 모두 알아본다 (cards.js 문구가 바뀌면 여기서 깨진다)', () => {
+  const base = structuredClone(EXPORTED);
+  for (const bad of [null, { boards: [] }, { cards: [] }, { ...base, generated_at: '날짜 아님' }]) {
+    const { failures } = checkCardsData(bad, new Date());
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /^최상위 형식 오류: /);
+  }
+});
+
+test('항목 키에 "의 "가 들어 있어도 사유에서 키를 옮기지 않는다', () => {
+  const data = structuredClone(EXPORTED);
+  data.cards[0].fields['홍길동의 계좌 1234'] = { status: '???', evidence: [] };
+  const { warnings } = checkCardsData(data, justAfter(data));
+  assert.ok(warnings.some((text) => text.endsWith('(모르는 키)의 status가 계약 값이 아님')), warnings.join('\n'));
+  assert.ok(!warnings.join('\n').includes('계좌'));
 });
 
 test('내보내기 결과는 main으로 돌려도 0이고 요약만 출력한다', async () => {
