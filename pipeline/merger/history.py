@@ -9,6 +9,8 @@ from verifier.stamp import has_valid_stamp
 from verifier.checks import MIN_QUOTE_CHARS, MAX_QUOTE_CHARS, normalize
 from .groups import CARD_ID, EXTERNAL_ID, SOURCE_ID, validate_groups
 
+from .safety import ReviewInputError
+
 KST = timezone(timedelta(hours=9))
 HASH = re.compile(r"[0-9a-f]{64}", re.ASCII)
 SIGNATURE = ("merge_model", "merge_model_id", "prompt_version", "merge_prompt_fingerprint")
@@ -16,10 +18,13 @@ SIGNATURE = ("merge_model", "merge_model_id", "prompt_version", "merge_prompt_fi
 
 def _moment(value):
     if not isinstance(value, str):
-        raise ValueError("시점 형식 오류")
-    parsed = datetime.fromisoformat(value)
+        raise ReviewInputError("시점 형식 오류")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise ReviewInputError("시점 형식 오류") from None
     if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise ValueError("시점 시간대 없음")
+        raise ReviewInputError("시점 시간대 없음")
     return parsed
 
 
@@ -111,15 +116,16 @@ def _eligible(bundle, generated_at):
 
 def _index(snapshot, memberships):
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("bundles"), list):
-        raise ValueError("시점 입력에 bundles 배열이 없습니다")
-    result = {}
-    for bundle in snapshot["bundles"]:
+        raise ReviewInputError("시점 입력에 bundles 배열이 없습니다")
+    result, invalid = {}, []
+    for index, bundle in enumerate(snapshot["bundles"]):
         key = _identity(bundle)
         if key is None:
-            raise ValueError("단일 공지 식별자가 없는 묶음입니다")
+            invalid.append({"id": None, "bundle_index": index, "reason": "invalid_notice_identity"})
+            continue
         bucket = ("group", memberships[key]) if key in memberships else ("notice", *key)
         result.setdefault(bucket, []).append(bundle)
-    return result
+    return result, invalid
 
 
 def _pair_reason(old, new, registered):
@@ -167,25 +173,32 @@ def compare_snapshots(before: dict, after: dict, groups, *, checked_at: str) -> 
     """
     validate_groups(groups)
     if not isinstance(before, dict) or not isinstance(after, dict):
-        raise ValueError("시점 입력 형식 오류")
+        raise ReviewInputError("시점 입력 형식 오류")
     before_time, after_time = _moment(before.get("generated_at")), _moment(after.get("generated_at"))
     observed = _moment(checked_at)
     if before_time >= after_time or observed < after_time:
-        raise ValueError("시점 또는 확인 시각의 순서가 맞지 않습니다")
+        raise ReviewInputError("시점 또는 확인 시각의 순서가 맞지 않습니다")
     memberships = {tuple(pair): group.id for group in groups for pair in group.members}
-    previous, current = _index(before, memberships), _index(after, memberships)
-    proposals, skipped, unchanged_ids, seen_ids = [], [], [], set()
+    previous, old_invalid = _index(before, memberships)
+    current, new_invalid = _index(after, memberships)
+    skipped = [{**item, "snapshot": name} for name, items in (("before", old_invalid), ("after", new_invalid)) for item in items]
+    proposals, unchanged_ids, seen_ids = [], [], set()
+    added_ids, removed_ids = [], []
     for bucket in sorted(previous.keys() | current.keys()):
         old_items, new_items = previous.get(bucket, []), current.get(bucket, [])
         review_id = bucket[1] if bucket[0] == "group" else card_id_of(*bucket[1:])
         if review_id in seen_ids or review_id is None or not CARD_ID.fullmatch(review_id):
-            raise ValueError("검토 ID가 중복되거나 잘못되었습니다")
+            raise ReviewInputError("검토 ID가 중복되거나 잘못되었습니다")
         seen_ids.add(review_id)
+        if not old_items:
+            added_ids.append(review_id)
+            continue
+        if not new_items:
+            removed_ids.append(review_id)
+            continue
         reason = None
         if len(old_items) > 1 or len(new_items) > 1:
             reason = "ambiguous_multiple_notices"
-        elif not old_items or not new_items:
-            reason = "missing_snapshot_member"
         else:
             old, new = old_items[0], new_items[0]
             reason = (_eligible(old, before["generated_at"]) or _eligible(new, after["generated_at"])
@@ -204,4 +217,5 @@ def compare_snapshots(before: dict, after: dict, groups, *, checked_at: str) -> 
             "new_source": new["notices"][0]["url"], "checked_at": observed.astimezone(KST).date().isoformat()}})
     return {"review_version": 1, "before_generated_at": before["generated_at"],
             "after_generated_at": after["generated_at"], "proposals": proposals,
-            "skipped": skipped, "unchanged_ids": unchanged_ids}
+            "skipped": skipped, "unchanged_ids": unchanged_ids,
+            "added_ids": added_ids, "removed_ids": removed_ids}

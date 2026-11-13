@@ -191,7 +191,20 @@ class DeadlineReviewTests(unittest.TestCase):
         after["bundles"].append(copy.deepcopy(after["bundles"][0]))
         self.assertEqual(compare_snapshots(before, after, [], checked_at=CHECKED)["skipped"][0]["reason"], "ambiguous_multiple_notices")
         after["bundles"] = []
-        self.assertEqual(compare_snapshots(before, after, [], checked_at=CHECKED)["skipped"][0]["reason"], "missing_snapshot_member")
+        result = compare_snapshots(before, after, [], checked_at=CHECKED)
+        self.assertEqual(result["removed_ids"], [old["card_id"]])
+        self.assertEqual(result["skipped"], [])
+
+    def test_invalid_bundle_does_not_stop_valid_pair_and_times_are_compared(self):
+        old, new = self.pair()
+        old["extraction"]["fields"]["apply"]["value"]["end"].update(time="14:00")
+        new["extraction"]["fields"]["apply"]["value"]["end"].update(date="2026-09-30", time="17:00")
+        before, after = snapshot(old, BEFORE), snapshot(new, AFTER)
+        before["bundles"].append({"notices": []})
+        result = compare_snapshots(before, after, [], checked_at=CHECKED)
+        self.assertEqual(result["proposals"][0]["change"]["old"], "2026-09-30 14:00")
+        self.assertEqual(result["proposals"][0]["change"]["new"], "2026-09-30 17:00")
+        self.assertEqual(result["skipped"][0]["reason"], "invalid_notice_identity")
 
     def test_timestamp_order_and_invalid_input_are_rejected(self):
         old, new = self.pair()

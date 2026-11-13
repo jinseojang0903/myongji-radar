@@ -40,7 +40,8 @@ class DeadlineReviewCliTests(unittest.TestCase):
         return code, stderr.getvalue()
 
     def test_report_is_ignored_at_any_depth(self):
-        for path in ("deadline-review.json", "pipeline/preview-data/deadline-review.json", "nested/deadline-review.json"):
+        for path in ("deadline-review.json", "pipeline/preview-data/deadline-review.json", "nested/deadline-review.json",
+                     "nested/deadline-review.json.abcd.tmp"):
             with self.subTest(path=path):
                 result = subprocess.run(["git", "check-ignore", "-q", path], cwd=REPO,
                                         capture_output=True, check=False)
@@ -51,7 +52,8 @@ class DeadlineReviewCliTests(unittest.TestCase):
         self.after.write_text(json.dumps({"generated_at": AFTER, "bundles": []}), encoding="utf-8")
         self.assertEqual(self.run_cli()[0], 0)
         self.assertEqual(json.loads(self.output.read_text(encoding="utf-8")),
-                         {**self.empty, "before_generated_at": BEFORE, "after_generated_at": AFTER, "unchanged_ids": []})
+                         {**self.empty, "before_generated_at": BEFORE, "after_generated_at": AFTER,
+                          "unchanged_ids": [], "added_ids": [], "removed_ids": []})
 
     def test_real_verified_snapshots_unchanged_is_zero_and_change_requires_review(self):
         old_raw, old = sample()
@@ -83,7 +85,7 @@ class DeadlineReviewCliTests(unittest.TestCase):
     def test_no_change_and_review_needed_codes_preserve_inputs(self):
         before_bytes, after_bytes = self.before.read_bytes(), self.after.read_bytes()
         for result, expected in ((self.empty, 0), ({**self.empty, "proposals": [{"review_status": "needs_review"}]}, 1),
-                                 ({**self.empty, "skipped": [{"reason": "requires_review"}]}, 1)):
+                                 ({**self.empty, "skipped": [{"reason": "requires_review"}]}, 0)):
             with self.subTest(result=result), patch.object(cli, "compare_snapshots", return_value=result) as compare:
                 self.assertEqual(self.run_cli()[0], expected)
                 self.assertEqual(json.loads(self.output.read_text(encoding="utf-8")), result)
@@ -116,7 +118,7 @@ class DeadlineReviewCliTests(unittest.TestCase):
     def test_errors_and_bad_result_never_replace_existing_report_or_leak_message(self):
         self.output.parent.mkdir()
         self.output.write_bytes(b"previous report")
-        for error in (RuntimeError("private quote"), AttributeError("private quote"), RecursionError("private quote")):
+        for error in (RuntimeError("private quote"), AttributeError("private quote"), RecursionError("private quote"), ValueError("private quote")):
             with self.subTest(error=type(error).__name__), patch.object(cli, "compare_snapshots", side_effect=error):
                 code, stderr = self.run_cli()
                 self.assertEqual(code, 2)
@@ -128,8 +130,8 @@ class DeadlineReviewCliTests(unittest.TestCase):
             self.assertEqual(self.run_cli()[0], 2)
             self.assertEqual(self.output.read_bytes(), b"previous report")
 
-    def test_busy_snapshot_lock_stops_and_releases_other_acquired_lock(self):
-        with CollectorLock(self.before.parent), patch.object(cli, "compare_snapshots", return_value=self.empty) as compare:
+    def test_busy_output_lock_stops_and_preserves_report(self):
+        with CollectorLock(self.output.parent), patch.object(cli, "compare_snapshots", return_value=self.empty) as compare:
             self.assertEqual(self.run_cli()[0], 2)
             compare.assert_not_called()
             self.assertFalse(self.output.exists())
@@ -150,7 +152,7 @@ class DeadlineReviewCliTests(unittest.TestCase):
         with patch.object(cli, "CollectorLock", side_effect=lock), patch.object(cli, "compare_snapshots", return_value=self.empty), \
                 patch.object(cli, "write_json") as writer:
             self.assertEqual(self.run_cli(target, after=shared_after)[0], 0)
-            self.assertEqual(directories, [self.before.parent.resolve()])
+            self.assertEqual(directories, [target.resolve().parent])
             self.assertEqual(writer.call_args.args[0], target.resolve())
 
     def test_bad_snapshot_or_group_config_is_failure_without_output(self):
@@ -164,6 +166,50 @@ class DeadlineReviewCliTests(unittest.TestCase):
                     self.assertFalse(self.output.exists())
             finally:
                 broken_file.write_bytes(original)
+
+    def test_added_removed_and_noncontest_do_not_require_review_exit_code(self):
+        bundle = sample()[1]
+        for old, new, key in (([], [bundle], "added_ids"), ([bundle], [], "removed_ids")):
+            self.before.write_text(json.dumps({"generated_at": BEFORE, "bundles": old}), encoding="utf-8")
+            self.after.write_text(json.dumps({"generated_at": AFTER, "bundles": new}), encoding="utf-8")
+            self.assertEqual(self.run_cli()[0], 0)
+            self.assertEqual(json.loads(self.output.read_text())[key], [bundle["card_id"]])
+        from test_deadline_review import snapshot
+        bundle["extraction"]["is_contest"]["value"] = False
+        self.before.write_text(json.dumps(snapshot(bundle, BEFORE)), encoding="utf-8")
+        self.after.write_text(json.dumps(snapshot(bundle, AFTER)), encoding="utf-8")
+        self.assertEqual(self.run_cli()[0], 0)
+
+    def test_safe_errors_and_non_object_json_preserve_output(self):
+        self.output.parent.mkdir()
+        self.output.write_bytes(b"previous")
+        for value in ([], None, 123):
+            self.before.write_text(json.dumps(value), encoding="utf-8")
+            self.after.write_text(json.dumps({"generated_at": AFTER, "bundles": []}), encoding="utf-8")
+            code, error = self.run_cli()
+            self.assertEqual(code, 2)
+            self.assertIn("시점 입력 형식 오류", error)
+            self.assertEqual(self.output.read_bytes(), b"previous")
+        self.before.write_text(json.dumps({"generated_at": AFTER, "bundles": []}), encoding="utf-8")
+        self.after.write_text(json.dumps({"generated_at": BEFORE, "bundles": []}), encoding="utf-8")
+        code, error = self.run_cli()
+        self.assertEqual(code, 2)
+        self.assertIn("시점 또는 확인 시각의 순서가 맞지 않습니다", error)
+        self.assertEqual(self.output.read_bytes(), b"previous")
+
+    def test_inputs_are_not_locked_or_written_and_other_worktree_site_is_blocked(self):
+        with patch.object(cli, "compare_snapshots", return_value=self.empty):
+            self.assertEqual(self.run_cli()[0], 0)
+        self.assertEqual(list(self.before.parent.iterdir()), [self.before])
+        self.assertEqual(list(self.after.parent.iterdir()), [self.after])
+        other = self.root / "other-worktree"
+        other.mkdir()
+        (other / ".git").write_text("gitdir: elsewhere")
+        with patch.object(cli, "compare_snapshots") as compare:
+            self.assertEqual(self.run_cli(other / "site/deadline-review.json")[0], 2)
+            self.assertEqual(self.run_cli(other / "other/deadline-review.json")[0], 2)
+            self.assertEqual(self.run_cli(before=other / "site/snapshot.json")[0], 2)
+            compare.assert_not_called()
 
 
 if __name__ == "__main__":
