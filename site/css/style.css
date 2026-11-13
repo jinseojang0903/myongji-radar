@@ -102,6 +102,10 @@ h2 { font-size: 16.5px; margin: 0; }
 /* 화면 읽기 프로그램에만 읽히는 글자 */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .stack-top { margin-top: 4px; }
+/* 공지에서 온 글의 긴 낱말(띄어쓰기 없는 영문·주소·파일명)이 좁은 화면에서 카드 밖으로 넘치지 않게 (#104).
+   격자·표 칸은 내용의 최소 폭만큼 넓어지므로 break-word로는 부족하고 anywhere여야 칸이 줄어든다 */
+body { overflow-wrap: break-word; }
+h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note, .fields td, .timeline, .term { overflow-wrap: anywhere; }
 .note-box { background: var(--note-bg); }
 /* 제작 기록의 처리 단계 라벨 (검수 상태 배지와 구분) */
 .step { display: inline-block; font-size: 12.5px; font-weight: 700; color: var(--tag-text); background: var(--tag-bg); border-radius: 6px; padding: 0 7px; }

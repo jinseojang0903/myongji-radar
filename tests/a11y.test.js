@@ -95,6 +95,15 @@ test('좁은 화면에서 넓은 표·버튼이 화면 전체를 가로로 밀�
   assert.doesNotMatch(CSS, /\.metrics\s*{[^}]*display:\s*block/, '표를 block으로 바꾸면 화면 읽기 프로그램의 표 탐색이 사라진다');
 });
 
+test('공지에서 온 긴 낱말은 칸 안에서 줄을 바꾼다 (#104)', () => {
+  const selectors = cssRule(CSS, /\n([^{}\n]*)\{\s*overflow-wrap:\s*anywhere;\s*\}/, '긴 낱말 줄바꿈 규칙')[1]
+    .split(',').map((part) => part.trim());
+  // 제목·주관·근거·항목 값·마감 이력·이해하지 못한 표현: 모두 공지나 학생 입력에서 그대로 온 글이다
+  for (const selector of ['.item .title', '.item .org', '.ev', '.quote', '.fields td', '.timeline', '.term', 'h1']) {
+    assert.ok(selectors.includes(selector), `${selector}의 긴 낱말이 넘칠 수 있다`);
+  }
+});
+
 test('가로로 밀리는 표는 키보드로도 닿는다 (이름 붙은 영역 + tabindex)', () => {
   assert.match(LOG_PAGE, /el\('div', \{ class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': label \}/);
   const tables = (LOG_PAGE.match(/el\('table'/g) || []).length;
