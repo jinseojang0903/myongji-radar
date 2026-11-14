@@ -14,6 +14,7 @@ from pathlib import Path
 from .__main__ import RUN_TIMEOUT, main as collector_main
 from .config import load_sources
 from .locking import AlreadyRunning, CollectorLock
+from .publish_config import load_publishing
 
 ROOT = Path(__file__).resolve().parent.parent
 SEOUL = timezone(timedelta(hours=9))
@@ -101,7 +102,17 @@ def call_collector(argv):
             return exc.code if isinstance(exc.code, int) else 1
 
 
-def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TIMEOUT):
+def call_publisher(argv):
+    """호출자는 수집부터 이어지는 CollectorLock을 보유한다. 외부 출력은 운영 로그에 넣지 않는다."""
+    from publisher.__main__ import main as publisher_main
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        try:
+            return publisher_main(argv)
+        except SystemExit as exc:
+            return exc.code if type(exc.code) is int else 2
+
+
+def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TIMEOUT, publish_config=None):
     if not math.isfinite(run_timeout) or run_timeout <= 0:
         raise ValueError("수집 시간 예산은 유한한 양수여야 합니다")
     data_dir, config, rules = Path(data_dir), Path(config), Path(rules)
@@ -136,6 +147,7 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                      "started_at": started.isoformat(), "finished_at": None, "status": "starting",
                      "collection_attempted": False, "collection_run_id": None,
                      "collection_exit_code": None, "analysis_exit_code": None, "sources": []}
+            state.update(publish_enabled=False, publish_exit_code=None, publish_skipped_reason=None)
             emit("started")
             exit_code = 1
             phase = "preflight"
@@ -146,6 +158,8 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                 for key in ("version", "activity_types", "non_activity"):
                     if key not in rule_config:
                         raise ValueError("invalid rules")
+                publishing = load_publishing(publish_config) if publish_config is not None else None
+                state["publish_enabled"] = bool(publishing and publishing.enabled)
                 before = latest_run(data_dir)
                 state.update(status="collecting", collection_attempted=True)
                 atomic_json(state_path, state)
@@ -175,11 +189,42 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                     state["status"] = "success" if exit_code == 0 else "partial_failure"
                     if analyzed:
                         state.update(failure_phase="analysis", diagnostic="collector analyze (offline)")
+                    if publishing and publishing.enabled:
+                        if collected == 0 and analyzed == 0 and not any(s["errors"] for s in state["sources"]):
+                            phase = "publish"
+                            # Ctrl+C 같은 BaseException도 finally에서 성공으로 기록하지 않는다.
+                            exit_code = 1
+                            state.update(status="failed", failure_phase="publish", diagnostic="data/publish_logs")
+                            emit("publish_started")
+                            publish_args = ["--model", publishing.model, "--data-dir", str(data_dir)]
+                            if publishing.push:
+                                publish_args.append("--push")
+                            published = call_publisher(publish_args)
+                            if type(published) is not int or published not in (0, 1, 2, 3):
+                                raise ValueError("invalid publisher exit code")
+                            state["publish_exit_code"] = published
+                            emit("publish_finished", exit_code=published)
+                            if published in (0, 1):
+                                exit_code = 0
+                                state["status"] = "success"
+                                state.pop("failure_phase", None)
+                                state.pop("diagnostic", None)
+                            else:
+                                exit_code = published
+                                state.update(status="partial_failure" if published == 3 else "failed",
+                                             failure_phase="publish", diagnostic="data/publish_logs")
+                        else:
+                            state["publish_skipped_reason"] = "collection_or_analysis_failed"
+                            emit("publish_skipped", reason=state["publish_skipped_reason"])
                 else:
                     state["status"] = "failed"
                     emit("analysis_skipped", reason="no_completed_collection_with_saved_notices")
+                    if publishing and publishing.enabled:
+                        state["publish_skipped_reason"] = "no_completed_collection_with_saved_notices"
+                        emit("publish_skipped", reason=state["publish_skipped_reason"])
             except Exception as exc:
                 # 예외 문자열에는 원문이 들어갈 수 있어 종류만 남긴다.
+                exit_code = 1
                 state.update(status="failed", error_type=type(exc).__name__, failure_phase=phase)
                 emit("failed", phase=phase, error_type=type(exc).__name__)
             finally:
@@ -203,6 +248,7 @@ def main():
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
     parser.add_argument("--run-timeout", type=float, default=RUN_TIMEOUT, help="수집 전체 요청 예산(초, 기본 1200)")
+    parser.add_argument("--publish-config", type=Path, help="공개 단계 설정 TOML. 생략하면 수집·분석만 실행")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="설정만 확인. 수집·DB·날짜 상태 변경 없음")
     mode.add_argument("--recover-state", action="store_true", help="손상 상태 백업·복구. 오늘 수집은 차단하고 다음 날 재개")
@@ -219,11 +265,14 @@ def main():
             rules = tomllib.loads(args.rules.read_text(encoding="utf-8"))
             if not all(key in rules for key in ("version", "activity_types", "non_activity")):
                 raise ValueError("잘못된 규칙 설정")
+            if args.publish_config is not None:
+                load_publishing(args.publish_config)
         except (ValueError, OSError) as exc:
             parser.exit(1, f"설정 확인 실패: {type(exc).__name__}\n")
         print(f"설정 확인 완료: 출처 {len(sources)}곳, 데이터 경로 {args.data_dir}")
         return 0
-    code = run_daily(args.data_dir, args.config, args.rules, run_timeout=args.run_timeout)
+    code = run_daily(args.data_dir, args.config, args.rules, run_timeout=args.run_timeout,
+                     publish_config=args.publish_config)
     print(f"일일 작업 종료 코드: {code}. 상태: {args.data_dir / 'daily_status.json'}")
     return code
 
