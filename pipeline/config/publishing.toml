@@ -1,0 +1,6 @@
+# #9 잠정 결정. 운영 모델은 이 파일 한 곳에서 바꾼다.
+# false면 수집·규칙 분석만 실행한다. 계정 정보는 넣지 않는다.
+version = 1
+enabled = true
+model = "opus"
+push = true
