@@ -116,10 +116,14 @@ def publish(args) -> int:
             check_analysis(notices, analysis)  # 추출하는 동안 다음 수집이 원문을 바꾸지 않았는지 (잠금 밖에서 불렸을 때 대비)
             run_stage("verify", verify_main, ["--bundles", str(bundles), "--notices", str(notices), "--out", str(verified)], log)
             # 내보내기 보고: 어떤 카드가 왜 빠지거나 확인할 일이 생겼는지. 무인 실행에서는 여기만 남는다 (#109 보안 리뷰)
-            report = data / "publish_logs" / f"{started_at[:19].replace(':', '-')}-export.json"
-            code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out), "--report", str(report)],
-                             log, ok_codes=(0, 1))
-            outcome["export_report"] = {"file": report.name, **(_report_counts(report) or {})}
+            report = _new_report_path(data / "publish_logs", started_at)
+            try:
+                code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out), "--report", str(report)],
+                                 log, ok_codes=(0, 1))
+            finally:  # 보고를 쓴 뒤 멈춘 경우(카드 0장 등)도 기록한다. 쓰지 못했으면 이름을 남기지 않는다
+                counts = _report_counts(report)
+                if counts is not None:
+                    outcome["export_report"] = {"file": report.name, **counts}
         except Stop as stop:
             outcome["stopped"] = str(stop)
             print(f"[멈춤] {stop} — cards.json은 그대로 둠", file=sys.stderr)
@@ -155,6 +159,17 @@ def _extract_summary(cache: Path) -> dict | None:
     summary = {key: entry.get(key) for key in EXTRACT_SUMMARY_KEYS}
     summary.update(calls=totals.get("calls"), calls_failed=totals.get("calls_failed"))
     return summary
+
+
+def _new_report_path(folder: Path, started_at: str) -> Path:
+    """내보내기 보고 파일 이름: 시작 시각(초). 같은 초에 이미 있으면 번호를 붙여 덮어쓰지 않는다."""
+    stem = started_at[:19].replace(":", "-")
+    path = folder / f"{stem}-export.json"
+    number = 2
+    while path.exists():
+        path = folder / f"{stem}-export-{number}.json"
+        number += 1
+    return path
 
 
 def _report_counts(path: Path) -> dict | None:

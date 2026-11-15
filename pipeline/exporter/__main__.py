@@ -80,7 +80,9 @@ def write_report(path: Path, generated_at, data: dict, report: dict, unverified:
     """
     if path.resolve().is_relative_to((ROOT.parent / "site").resolve()):
         raise ValueError("보고 파일을 공개 폴더 site/ 안에 쓰지 않는다")
-    body = {"generated_at": generated_at, "cards": len(data["cards"]),
+    # cards_to_write: 이 보고는 cards.json을 쓰기 전에 남긴다 (보고를 못 쓰면 cards.json도 바꾸지 않으려고).
+    # 실제로 썼는지는 내보내기 종료 코드(3이면 못 씀)로 본다
+    body = {"generated_at": generated_at, "cards_to_write": len(data["cards"]),
             "counts": {"rejected": len(report["rejected"]) + len(unverified), "skipped": len(report["skipped"]),
                        "warnings": len(report["warnings"]), "blocked": len(report["blocked"])},
             "unverified": unverified, "blocked": [item["id"] for item in report["blocked"]],
@@ -88,8 +90,11 @@ def write_report(path: Path, generated_at, data: dict, report: dict, unverified:
                for key in ("rejected", "skipped", "warnings")}}
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(body, ensure_ascii=False, indent=1), encoding="utf-8")
-    temporary.replace(path)
+    try:
+        temporary.write_text(json.dumps(body, ensure_ascii=False, indent=1), encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _to_bundle(item: dict) -> CardBundle:

@@ -719,7 +719,8 @@ class ExporterCliTests(unittest.TestCase):
             code, _ = self.run_cli(self.bundle_json([with_fields(fields)]), out, ["--report", str(report_path), "--blocked", str(blocked)])
             self.assertEqual(code, 1)
             report = json.loads(report_path.read_text(encoding="utf-8"))
-            self.assertEqual(report["cards"], 1)
+            self.assertEqual(report["cards_to_write"], 1)
+            self.assertFalse(report_path.with_name(report_path.name + ".tmp").exists())
             reasons = [(item["id"], item["reason"]) for item in report["warnings"]]
             self.assertIn(("ai-literacy-2026", "organizer를 확인하지 못해 비우고 공개"), reasons)
             self.assertTrue(any(card_id == "typo-card-id" for card_id, _ in reasons), "차단 목록에 있는데 묶음에 없는 id")
