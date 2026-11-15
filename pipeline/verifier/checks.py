@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from exporter.cards import DASH_CODES, DOT_CODES, EXTRA_INVISIBLE_CODES, REMOVED_CATEGORIES, SKIPPED_KINDS
 
 # 내보내기의 CARD_FIELDS에 카드 최상위 값(title·organizer·scope)과 kind를 더한 것.
-# 최상위 값은 근거를 공개하지 않지만, 지어낸 근거면 내보내기가 경고하도록 대조한다.
+# 최상위 값은 근거를 공개하지 않지만, 지어낸 근거면 내보내기가 그 값을 확정처럼 싣지 않도록 대조한다.
 FIELDS = ["title", "organizer", "scope", "kind", "apply", "stages", "campus", "grades", "enrollment", "team",
           "deliverables", "benefits", "mileage", "how_to_apply", "contact"]
 VERIFIER = "verifier"  # 이 도구가 쓴 statuses 표시 (다시 검증할 때 지우고 새로 쓴다)

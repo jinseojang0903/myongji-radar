@@ -509,6 +509,38 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertTrue(any("파일 이름" in message for message in warnings))
         self.assertIn("예선 1차, 예선 2차", card["fields"]["stages"]["note"])
 
+    def test_untrusted_top_level_values_are_not_published_as_confirmed(self):
+        """대회명·주관·교내/외부는 원문 확인 필요를 표시할 자리가 없어, 확인 못 한 값은 확정처럼 싣지 않는다 (#109 보안 리뷰)."""
+        fields = example_fields()
+        fields["title"]["flag"] = "needs_check"
+        fields["title"]["value"] = "AI가 지어낸 대회명"
+        fields["organizer"]["flag"] = "conflict"
+        fields["scope"] = field(None, flag="missing", quote=None)
+        warnings = []
+        card = build_card(with_fields(fields), warnings)
+        self.assertEqual(card["title"], NOTICE["title"], "대회명은 게시판 글 제목(수집 원문)으로")
+        self.assertIsNone(card["organizer"])
+        self.assertIsNone(card["scope"])
+        self.assertTrue(any("title을 확인하지 못해" in message for message in warnings))
+        self.assertTrue(any("organizer를 확인하지 못해" in message for message in warnings))
+        self.assertTrue(any("scope를 확인하지 못해" in message for message in warnings))
+        self.assertFalse(any("확정 값처럼" in message for message in warnings))
+
+    def test_top_level_evidence_failure_drops_value_unless_human_verified(self):
+        fields = example_fields()
+        failed = {"organizer": {"status": "needs_check", "evidence_failed": True}}
+        self.assertIsNone(build_card(with_fields(fields, statuses=failed))["organizer"])
+        # 사람이 검수했으면 AI flag가 found가 아니어도 그 값을 믿는다
+        fields["organizer"]["flag"] = "needs_check"
+        card = build_card(with_fields(fields, statuses=verified(fields, ["organizer"])))
+        self.assertEqual(card["organizer"], fields["organizer"]["value"])
+
+    def test_untrusted_title_without_board_title_is_rejected(self):
+        fields = example_fields()
+        fields["title"]["flag"] = "missing"
+        with self.assertRaises(CardExportError):
+            build_card(with_fields(fields, notices=[dict(NOTICE, title="")]))
+
     def test_generated_at_and_source_id_follow_site_format(self):
         for bad in ["20261105T090000+09:00", "2026-11-05 09:00:00+09:00"]:
             with self.assertRaises(ValueError, msg=bad):
@@ -675,6 +707,32 @@ class ExporterCliTests(unittest.TestCase):
         return json.dumps({"generated_at": generated_at,
                            "bundles": [stamp_bundle(item, generated_at) for item in raw] if stamped else raw},
                           ensure_ascii=False)
+
+    def test_cli_report_keeps_ids_and_reasons_outside_site(self):
+        """무인 공개에서 stderr를 보는 사람이 없어도 뺀 카드·확인할 일·차단 목록 오타가 남는다 (#109 보안 리뷰)."""
+        with tempfile.TemporaryDirectory() as folder:
+            out, report_path = Path(folder) / "cards.json", Path(folder) / "logs" / "export.json"
+            blocked = Path(folder) / "blocked.toml"
+            blocked.write_text('[[blocked]]\ncard_id = "typo-card-id"\nreason = "시험"\nsince = 2026-11-16\n', encoding="utf-8")
+            fields = example_fields()
+            fields["organizer"]["flag"] = "needs_check"
+            code, _ = self.run_cli(self.bundle_json([with_fields(fields)]), out, ["--report", str(report_path), "--blocked", str(blocked)])
+            self.assertEqual(code, 1)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["cards_to_write"], 1)
+            self.assertFalse(report_path.with_name(report_path.name + ".tmp").exists())
+            reasons = [(item["id"], item["reason"]) for item in report["warnings"]]
+            self.assertIn(("ai-literacy-2026", "organizer를 확인하지 못해 비우고 공개"), reasons)
+            self.assertTrue(any(card_id == "typo-card-id" for card_id, _ in reasons), "차단 목록에 있는데 묶음에 없는 id")
+            self.assertEqual(report["counts"]["warnings"], len(report["warnings"]))
+            # 사유에 AI 값이 들어갈 수 있어 공개 폴더 site/에는 쓰지 않는다. 못 쓰면 cards.json도 바꾸지 않는다
+            site_report = ROOT / "site" / "data" / "export-report.json"
+            out.write_text('{"keep": true}', encoding="utf-8")
+            code, errors = self.run_cli(self.bundle_json([bundle()]), out, ["--report", str(site_report)])
+            self.assertEqual(code, 2)
+            self.assertIn("보고를 쓰지 못해", errors)
+            self.assertFalse(site_report.exists())
+            self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
 
     def test_cli_requires_verifier_stamp(self):
         with tempfile.TemporaryDirectory() as folder:
