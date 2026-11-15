@@ -12,7 +12,8 @@ from unittest import mock
 
 from extractor import claude as claude_cli
 from extractor.__main__ import main as cli_main, normalize_url
-from extractor.prompt import InputNotice, build_input, escape, is_result_notice
+from extractor.prompt import (CLIPPED_MARK, MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS_CHARS, InputNotice, build_input, escape,
+                              is_result_notice)
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = json.loads((ROOT / "prompts/extract_v0.2/example_output.json").read_text(encoding="utf-8"))
@@ -84,6 +85,20 @@ class PromptTests(unittest.TestCase):
             self.assertFalse(is_result_notice(title), title)
         with self.assertRaises(ValueError):
             build_input([])
+
+    def test_attachments_are_clipped_masked_and_left_out_of_result_notices(self):
+        long_text = "가" * (MAX_ATTACHMENT_CHARS + 10)
+        notices = [InputNotice("b", "2026-10-01", "u1", "AI 경진대회 모집 안내", "본문",
+                               attachments=[("공고문.hwp", "자격 60123456 <b>"), ("규정.hwp", long_text),
+                                            ("서식.hwp", long_text), ("남은만큼.hwp", long_text), ("넘침.hwp", long_text)]),
+                   InputNotice("b", "2026-10-29", "u2", "AI 경진대회 수상자 발표", "", attachments=[("명단.hwp", "홍길동")])]
+        text, _ = build_input(notices)
+        self.assertIn('<attachment name="공고문.hwp">\n자격 (8자리 숫자 생략) &lt;b&gt;\n</attachment>', text)
+        self.assertIn("가" * MAX_ATTACHMENT_CHARS + CLIPPED_MARK, text, "첨부 하나는 상한에서 자른다")
+        self.assertIn('<attachment name="남은만큼.hwp">', text, "합계 상한까지 남은 만큼은 넣는다")
+        self.assertNotIn("넘침.hwp", text, "공지 하나의 첨부 합계 상한을 다 쓰면 더 넣지 않는다")
+        self.assertLessEqual(text.count("가"), MAX_ATTACHMENTS_CHARS)
+        self.assertNotIn("홍길동", text, "결과 공지의 첨부는 명단일 수 있어 넣지 않는다")
 
 
 class CallTests(unittest.TestCase):

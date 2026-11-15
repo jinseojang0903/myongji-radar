@@ -15,6 +15,7 @@
   옛 판의 값(지워진 연락처, 바뀌기 전 마감)이 "확인 필요"를 달고 계속 공개될 수 있기 때문이다.
 - 같은 판·입력을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판·입력이 바뀌면 다시.
 - 묶음 파일에는 뽑아 둔 결과가 있는 후보만 넣는다. 사람 검수 기록(statuses)은 아직 없어 비워 둔다.
+- AI 입력은 본문과 글자를 뽑아 둔 첨부다 (INPUTS). 입력 종류가 다른 옛 결과는 다시 뽑을 대상이다 (그동안은 옛 결과로 남긴다).
 - 호출 조건은 모델 비교(eval)와 같다: 확인 호출, 격리 실측, 계정 환경변수 차단, 하루 상한 (`extractor/claude.py`).
   스키마 강제를 거치지 않은 모델 글은 받지 않는다 (공개 경로라서).
 
@@ -26,6 +27,7 @@ import re
 import sys
 from pathlib import Path
 
+from collector.assets import attachment_texts
 from collector.config import load_sources
 from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
@@ -37,6 +39,7 @@ CONTEST_TYPES = {"competition", "hackathon"}  # pipeline/config/rules.toml activ
 SKIPPED_NOTICE_KINDS = {"results", "cancellation"}
 CARD_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # 내보내기 CARD_ID_PATTERN과 같다
 DEFAULT_MAX_NEW = 30
+INPUTS = ["body", "attachments"]  # AI에 넣는 것. 바뀌면 옛 결과는 다시 뽑을 대상 (포스터 이미지는 아직)
 MAX_FAILURES = 3
 FAILURES_FILE = "_failures.json"
 RUNS_FILE = "_runs.jsonl"
@@ -125,7 +128,8 @@ def is_same_version(entry: dict | None, notice: dict) -> bool:
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str) -> bool:
     """같은 판을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
     return (is_same_version(entry, notice) and entry.get("model") == model
-            and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint)
+            and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint
+            and entry.get("inputs") == INPUTS)
 
 
 def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
@@ -138,7 +142,8 @@ def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
                          "last_seen_at": notice.get("last_seen_at"),
                          "external_id": notice.get("external_id"), "version_id": notice.get("version_id"),
                          "input_hash": content_hash(hash_input), "version_number": notice.get("version_number"),
-                         "files": []}],  # 이미지·첨부를 AI에 넣지 않으므로(#12 전) 근거 파일 이름도 없다
+                         # AI에 넣은 첨부 이름. 내보내기가 근거의 file 이름을 이 목록으로 확인한다 (이미지는 아직 넣지 않음)
+                         "files": [name for name in entry.get("files") or [] if isinstance(name, str)]}],
             "extraction": entry["output"],
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)
             "deadline_history": [],  # 같은 대회 공지 묶기(#16) 뒤에
@@ -242,10 +247,11 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 닿음 (다음 실행이 남은 공지를 부른다)", file=sys.stderr)
             return
         source_id = str(notice.get("source_id") or "")
+        attachments = attachment_texts(notice, args.notices.parent)  # 검증기도 같은 함수로 읽어 대조한다
         text, _ = build_input([InputNotice(board=boards.get(source_id, source_id),
                                            posted=posted_day(notice.get("published_at"), ""),
                                            url=str(notice.get("url") or ""), title=str(notice.get("title") or ""),
-                                           body=str(notice.get("body_text") or ""))])
+                                           body=str(notice.get("body_text") or ""), attachments=attachments)])
         ledger.add()
         try:
             result = claude_cli.call(text, claude, args.model, args.timeout, args.use_env_account, allow_text_result=False)
@@ -265,8 +271,8 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
         entry = {"source_id": notice.get("source_id"), "external_id": notice.get("external_id"),
                     "version_id": notice.get("version_id"), "model": args.model,
                     "model_id": result.models[0] if result.models else None, "prompt_version": PROMPT_VERSION,
-                    "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice),
-                    "extracted_at": now_text(), "output": result.output}
+                    "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice), "inputs": INPUTS,
+                    "files": [name for name, _ in attachments], "extracted_at": now_text(), "output": result.output}
         _persist_entry(args.notices.parent, notice, entry)
         write_json(args.cache / f"{card_id}.json", entry)
         print(f"[뽑음] {card_id} ({result.seconds:.0f}초)", file=sys.stderr)

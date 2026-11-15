@@ -10,7 +10,10 @@
   20261015 같은 붙은 날짜도 가려지지만 공지 날짜는 대개 점·글자로 나뉜다. 가린 글자는 원문에 없으므로 그 부분을 인용한
   근거는 근거 대조(#15)에서 실패해 확인 필요가 된다 (안전한 쪽).
   이름 나열은 코드로 가리지 못한다: 결과 공지 판정이 놓친 명단은 AI로 간다 (README 남은 위험).
-- 첨부 글자와 이미지는 #12(이미지·첨부 내려받기) 전이라 아직 넣지 않는다. 넣지 않은 것은 실행 기록(meta)에 남긴다.
+- 첨부는 수집기가 HWP·HWPX·PDF에서 뽑아 둔 글자를 넣는다 (`collector.assets.attachment_texts`). 결과 공지면 본문처럼
+  첨부도 넣지 않는다 (명단 파일). 첨부 하나는 MAX_ATTACHMENT_CHARS, 공지 하나의 첨부 합계는 MAX_ATTACHMENTS_CHARS까지
+  넣고 자른다 (호출 비용·시간 상한). 잘린 뒤쪽을 인용할 수는 없지만, 인용한 근거는 검증기가 전체 글자로 대조한다.
+- 포스터 이미지는 아직 넣지 않는다 (Claude의 읽기 도구를 이미지 폴더 하나에만 여는 작업이 남음).
 """
 import hashlib
 import re
@@ -28,6 +31,9 @@ SCHEDULE_TITLE = re.compile(r"결과발표일정|발표일정|발표일|발표�
 RESULT_DELAY_TITLE = re.compile(r"(?:결과발표|발표)(?:일정)?연기")  # "결과 발표 연기"는 명단이 없다
 STUDENT_ID = re.compile(r"(?<!\d)\d{8}(?!\d)")
 ESCAPES = {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}
+MAX_ATTACHMENT_CHARS = 12_000
+MAX_ATTACHMENTS_CHARS = 30_000
+CLIPPED_MARK = "\n(이하 생략: 첨부가 길어 잘림)"
 
 
 @dataclass
@@ -38,8 +44,8 @@ class InputNotice:
     url: str
     title: str
     body: str
-    attachments: list[tuple[str, str]] = field(default_factory=list)  # (파일 이름, 뽑은 글자) — #12 뒤
-    images: list[str] = field(default_factory=list)  # 이미지 파일 이름 — #12 뒤
+    attachments: list[tuple[str, str]] = field(default_factory=list)  # (첨부 이름, 뽑은 글자). 매일 추출이 채운다
+    images: list[str] = field(default_factory=list)  # 이미지 파일 이름 — 아직 채우지 않는다 (포스터 입력 전)
 
 
 def prompt_fingerprint() -> str:
@@ -90,13 +96,21 @@ def build_input(notices: list[InputNotice]) -> tuple[str, list[int]]:
         attributes = f'id="{number}" board="{escape(notice.board)}" posted="{escape(notice.posted)}" url="{escape(notice.url)}"'
         parts.append(f"<notice {attributes}>")
         parts.append(f"<title>{escape(notice.title)}</title>")
-        if is_result_notice(notice.title):
+        is_result = is_result_notice(notice.title)
+        if is_result:
             omitted.append(number)
             parts.append("<body></body>")
         else:
             parts += ["<body>", escape(mask_student_ids(notice.body.strip())), "</body>"]
-        for name, text in notice.attachments:
-            parts += [f'<attachment name="{escape(name)}">', escape(mask_student_ids(text.strip())), "</attachment>"]
+        budget = MAX_ATTACHMENTS_CHARS
+        for name, text in ([] if is_result else notice.attachments):  # 결과 공지의 첨부는 명단일 수 있다
+            if budget <= 0:
+                break
+            limit = min(MAX_ATTACHMENT_CHARS, budget)
+            text = text.strip()
+            clipped = text[:limit] + CLIPPED_MARK if len(text) > limit else text
+            budget -= min(len(text), limit)
+            parts += [f'<attachment name="{escape(name)}">', escape(mask_student_ids(clipped)), "</attachment>"]
         parts += [f'<image name="{escape(name)}" />' for name in notice.images]
         parts.append("</notice>")
     parts.append("</notices>")
