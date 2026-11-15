@@ -70,6 +70,12 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual((entry["cards"], entry["bundles"], entry["stopped"]), (2, 2, None))
         self.assertEqual((entry["extract"]["candidates"], entry["extract"]["calls"], entry["extract"]["calls_failed"]), (2, 2, 0),
                          "매일 추출의 건수를 단계 기록에 함께 남긴다")
+        # 무인 실행에서 경고 사유가 사라지지 않게 내보내기 보고를 남기고, 단계 기록에는 건수만 (#109 보안 리뷰)
+        export_report = entry["export_report"]
+        self.assertGreaterEqual(export_report["warnings"], 1)
+        report = json.loads((self.data / "publish_logs" / export_report["file"]).read_text(encoding="utf-8"))
+        self.assertTrue({item["id"] for item in report["warnings"]} <= {"mju-ctl-ctl-792-100", "mju-startup-ctl-792-103"})
+        self.assertNotIn(SECRET, json.dumps(report, ensure_ascii=False), "보고에도 공지 본문이 없다")
         self.run_cli(FakeRun())
         self.assertEqual(len(self.logs()), 2, "같은 날 다시 돌리면 이어 쓴다")
         self.assertNotIn(SECRET, json.dumps(self.logs(), ensure_ascii=False), "단계 기록에 공지 내용이 없다")

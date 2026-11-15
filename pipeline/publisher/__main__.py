@@ -12,7 +12,8 @@
 예약 등록·동시 실행 잠금은 매일 수집(#31, `scripts/`)이 맡는다: 수집 → 규칙 분석 → 이 명령을 **같은 잠금 안에서** 부른다
 (확인과 사용 사이에 다음 수집이 원문을 바꾸지 않게). cards.json을 main에 올리는 배포는 아래 `--push`.
 
-단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약. 공지 내용·오류 메시지 없음).
+단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약·내보내기 보고 건수.
+공지 내용·오류 메시지 없음). 내보내기가 뺀 카드·확인할 일의 카드 id와 사유는 같은 폴더의 `<시각>-export.json`.
 
 `--push`면 새로 쓴 cards.json 한 파일만 main에 커밋·푸시한다 (`publisher/push.py`. 시작 전에 main에서 원격에
 맞춘다). 사이트는 Vercel이 main을 배포한다.
@@ -114,7 +115,11 @@ def publish(args) -> int:
             outcome["extract"] = _extract_summary(data / "extractions")
             check_analysis(notices, analysis)  # 추출하는 동안 다음 수집이 원문을 바꾸지 않았는지 (잠금 밖에서 불렸을 때 대비)
             run_stage("verify", verify_main, ["--bundles", str(bundles), "--notices", str(notices), "--out", str(verified)], log)
-            code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out)], log, ok_codes=(0, 1))
+            # 내보내기 보고: 어떤 카드가 왜 빠지거나 확인할 일이 생겼는지. 무인 실행에서는 여기만 남는다 (#109 보안 리뷰)
+            report = data / "publish_logs" / f"{started_at[:19].replace(':', '-')}-export.json"
+            code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out), "--report", str(report)],
+                             log, ok_codes=(0, 1))
+            outcome["export_report"] = {"file": report.name, **(_report_counts(report) or {})}
         except Stop as stop:
             outcome["stopped"] = str(stop)
             print(f"[멈춤] {stop} — cards.json은 그대로 둠", file=sys.stderr)
@@ -150,6 +155,15 @@ def _extract_summary(cache: Path) -> dict | None:
     summary = {key: entry.get(key) for key in EXTRACT_SUMMARY_KEYS}
     summary.update(calls=totals.get("calls"), calls_failed=totals.get("calls_failed"))
     return summary
+
+
+def _report_counts(path: Path) -> dict | None:
+    """내보내기 보고의 건수만 (단계 기록에는 사유를 옮기지 않는다. 사유는 보고 파일에서 본다)."""
+    try:
+        counts = json.loads(path.read_text(encoding="utf-8"))["counts"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return counts if isinstance(counts, dict) else None
 
 
 def _count(path: Path, key: str) -> int | None:

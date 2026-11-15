@@ -18,6 +18,9 @@
 
 수동 차단 목록(#65, `config/blocked_cards.toml`)의 카드는 빼고 내보낸다. 뺀 카드는 [차단]으로 찍고(이유는 찍지 않는다),
 목록에 있는데 이번 묶음에 없는 id는 [확인]으로 찍는다 (종료 코드 1).
+
+`--report <경로>`면 위 [뺌]·[건너뜀]·[확인]·[차단]을 카드 id·사유로 JSON에 남긴다 (매일 무인 공개는 stderr를 보는
+사람이 없다). 보고를 쓰지 못하면 cards.json을 바꾸지 않고 2. site/ 안에는 쓰지 않는다.
 """
 
 import argparse
@@ -66,6 +69,29 @@ def _read_items(path: Path) -> tuple[list[dict], str]:
     return raw["bundles"], raw.get("generated_at")
 
 
+def write_report(path: Path, generated_at, data: dict, report: dict, unverified: list[str]) -> None:
+    """내보내기 보고를 파일로 남긴다. 매일 무인 공개는 stderr를 보는 사람이 없어, 어떤 카드가 왜 빠지거나
+    확인할 일이 생겼는지(차단 목록 오타 포함) 여기 말고는 남지 않는다 (#109 보안 리뷰).
+    사유에는 AI 값이 짧게(80자) 들어갈 수 있어 공개 폴더 site/에는 쓰지 않는다.
+
+    Raises:
+        ValueError: path가 site/ 안일 때
+        OSError: 쓰기 실패
+    """
+    if path.resolve().is_relative_to((ROOT.parent / "site").resolve()):
+        raise ValueError("보고 파일을 공개 폴더 site/ 안에 쓰지 않는다")
+    body = {"generated_at": generated_at, "cards": len(data["cards"]),
+            "counts": {"rejected": len(report["rejected"]) + len(unverified), "skipped": len(report["skipped"]),
+                       "warnings": len(report["warnings"]), "blocked": len(report["blocked"])},
+            "unverified": unverified, "blocked": [item["id"] for item in report["blocked"]],
+            **{key: [{"id": item["id"], "reason": item["reason"]} for item in report[key]]
+               for key in ("rejected", "skipped", "warnings")}}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(body, ensure_ascii=False, indent=1), encoding="utf-8")
+    temporary.replace(path)
+
+
 def _to_bundle(item: dict) -> CardBundle:
     return CardBundle(**{key: default if item.get(key) is None else item[key] for key, default in BUNDLE_DEFAULTS})
 
@@ -81,6 +107,8 @@ def main(argv=None) -> int:
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--allow-empty", action="store_true", help="카드가 0장이어도 덮어쓴다 (기본은 상류 장애로 보고 멈춤)")
     parser.add_argument("--blocked", type=Path, default=ROOT / "config/blocked_cards.toml", help="수동 차단 목록 (#65)")
+    parser.add_argument("--report", type=Path, default=None,
+                        help="뺌·건너뜀·확인·차단을 카드 id·사유로 남길 JSON (site/ 밖. 매일 공개는 data/publish_logs/에)")
     args = parser.parse_args(argv)
     try:
         blocked = load_blocked(args.blocked)
@@ -100,6 +128,12 @@ def main(argv=None) -> int:
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
 
+    if args.report is not None:
+        try:
+            write_report(args.report, generated_at, data, report, unverified)
+        except (OSError, ValueError) as error:  # 보고를 못 남기면 무인 공개에서 경고가 사라지므로 내보내지 않는다
+            print(f"[오류] 내보내기 보고를 쓰지 못해 cards.json을 바꾸지 않음: {type(error).__name__}", file=sys.stderr)
+            return 2
     for card_id in unverified:
         print(f"[뺌] {card_id}: 검증기를 거치지 않았거나 검증 뒤에 바뀐 묶음 (다시 검증)", file=sys.stderr)
     for item in report["blocked"]:
