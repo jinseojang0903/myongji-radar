@@ -14,7 +14,12 @@ export const DEFAULT_BASE = 'https://myongji-radar-site.vercel.app';
 // 문의처는 공개 전에 근거·메일을 비워서 공개 화면만으로는 원문과 대조할 수 없다 (reviews.py와 같은 목록)
 export const REVIEWABLE_FIELDS = ['apply', 'stages', 'campus', 'grades', 'enrollment', 'team', 'deliverables', 'benefits',
   'mileage', 'how_to_apply'];
-const PROMOTABLE = new Set(['ai', 'needs_check']);
+// "AI 정리"만 검수로 올린다 (reviews.py PROMOTABLE과 같다). "원문 확인 필요"는 내보내기가 값을 고쳤거나 공지끼리
+// 충돌한 경우 등 이유가 여럿이라, 한쪽만 대조하고 검수 완료가 되지 않게 이슈로 남긴다
+const PROMOTABLE = new Set(['ai']);
+// 터미널을 조작하는 제어 문자(ESC 등)를 출력 전에 지운다. 배포 데이터는 내보내기가 이미 지우지만 --file은 아무 파일이나 받는다
+const CONTROL = /[\p{Cc}\p{Cf}]/gu;
+const printable = (text) => String(text).replace(CONTROL, '');
 const FIELD_LABELS = { apply: '신청기간', stages: '단계별 일정', campus: '캠퍼스', grades: '학년', enrollment: '학적',
   team: '팀 인원', deliverables: '제출물', benefits: '혜택', mileage: '마일리지', how_to_apply: '신청 방법' };
 const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -52,10 +57,16 @@ export function reviewItems(card, today) {
 }
 
 async function loadCards(options) {
-  const text = options.file
-    ? await readFile(options.file, 'utf8')
-    : await (await fetch(new URL('/data/cards.json', DEFAULT_BASE), { cache: 'no-store', signal: AbortSignal.timeout(15000) })).text();
-  return JSON.parse(text);
+  if (options.file) return JSON.parse(await readFile(options.file, 'utf8'));
+  const response = await fetch(new URL('/data/cards.json', DEFAULT_BASE), { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+/** 검수 대상이 아닌 "원문 확인 필요" 항목 (이슈로 남길 것) */
+export function needsCheckItems(card) {
+  return REVIEWABLE_FIELDS.filter((name) => card.fields?.[name]?.status === 'needs_check')
+    .map((name) => ({ name, label: FIELD_LABELS[name], note: card.fields[name].note ?? '' }));
 }
 
 function kstToday(now = new Date()) {
@@ -77,7 +88,7 @@ export async function main(argv, { log = console.log, load = loadCards, now = ne
   try {
     data = await load(options);
   } catch (error) {
-    log(`실패: cards.json을 읽지 못함 (${error?.name ?? '오류'})`);
+    log(`실패: cards.json을 읽지 못함 (${printable(error?.message ?? error?.name ?? '오류').slice(0, 60)})`);
     return 2;
   }
   const card = Array.isArray(data?.cards) ? data.cards.find((item) => item?.id === cardId) : undefined;
@@ -85,22 +96,28 @@ export async function main(argv, { log = console.log, load = loadCards, now = ne
     log(`실패: 공개된 카드에 ${cardId}가 없음`);
     return 2;
   }
-  log(`# ${card.title}`);
-  for (const source of card.sources ?? []) log(`원문: ${source.url} (${source.posted_at})`);
+  log(`# ${printable(card.title)}`);
+  for (const source of card.sources ?? []) log(`원문: ${printable(source.url)} (${printable(source.posted_at)})`);
   const items = reviewItems(card, kstToday(now));
-  if (items.length === 0) {
-    log('검수할 항목이 없음 (값·근거가 없거나 이미 검수 완료)');
-    return 0;
+  const skipped = needsCheckItems(card);
+  if (items.length > 0) {
+    log('\n원문을 열어 항목마다 값과 근거를 대조하고, 맞은 항목의 칸만 pipeline/config/human_reviews.toml에 붙여 넣으세요.');
+    log('틀린 항목은 붙이지 말고 이슈로 알려 주세요. 신청기간·자격(캠퍼스·학년·학적·팀 인원)이 판정에 쓰입니다.\n');
   }
-  log('\n원문을 열어 항목마다 값과 근거를 대조하고, 맞은 항목의 칸만 pipeline/config/human_reviews.toml에 붙여 넣으세요.');
-  log('틀린 항목은 붙이지 말고 이슈로 알려 주세요. 신청기간·자격(캠퍼스·학년·학적·팀 인원)이 판정에 쓰입니다.\n');
   for (const item of items) {
-    log(`## ${item.label} (${item.name}) — 지금 상태: ${item.status === 'ai' ? 'AI 정리' : '원문 확인 필요'}`);
-    log(`값: ${canonicalJson(item.value)}`);
-    if (item.note) log(`메모: ${item.note}`);
-    for (const evidence of item.evidence) log(`근거 (${evidence.location}${evidence.file ? ` ${evidence.file}` : ''}): ${evidence.quote}`);
+    log(`## ${item.label} (${item.name}) — 지금 상태: AI 정리`);
+    log(`값: ${printable(canonicalJson(item.value))}`);
+    if (item.note) log(`메모: ${printable(item.note)}`);
+    for (const evidence of item.evidence) {
+      log(`근거 (${printable(evidence.location)}${evidence.file ? ` ${printable(evidence.file)}` : ''}): ${printable(evidence.quote)}`);
+    }
     log(`\n${item.entry}\n`);
   }
+  if (skipped.length > 0) {
+    log('## 검수 대상이 아닌 항목 (원문 확인 필요): 원문과 다르면 카드 id·항목·원문 내용을 이슈로 남겨 주세요');
+    for (const item of skipped) log(`- ${item.label} (${item.name})${item.note ? `: ${printable(item.note)}` : ''}`);
+  }
+  if (items.length === 0 && skipped.length === 0) log('검수할 항목이 없음 (값·근거가 없거나 이미 검수 완료)');
   return 0;
 }
 

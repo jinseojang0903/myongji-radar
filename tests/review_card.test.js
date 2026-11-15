@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canonicalJson, evidenceFingerprint, reviewItems, main, REVIEWABLE_FIELDS } from '../scripts/review_card.mjs';
+import { canonicalJson, evidenceFingerprint, reviewItems, needsCheckItems, main, REVIEWABLE_FIELDS } from '../scripts/review_card.mjs';
 
 const EXPORTED = JSON.parse(readFileSync(new URL('../pipeline/tests/fixtures/exported_cards.json', import.meta.url), 'utf8'));
 // pipeline/tests/test_reviews.py의 FIXTURE_APPLY_FINGERPRINT와 같다: 두 언어의 지문이 같아야 검수가 맞는다
@@ -30,6 +30,23 @@ test('검수 전이고 값·근거가 있는 항목만 칸을 만든다', () => 
   // value 줄은 JSON 문자열이라 다시 읽으면 공개 값과 같다
   const valueLine = apply.entry.split('\n').find((line) => line.startsWith('value = '));
   assert.deepEqual(JSON.parse(JSON.parse(valueLine.slice('value = '.length))), card.fields.apply.value);
+});
+
+test('원문 확인 필요 항목은 칸을 만들지 않고 이슈로 남기라고 알린다', () => {
+  const card = structuredClone(EXPORTED.cards[0]);
+  for (const name of REVIEWABLE_FIELDS) card.fields[name].status = 'ai';
+  card.fields.apply.status = 'needs_check';
+  card.fields.apply.note = '내보내기 검사: 마감이 시작보다 빠름';
+  assert.ok(!reviewItems(card, '2026-11-16').some((item) => item.name === 'apply'));
+  assert.deepEqual(needsCheckItems(card), [{ name: 'apply', label: '신청기간', note: '내보내기 검사: 마감이 시작보다 빠름' }]);
+});
+
+test('터미널을 조작하는 제어 문자는 출력하지 않는다', async () => {
+  const data = structuredClone(EXPORTED);
+  data.cards[0].title = '대회\u001b[31m빨강‮';
+  const lines = [];
+  await main([data.cards[0].id], { log: (line) => lines.push(line), load: async () => data });
+  assert.equal(lines[0], '# 대회[31m빨강');
 });
 
 test('없는 카드·잘못된 id는 2, 있는 카드는 원문 링크와 칸을 보여 준다', async () => {

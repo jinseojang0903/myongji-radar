@@ -123,12 +123,12 @@ def main(argv=None) -> int:
         print(f"[오류] 수동 차단 목록을 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
     # 검수 기록을 못 읽으면 검수 없이(모두 "확인 전") 공개한다. 더 조심스러운 쪽이라 멈추지 않고 보고에 남긴다
-    reviews, review_error = {}, None
+    reviews, review_error, review_warnings = {}, None, []
     try:
-        reviews = load_reviews(args.reviews)
+        reviews, review_warnings = load_reviews(args.reviews)
     except ReviewsError as error:
         review_error = str(error)
-    except OSError as error:
+    except Exception as error:  # 파일을 못 읽음·깊은 중첩(RecursionError) 등도 검수 없이 공개하는 쪽으로
         review_error = type(error).__name__
     try:
         bundles, generated_at, unverified = read_verified_bundles(args.bundles)
@@ -139,12 +139,18 @@ def main(argv=None) -> int:
             return 2
         boards = boards_from_sources(load_sources(args.config))
         data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
-        if review_error:
-            report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 읽지 못해 검수 없이 공개: {review_error}"})
-        promoted = apply_all(data, reviews, report)
     except Exception as error:  # 예상 못 한 오류도 1(배포 가능)로 끝나지 않게 2로
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
+    report["warnings"] += [{"id": "(검수 기록)", "reason": message} for message in review_warnings]
+    if review_error:
+        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 읽지 못해 검수 없이 공개: {review_error}"})
+    promoted = 0
+    try:
+        promoted = apply_all(data, reviews, report)
+    except Exception as error:  # 검수 적용이 깨져도 검수 없는 카드로 공개한다. 일부만 올라간 카드가 남지 않게 다시 만든다
+        data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
+        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수를 적용하다 오류가 나 검수 없이 공개: {type(error).__name__}"})
 
     if args.report is not None:
         try:

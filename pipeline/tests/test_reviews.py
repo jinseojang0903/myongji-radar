@@ -3,6 +3,7 @@ import contextlib
 import copy
 import io
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -51,7 +52,7 @@ class ReviewTests(unittest.TestCase):
 
     def test_matching_review_promotes_only_that_field(self):
         self.card["fields"]["apply"]["status"] = "ai"
-        reviews = load_reviews(self.write(self.review_of("apply")))
+        reviews, _ = load_reviews(self.write(self.review_of("apply")))
         data, report = {"cards": [self.card]}, {"warnings": []}
         self.assertEqual(apply_all(data, reviews, report), 1)
         self.assertEqual(self.card["fields"]["apply"]["status"], "human_verified")
@@ -62,7 +63,7 @@ class ReviewTests(unittest.TestCase):
         for change in ("value", "evidence"):
             card = copy.deepcopy(self.card)
             card["fields"]["apply"]["status"] = "ai"
-            reviews = load_reviews(self.write(self.review_of("apply", card)))
+            reviews, _ = load_reviews(self.write(self.review_of("apply", card)))
             if change == "value":
                 card["fields"]["apply"]["value"]["end"] = "2026-10-22"
             else:
@@ -73,15 +74,15 @@ class ReviewTests(unittest.TestCase):
             self.assertIn("검수 기록이 지금 값·근거와 달라", report["warnings"][0]["reason"])
 
     def test_fields_without_evidence_or_value_are_not_promoted(self):
-        self.card["fields"]["apply"]["status"] = "needs_check"
-        reviews = load_reviews(self.write(self.review_of("apply")))
-        self.card["fields"]["apply"]["evidence"] = []  # 근거 대조에 실패해 근거를 비운 항목
+        self.card["fields"]["apply"]["status"] = "ai"
+        reviews, _ = load_reviews(self.write(self.review_of("apply")))
+        self.card["fields"]["apply"]["evidence"] = []  # 근거가 없는 항목은 대조할 것이 없다
         report = {"warnings": []}
         apply_all({"cards": [self.card]}, reviews, report)
-        self.assertEqual(self.card["fields"]["apply"]["status"], "needs_check")
+        self.assertEqual(self.card["fields"]["apply"]["status"], "ai")
 
     def test_review_for_missing_card_is_reported(self):
-        reviews = load_reviews(self.write(entry("gone-card", "apply", {"end": "2026-10-01"}, "0" * 64)))
+        reviews, _ = load_reviews(self.write(entry("gone-card", "apply", {"end": "2026-10-01"}, "0" * 64)))
         report = {"warnings": []}
         apply_all({"cards": [self.card]}, reviews, report)
         self.assertEqual(report["warnings"][0]["id"], "gone-card")
@@ -94,15 +95,40 @@ class ReviewTests(unittest.TestCase):
             "bad sha": good.replace(evidence_fingerprint(self.card["fields"]["apply"]["evidence"]), "ABC"),
             "string date": good.replace("since = 2026-11-16", 'since = "2026-11-16"'),
             "null value": entry(self.card["id"], "apply", None, "0" * 64),
-            "duplicate": good + good,
             "other top": "blocked = []\n",
             "bad id": good.replace(self.card["id"], "Bad Id"),
+            "too big": "# " + "가" * (100 * 1024) + "\nreview = []\n",
         }
         for name, text in cases.items():
             with self.assertRaises(ReviewsError, msg=name):
                 load_reviews(self.write(text))
-        self.assertEqual(load_reviews(self.write("review = []\n")), {})
+        self.assertEqual(load_reviews(self.write("review = []\n")), ({}, []))
         self.assertNotIn("contact", REVIEWABLE_FIELDS)
+
+    def test_duplicate_entry_uses_the_later_one_and_warns(self):
+        """동시에 올린 PR이 둘 다 병합돼 같은 칸이 두 번 생겨도 파일 전체를 버리지 않는다."""
+        good = self.review_of("apply")
+        reviews, warnings = load_reviews(self.write(good.replace("2026-11-16", "2026-11-15") + good))
+        self.assertEqual(reviews[(self.card["id"], "apply")]["since"], "2026-11-16")
+        self.assertIn("2번 칸", warnings[0])
+
+    def test_needs_check_fields_are_not_promoted(self):
+        """원문 확인 필요는 이유가 여럿(내보내기가 값을 고침, 공지끼리 충돌 등)이라 화면만 보고 검수하지 않는다."""
+        self.card["fields"]["apply"]["status"] = "needs_check"
+        reviews, _ = load_reviews(self.write(self.review_of("apply")))
+        report = {"warnings": []}
+        self.assertEqual(apply_all({"cards": [self.card]}, reviews, report), 0)
+        self.assertEqual(self.card["fields"]["apply"]["status"], "needs_check")
+        self.assertTrue(report["warnings"])
+
+    def test_integral_float_matches_the_node_helper(self):
+        """JS는 2.0과 2를 구분하지 않아 도우미가 만든 칸은 2가 된다."""
+        self.assertEqual(canonical_json({"points": 2.0, "rate": 2.5}), '{"points":2,"rate":2.5}')
+
+    def test_reviewable_fields_match_the_node_helper(self):
+        helper = (Path(__file__).resolve().parents[2] / "scripts" / "review_card.mjs").read_text(encoding="utf-8")
+        listed = re.search(r"REVIEWABLE_FIELDS = \[(.*?)\];", helper, re.S).group(1)
+        self.assertEqual(re.findall(r"'([a-z_]+)'", listed), REVIEWABLE_FIELDS)
 
     def test_repository_file_is_valid(self):
         load_reviews(Path(__file__).resolve().parents[1] / "config" / "human_reviews.toml")
@@ -138,14 +164,26 @@ class ReviewCliTests(unittest.TestCase):
             self.assertEqual(data["cards"][0]["fields"][target]["status"], "human_verified")
 
     def test_broken_review_file_publishes_without_reviews(self):
+        for text in ("이건 TOML이 아님", "review = " + "[" * 5000 + "]" * 5000 + "\n"):  # 문법 오류, 깊은 중첩
+            with tempfile.TemporaryDirectory() as name:
+                folder = Path(name)
+                reviews = folder / "reviews.toml"
+                reviews.write_text(text, encoding="utf-8")
+                code, data, report = self.run_cli(folder, reviews)
+                self.assertEqual(code, 1, "검수 없이 공개하고 보고에 남긴다 (멈추지 않음)")
+                self.assertTrue(data["cards"])
+                self.assertTrue(any("검수 기록을 읽지 못해" in item["reason"] for item in report["warnings"]))
+
+    def test_error_while_applying_publishes_without_partial_reviews(self):
         with tempfile.TemporaryDirectory() as name:
             folder = Path(name)
             reviews = folder / "reviews.toml"
-            reviews.write_text("이건 TOML이 아님", encoding="utf-8")
-            code, data, report = self.run_cli(folder, reviews)
-            self.assertEqual(code, 1, "검수 없이 공개하고 보고에 남긴다 (멈추지 않음)")
+            reviews.write_text("review = []\n", encoding="utf-8")
+            with mock.patch("exporter.__main__.apply_all", side_effect=RuntimeError("깨짐")):
+                code, data, report = self.run_cli(folder, reviews)
+            self.assertEqual(code, 1)
             self.assertTrue(data["cards"])
-            self.assertTrue(any("검수 기록을 읽지 못해" in item["reason"] for item in report["warnings"]))
+            self.assertTrue(any("검수를 적용하다 오류" in item["reason"] for item in report["warnings"]))
 
 
 if __name__ == "__main__":
