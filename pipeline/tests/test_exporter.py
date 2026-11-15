@@ -509,6 +509,38 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertTrue(any("파일 이름" in message for message in warnings))
         self.assertIn("예선 1차, 예선 2차", card["fields"]["stages"]["note"])
 
+    def test_untrusted_top_level_values_are_not_published_as_confirmed(self):
+        """대회명·주관·교내/외부는 원문 확인 필요를 표시할 자리가 없어, 확인 못 한 값은 확정처럼 싣지 않는다 (#109 보안 리뷰)."""
+        fields = example_fields()
+        fields["title"]["flag"] = "needs_check"
+        fields["title"]["value"] = "AI가 지어낸 대회명"
+        fields["organizer"]["flag"] = "conflict"
+        fields["scope"] = field(None, flag="missing", quote=None)
+        warnings = []
+        card = build_card(with_fields(fields), warnings)
+        self.assertEqual(card["title"], NOTICE["title"], "대회명은 게시판 글 제목(수집 원문)으로")
+        self.assertIsNone(card["organizer"])
+        self.assertIsNone(card["scope"])
+        self.assertTrue(any("title을 확인하지 못해" in message for message in warnings))
+        self.assertTrue(any("organizer를 확인하지 못해" in message for message in warnings))
+        self.assertTrue(any("scope를 확인하지 못해" in message for message in warnings))
+        self.assertFalse(any("확정 값처럼" in message for message in warnings))
+
+    def test_top_level_evidence_failure_drops_value_unless_human_verified(self):
+        fields = example_fields()
+        failed = {"organizer": {"status": "needs_check", "evidence_failed": True}}
+        self.assertIsNone(build_card(with_fields(fields, statuses=failed))["organizer"])
+        # 사람이 검수했으면 AI flag가 found가 아니어도 그 값을 믿는다
+        fields["organizer"]["flag"] = "needs_check"
+        card = build_card(with_fields(fields, statuses=verified(fields, ["organizer"])))
+        self.assertEqual(card["organizer"], fields["organizer"]["value"])
+
+    def test_untrusted_title_without_board_title_is_rejected(self):
+        fields = example_fields()
+        fields["title"]["flag"] = "missing"
+        with self.assertRaises(CardExportError):
+            build_card(with_fields(fields, notices=[dict(NOTICE, title="")]))
+
     def test_generated_at_and_source_id_follow_site_format(self):
         for bad in ["20261105T090000+09:00", "2026-11-05 09:00:00+09:00"]:
             with self.assertRaises(ValueError, msg=bad):

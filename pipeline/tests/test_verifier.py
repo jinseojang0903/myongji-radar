@@ -348,7 +348,9 @@ class PipelineTests(unittest.TestCase):
         for name in ("team", "campus"):
             self.assertEqual((card["fields"][name]["status"], card["fields"][name]["evidence"]), ("needs_check", []), name)
         self.assertIn("근거 문장을 원문에서 찾지 못함", card["fields"]["team"]["note"])
-        self.assertIn("title의 근거를 원문에서 찾지 못했는데 확정 값처럼 공개됨", warnings)
+        # 근거를 지어낸 대회명은 싣지 않고 게시판 글 제목으로 바꾼다 (#109 보안 리뷰)
+        self.assertIn("title을 확인하지 못해 게시판 글 제목으로 공개", warnings)
+        self.assertNotEqual(card["title"], fields["title"]["value"])
 
     def test_malformed_notices_keep_their_numbers(self):
         data = self.bundles(fields_copy())

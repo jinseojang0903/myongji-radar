@@ -162,20 +162,32 @@ def build_card(bundle: CardBundle, warnings: list[str] | None = None) -> dict:
         raise CardExportError("statuses가 객체가 아님")
     notices = _checked_notices(bundle.notices)
 
-    title = _required_text(fields, "title", MAX_TITLE_CHARS, warnings)
-    organizer = _required_text(fields, "organizer", MAX_ORGANIZER_CHARS, warnings)
-    scope = _raw_value(fields, "scope")
-    if scope not in SCOPES:
-        raise CardExportError(f"교내/외부 값: {_short(scope)}")
+    # 대회명·주관·교내/외부는 카드 최상위 값이라 "원문 확인 필요"를 표시할 자리가 없다. 확인하지 못한 값을
+    # 확정처럼 싣지 않는다 (매일 무인 공개라 사람이 경고를 보고 막을 수 없다, #109 보안 리뷰):
+    # 대회명은 게시판 글 제목(수집 원문, AI가 만든 값 아님)으로, 주관·교내/외부는 비워서 싣는다 (계약 1절)
     for name in ("title", "organizer", "scope"):
-        flag = fields[name].get("flag")
-        if flag != "found":
-            # 계약상 최상위 값이라 원문 확인 필요를 표시할 자리가 없어 보고로 알린다
-            warnings.append(f"{name}의 flag가 {_short(flag)}인데 확정 값처럼 공개됨")
-        verification = bundle.statuses.get(name)
-        if isinstance(verification, dict) and verification.get("evidence_failed") is True:
-            # 최상위 값은 근거를 공개하지 않지만, 근거를 지어냈다면 값도 의심스럽다 (#15)
-            warnings.append(f"{name}의 근거를 원문에서 찾지 못했는데 확정 값처럼 공개됨")
+        if not isinstance(fields.get(name), dict):  # 모양이 깨진 출력은 확인 못 한 값과 다르다: 카드를 뺀다
+            raise CardExportError(f"{name} 항목 형식이 다름")
+    untrusted = {name for name in ("title", "organizer", "scope") if _is_untrusted_top(fields, bundle.statuses, name)}
+    if "title" in untrusted:
+        title = notices[-1]["title"]  # 가장 최근 출처 공지의 글 제목 (_checked_notices가 정리함)
+        if not title:
+            raise CardExportError("title을 확인하지 못했고 게시판 글 제목도 비어 있음")
+        warnings.append("title을 확인하지 못해 게시판 글 제목으로 공개")
+    else:
+        title = _required_text(fields, "title", MAX_TITLE_CHARS, warnings)
+    if "organizer" in untrusted:
+        organizer = None
+        warnings.append("organizer를 확인하지 못해 비우고 공개")
+    else:
+        organizer = _required_text(fields, "organizer", MAX_ORGANIZER_CHARS, warnings)
+    if "scope" in untrusted:
+        scope = None
+        warnings.append("scope를 확인하지 못해 비우고 공개")
+    else:
+        scope = _raw_value(fields, "scope")
+        if scope not in SCOPES:
+            raise CardExportError(f"교내/외부 값: {_short(scope)}")
 
     has_warnings = isinstance(extraction.get("warnings"), list) and len(extraction["warnings"]) > 0
     context = _CardContext()
@@ -775,6 +787,17 @@ def _check_generated_at(text) -> None:
         parsed = None
     if parsed is None or parsed.tzinfo is None:
         raise ValueError(f"generated_at이 시간대가 있는 ISO 8601 시각이 아님: {_short(text)}")
+
+
+def _is_untrusted_top(fields: dict, statuses: dict, name: str) -> bool:
+    """최상위 값(대회명·주관·교내/외부)을 확정으로 싣지 못하는지. 사람이 검수했으면 믿는다.
+    AI가 found로 내지 않았거나(missing·needs_check·conflict), 근거를 원문에서 찾지 못했으면(#15) 믿지 않는다."""
+    verification = statuses.get(name)
+    if isinstance(verification, dict) and verification.get("status") == "human_verified":
+        return False
+    item = fields.get(name)
+    flag = item.get("flag") if isinstance(item, dict) else None
+    return flag != "found" or (isinstance(verification, dict) and verification.get("evidence_failed") is True)
 
 
 def _raw_value(fields: dict, name: str):
