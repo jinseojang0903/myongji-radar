@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
     "eval:parser": "node eval/parser/run.js",
-    "check:live": "node scripts/check_live_cards.mjs"
+    "check:live": "node scripts/check_live_cards.mjs",
+    "review": "node scripts/review_card.mjs"
   },
   "engines": {
     "node": ">=22"
