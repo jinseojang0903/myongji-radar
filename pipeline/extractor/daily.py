@@ -16,6 +16,7 @@
 - 같은 판·입력을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판·입력이 바뀌면 다시.
 - 묶음 파일에는 뽑아 둔 결과가 있는 후보만 넣는다. 사람 검수 기록(statuses)은 아직 없어 비워 둔다.
 - AI 입력은 본문과 글자를 뽑아 둔 첨부다 (INPUTS). 입력 종류가 다른 옛 결과는 다시 뽑을 대상이다 (그동안은 옛 결과로 남긴다).
+  새로 뽑을 공지가 상한보다 많으면 **최신 공지부터** 부른다 (접수 중일 가능성이 큰 공지가 먼저 갱신되게).
 - 호출 조건은 모델 비교(eval)와 같다: 확인 호출, 격리 실측, 계정 환경변수 차단, 하루 상한 (`extractor/claude.py`).
   스키마 강제를 거치지 않은 모델 글은 받지 않는다 (공개 경로라서).
 
@@ -178,6 +179,8 @@ def run_daily(args) -> int:
             given_up.append(item["card_id"])
             continue
         pending.append(item)
+    # 최신 공지부터 (같은 날이면 원래 순서). 하루 상한에 걸려도 접수 중일 가능성이 큰 공지가 먼저 갱신된다
+    pending.sort(key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
     for card_id in given_up:
         print(f"[포기] {card_id}: 같은 판을 {MAX_FAILURES}번 실패해 부르지 않음 (공지·모델·프롬프트가 바뀌거나 --force면 다시)",
               file=sys.stderr)

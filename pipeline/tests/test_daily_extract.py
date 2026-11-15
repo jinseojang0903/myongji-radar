@@ -137,6 +137,14 @@ class DailyExtractTests(unittest.TestCase):
         self.assertEqual((code, len(fake.calls)), (0, 2), "확인 호출 + 본문만으로 뽑은 1건을 다시")
         self.assertIn(CTL + "100", self.card_ids(), "다시 뽑는 동안에도 카드는 남는다")
 
+    def test_newest_notices_are_extracted_first(self):
+        self.notices[3]["published_at"] = "2026-11-10T10:00:00+09:00"  # 창업 공모전이 더 최신
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--max-new", "1")
+        self.assertEqual((code, len(fake.calls)), (0, 2))
+        self.assertIn("창업 아이디어 공모전", fake.calls[1]["input"].decode("utf-8"), "상한에 걸리면 최신 공지부터")
+
     def test_cards_stay_while_waiting_for_re_extraction(self):
         self.run_cli(FakeRun())
         self.notices[0]["version_id"] = 2
