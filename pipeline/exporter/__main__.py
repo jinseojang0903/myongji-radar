@@ -142,15 +142,20 @@ def main(argv=None) -> int:
     except Exception as error:  # 예상 못 한 오류도 1(배포 가능)로 끝나지 않게 2로
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
-    report["warnings"] += [{"id": "(검수 기록)", "reason": message} for message in review_warnings]
-    if review_error:
-        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 읽지 못해 검수 없이 공개: {review_error}"})
     promoted = 0
     try:
         promoted = apply_all(data, reviews, report)
     except Exception as error:  # 검수 적용이 깨져도 검수 없는 카드로 공개한다. 일부만 올라간 카드가 남지 않게 다시 만든다
-        data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
-        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수를 적용하다 오류가 나 검수 없이 공개: {type(error).__name__}"})
+        try:
+            data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
+        except Exception as again:  # 1(배포 가능)로 끝나지 않게
+            print(f"[오류] 카드를 다시 만들지 못해 cards.json을 바꾸지 않음: {type(again).__name__}", file=sys.stderr)
+            return 2
+        review_error = review_error or f"적용 중 오류 ({type(error).__name__})"
+    # 검수 경고는 적용 뒤에 붙인다 (적용이 실패해 보고를 다시 만들어도 남게)
+    report["warnings"] += [{"id": "(검수 기록)", "reason": message} for message in review_warnings]
+    if review_error:
+        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 쓰지 못해 검수 없이 공개: {review_error}"})
 
     if args.report is not None:
         try:

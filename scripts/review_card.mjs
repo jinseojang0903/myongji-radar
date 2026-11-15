@@ -20,6 +20,7 @@ const PROMOTABLE = new Set(['ai']);
 // 터미널을 조작하는 제어 문자(ESC 등)를 출력 전에 지운다. 배포 데이터는 내보내기가 이미 지우지만 --file은 아무 파일이나 받는다
 const CONTROL = /[\p{Cc}\p{Cf}]/gu;
 const printable = (text) => String(text).replace(CONTROL, '');
+const escapeInvisible = (text) => text.replace(CONTROL, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const FIELD_LABELS = { apply: '신청기간', stages: '단계별 일정', campus: '캠퍼스', grades: '학년', enrollment: '학적',
   team: '팀 인원', deliverables: '제출물', benefits: '혜택', mileage: '마일리지', how_to_apply: '신청 방법' };
 const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -48,8 +49,9 @@ export function reviewItems(card, today) {
       return [];
     }
     const entry = ['[[review]]', `card_id = ${JSON.stringify(card.id)}`, `field = ${JSON.stringify(name)}`,
-      // canonicalJson 글을 JSON 문자열로 한 번 더 감싸면 TOML 기본 문자열 문법과 같다 (\" \\ \n \uXXXX)
-      `value = ${JSON.stringify(canonicalJson(field.value))}`, `evidence_sha256 = "${evidenceFingerprint(field.evidence)}"`,
+      // canonicalJson 글을 JSON 문자열로 한 번 더 감싸면 TOML 기본 문자열 문법과 같다 (\" \\ \n \uXXXX).
+      // 보이지 않는 글자(U+202E 등)는 \uXXXX로 적어 터미널에 그대로 나가지 않게 한다 (TOML이 같은 글자로 되돌린다)
+      `value = ${escapeInvisible(JSON.stringify(canonicalJson(field.value)))}`, `evidence_sha256 = "${evidenceFingerprint(field.evidence)}"`,
       `since = ${today}`].join('\n');
     return [{ name, label: FIELD_LABELS[name], status: field.status, value: field.value, evidence: field.evidence,
       note: field.note ?? '', entry }];

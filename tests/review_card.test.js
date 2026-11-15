@@ -47,6 +47,13 @@ test('터미널을 조작하는 제어 문자는 출력하지 않는다', async 
   const lines = [];
   await main([data.cards[0].id], { log: (line) => lines.push(line), load: async () => data });
   assert.equal(lines[0], '# 대회[31m빨강');
+  // 칸의 값에 든 보이지 않는 글자는 지우지 않고(지문이 어긋남) \uXXXX로 적는다
+  const card = structuredClone(EXPORTED.cards[0]);
+  card.fields.apply.status = 'ai';
+  card.fields.apply.value = { ...card.fields.apply.value, end: '2026-10-21‮' };
+  const entry = reviewItems(card, '2026-11-16').find((item) => item.name === 'apply').entry;
+  assert.ok(!entry.includes('‮'));
+  assert.ok(entry.includes('\\u202e'));
 });
 
 test('없는 카드·잘못된 id는 2, 있는 카드는 원문 링크와 칸을 보여 준다', async () => {

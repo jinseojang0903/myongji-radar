@@ -157,7 +157,7 @@ class ReviewCliTests(unittest.TestCase):
             _, data, _ = self.run_cli(folder, reviews)
             card = data["cards"][0]
             target = next(field for field in REVIEWABLE_FIELDS
-                          if card["fields"][field]["status"] in ("ai", "needs_check") and card["fields"][field]["evidence"])
+                          if card["fields"][field]["status"] == "ai" and card["fields"][field]["evidence"])
             field = card["fields"][target]
             reviews.write_text(entry(card["id"], target, field["value"], evidence_fingerprint(field["evidence"])), encoding="utf-8")
             _, data, _ = self.run_cli(folder, reviews)
@@ -172,7 +172,7 @@ class ReviewCliTests(unittest.TestCase):
                 code, data, report = self.run_cli(folder, reviews)
                 self.assertEqual(code, 1, "검수 없이 공개하고 보고에 남긴다 (멈추지 않음)")
                 self.assertTrue(data["cards"])
-                self.assertTrue(any("검수 기록을 읽지 못해" in item["reason"] for item in report["warnings"]))
+                self.assertTrue(any("검수 기록을 쓰지 못해" in item["reason"] for item in report["warnings"]))
 
     def test_error_while_applying_publishes_without_partial_reviews(self):
         with tempfile.TemporaryDirectory() as name:
@@ -183,7 +183,7 @@ class ReviewCliTests(unittest.TestCase):
                 code, data, report = self.run_cli(folder, reviews)
             self.assertEqual(code, 1)
             self.assertTrue(data["cards"])
-            self.assertTrue(any("검수를 적용하다 오류" in item["reason"] for item in report["warnings"]))
+            self.assertTrue(any("적용 중 오류" in item["reason"] for item in report["warnings"]))
 
 
 if __name__ == "__main__":
