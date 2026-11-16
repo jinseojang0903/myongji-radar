@@ -1,7 +1,8 @@
 """`claude -p` 한 번 부르기 (#14). 원문은 표준 입력으로만 넘기고, 도구를 모두 끈 채 빈 임시 폴더에서 실행한다.
 
 공지 본문의 "파일을 읽어라" 같은 주입은 프롬프트 문구만으로 막을 수 없어서, 실행 조건으로 막는다.
-- `--tools ""`: 내장 도구를 모두 끈다 (이미지는 #12 뒤에 Read만 입력 폴더로 열 예정).
+- `--tools ""`: 내장 도구를 모두 끈다. 포스터 이미지를 넣을 때도 끈 채로 둔다: 파이프라인이 파일을 읽어
+  `--input-format stream-json`의 사용자 메시지에 image 블록으로 넣는다 (extractor/images.py. 이미지가 없으면 지금처럼 글만).
 - `--disallowedTools "mcp__*"`: `--tools ""`는 MCP 도구를 끄지 않아 따로 막는다. 환경변수로 claude.ai 커넥터도 끈다.
 - `--safe-mode`: CLAUDE.md·스킬·플러그인·훅·MCP 서버·자동 메모리를 읽지 않는다 (인증은 그대로라 구독 로그인으로 돈다.
   `--bare`는 API 키만 받아 쓰지 않는다). `--strict-mcp-config`: 설정 파일의 MCP 서버를 쓰지 않는다.
@@ -14,16 +15,20 @@
   로그인 계정으로 도는지(apiKeySource) 본다. 실행을 시작할 때 공지 없이 한 번 불러(probe) 확인하고, 호출마다 다시 확인해
   하나라도 어긋나면 결과를 버리고 멈춘다 (플래그의 뜻이 CLI 버전마다 달라도 열린 채로 공지를 보내지 않게).
 """
+import base64
 import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import time
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from extractor.images import PosterImage
 from extractor.prompt import PROMPT_DIR
 
 REPO = Path(__file__).resolve().parents[2]
@@ -83,8 +88,33 @@ def resolve_claude(command: str) -> str:
     return str(path)
 
 
-def build_command(claude: str, model: str) -> list[str]:
-    """Raises: ClaudeError (모델 이름 형식·명령줄 길이)."""
+def _tiny_png() -> bytes:
+    """확인 호출에 넣는 1×1 흰 PNG (이미지 입력 형식이 이 CLI에서 통하는지 공지 없이 본다)."""
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"\x00\xff\xff\xff")) + chunk(b"IEND", b""))
+
+
+PROBE_IMAGE = PosterImage("이미지 1.png", "image/png", _tiny_png())
+
+
+def user_message(text: str, images: list[PosterImage]) -> bytes:
+    """stream-json 입력 한 줄: 공지 글, 그다음 이미지마다 이름 한 줄 + 이미지. 이름은 입력 글의 <image name>과 같다."""
+    content = [{"type": "text", "text": text}]
+    for image in images:
+        content.append({"type": "text", "text": f'<image name="{image.name}" />'})
+        content.append({"type": "image", "source": {"type": "base64", "media_type": image.media_type,
+                                                    "data": base64.b64encode(image.data).decode("ascii")}})
+    message = {"type": "user", "message": {"role": "user", "content": content}, "parent_tool_use_id": None}
+    # ASCII로만: U+2028 같은 글자를 받는 쪽이 줄바꿈으로 읽어 메시지가 나뉠 여지를 없앤다 (보안 리뷰)
+    return (json.dumps(message, ensure_ascii=True) + "\n").encode("ascii")
+
+
+def build_command(claude: str, model: str, stream_input: bool = False) -> list[str]:
+    """stream_input: 표준 입력을 stream-json 메시지로 넣는다 (이미지를 넣을 때).
+
+    Raises: ClaudeError (모델 이름 형식·명령줄 길이)."""
     if not MODEL_NAME.fullmatch(model):
         raise ClaudeError(f"모델 이름 형식이 다름: {model[:40]!r}")
     schema = json.loads((PROMPT_DIR / "schema.json").read_text(encoding="utf-8"))
@@ -94,6 +124,8 @@ def build_command(claude: str, model: str) -> list[str]:
     command = [claude, "-p", "--output-format", "stream-json", "--verbose", "--json-schema", schema, "--model", model,
                "--system-prompt-file", str(PROMPT_DIR / "system.md"), "--tools", "", "--disallowedTools", "mcp__*",
                "--safe-mode", "--strict-mcp-config", "--settings", '{"disableAllHooks": true}', "--no-session-persistence"]
+    if stream_input:
+        command += ["--input-format", "stream-json"]
     if sum(len(part) + 3 for part in command) > MAX_COMMAND_CHARS:
         raise ClaudeError("명령줄이 너무 김 (schema.json을 줄이기)")
     return command
@@ -108,14 +140,16 @@ def child_env(allow_env_account: bool) -> dict:
     return env
 
 
-def _run(text: str, claude: str, model: str, timeout: int, allow_env_account: bool):
+def _run(text: str, claude: str, model: str, timeout: int, allow_env_account: bool, images: list[PosterImage] | None = None):
     """claude를 한 번 실행 → (종료 코드, init 이벤트, result 이벤트, stderr, 걸린 초)."""
-    command = build_command(claude, model)
+    images = list(images or [])
+    command = build_command(claude, model, stream_input=bool(images))
+    # 바이트로 넘긴다: 텍스트 모드는 Windows에서 줄바꿈을 \r\n으로 바꿔 근거 대조(#15)와 어긋난다
+    stdin = user_message(text, images) if images else text.encode("utf-8")
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="mjr-extract-") as workdir:
         try:
-            # 바이트로 넘긴다: 텍스트 모드는 Windows에서 줄바꿈을 \r\n으로 바꿔 근거 대조(#15)와 어긋난다
-            completed = subprocess.run(command, input=text.encode("utf-8"), capture_output=True, cwd=workdir,
+            completed = subprocess.run(command, input=stdin, capture_output=True, cwd=workdir,
                                        timeout=timeout, env=child_env(allow_env_account))
         except subprocess.TimeoutExpired:
             raise ClaudeError(f"{timeout}초 안에 끝나지 않음", kind="model") from None
@@ -153,32 +187,39 @@ def _isolation_problem(init, allow_env_account: bool) -> str | None:
     return None
 
 
-def probe(claude: str, model: str, timeout: int = 300, allow_env_account: bool = False) -> tuple[dict, float | None]:
+def probe(claude: str, model: str, timeout: int = 300, allow_env_account: bool = False,
+          with_image: bool = False) -> tuple[dict, float | None]:
     """공지 없이 한 번 불러 격리·계정만 확인한다 (공지를 보내기 전에. 주입된 공지가 열린 환경으로 가지 않게).
 
+    with_image: 1×1 시험 이미지를 stream-json 입력으로 함께 넣어, 이미지 입력 방식에서도 격리가 같고 CLI가 그 형식을
+    받는지 본다 (받지 않으면 오류 응답이라 공지를 보내기 전에 멈춘다).
     Returns: (토큰, 추정 비용). Raises: ClaudeError (setup·isolation). 모델 답의 형식은 보지 않는다.
     """
-    _, init, response, stderr, _ = _run("이 입력에는 공지가 없다. 대회가 아니라고 답하라.", claude, model, timeout, allow_env_account)
+    returncode, init, response, stderr, _ = _run("이 입력에는 공지가 없다. 대회가 아니라고 답하라.", claude, model, timeout,
+                                                 allow_env_account, [PROBE_IMAGE] if with_image else [])
     if response is None:
         raise ClaudeError(f"결과가 없음{_stderr_hint(stderr)}")
     usage, cost = _usage(response)
     problem = _isolation_problem(init, allow_env_account)
     if problem:
         raise ClaudeError(problem, usage, cost, kind="isolation")
+    if with_image and (returncode != 0 or response.get("is_error") is True):
+        raise ClaudeError(f"이미지 입력 확인 실패 (종료 코드 {returncode}{_stderr_hint(stderr)})", usage, cost)
     return usage, cost
 
 
 def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_account: bool = False,
-         allow_text_result: bool = True) -> CallResult:
-    """AI 입력 글 하나 → 추출 결과.
+         allow_text_result: bool = True, images: list[PosterImage] | None = None) -> CallResult:
+    """AI 입력 글 하나 (+ 포스터 이미지) → 추출 결과.
 
     allow_text_result: structured_output이 없을 때 모델 글(result)을 JSON으로 읽을지. 그 글은 CLI의 스키마 강제를
     거치지 않으므로, 공개 경로로 가는 매일 추출은 False로 부른다.
+    images: 있으면 stream-json 입력으로 함께 넣는다. 글의 <image name>과 이름이 같아야 한다.
 
     Raises:
         ClaudeError: 실행 실패·시간 초과·오류 응답·격리 확인 실패·형식이 다른 출력 (kind로 구분)
     """
-    returncode, init, response, stderr, seconds = _run(text, claude, model, timeout, allow_env_account)
+    returncode, init, response, stderr, seconds = _run(text, claude, model, timeout, allow_env_account, images)
     if response is None:
         raise ClaudeError(f"결과가 없음 (종료 코드 {returncode}{_stderr_hint(stderr)})")
     usage, cost = _usage(response)

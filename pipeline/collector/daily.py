@@ -202,11 +202,14 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                             state.update(status="failed", failure_phase="publish", diagnostic="data/publish_logs")
                             state["exit_code"] = exit_code
                             atomic_json(state_path, state)
-                            emit("publish_started", cross_model=publishing.cross_model)  # 교차 시 호출·시간이 늘어 로그로 구분
+                            # 교차·이미지는 호출·시간·토큰이 늘어 로그로 구분
+                            emit("publish_started", cross_model=publishing.cross_model, images=publishing.images)
                             publish_args = ["--model", publishing.model, "--data-dir", str(data_dir),
                                             "--max-new", str(publishing.max_new)]
                             if publishing.cross_model:
                                 publish_args += ["--cross-model", publishing.cross_model]
+                            if publishing.images:
+                                publish_args.append("--images")
                             if publishing.push:
                                 publish_args.append("--push")
                             published = call_publisher(publish_args)

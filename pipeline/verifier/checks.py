@@ -174,10 +174,13 @@ class FieldCheck:
 
     evidence_failures: 근거 문제 (지어냄·틀린 번호·파일 이름·원문 없음). 있으면 근거를 공개하지 않는다.
     sanity_failures: 상식 검사 문제. unverifiable: 코드로 대조하지 못해 사람이 볼 근거 (이미지 등).
+    unchecked_sources: 대조할 글자가 없는 출처(이미지, 글자를 뽑지 못한 첨부)에서 읽었다는 근거의 사유. 있으면
+      "확인 필요"로 내린다 (merge_statuses). 짧은 인용처럼 원문 글자에서 찾은 근거는 여기 넣지 않는다.
     """
     evidence_failures: list[str] = field(default_factory=list)
     sanity_failures: list[str] = field(default_factory=list)
     unverifiable: list[str] = field(default_factory=list)
+    unchecked_sources: list[str] = field(default_factory=list)
 
     @property
     def failures(self) -> list[str]:
@@ -243,6 +246,7 @@ def _check_evidence(evidence, notices, originals, check: FieldCheck, cache: dict
                 continue
         if location == "이미지":
             check.unverifiable.append("이미지 근거 (사람 확인)")
+            check.unchecked_sources.append("이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인)")
             continue
         original = originals[number - 1]
         if original is None:
@@ -253,7 +257,9 @@ def _check_evidence(evidence, notices, originals, check: FieldCheck, cache: dict
             source = _source_text(original, location, file_name)
             cache[key] = normalize(source) if source is not None else None
         if cache[key] is None:
+            # 이미지와 같은 이유로 내린다. files에는 이미지 이름도 있어, 위치만 "첨부"로 적으면 이미지 근거가 이 길로 온다
             check.unverifiable.append("글자를 뽑지 않은 첨부 근거 (사람 확인)")
+            check.unchecked_sources.append("글자를 뽑지 못한 파일에서 읽은 값이라 코드로 대조하지 못함 (원문 첨부·포스터에서 확인)")
             continue
         if len(item["quote"]) > MAX_QUOTE_CHARS:
             check.evidence_failures.append(f"근거가 {MAX_QUOTE_CHARS}자를 넘음")
@@ -364,7 +370,10 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
       근거 기록이 없는 사람 검수는 근거를 모두 코드로 대조해 통과했고 문의처가 아닐 때만 믿는다
       (사람이 본 적 없는 이미지 근거·연락처 문장이 "검수 완료"로 공개되지 않게).
     - 상식 문제만: needs_check. 단 믿을 수 있는 사람 검수는 그대로 둔다.
-    - 통과·대조 불가: 기존 값을 그대로 둔다 (올리지 않는다).
+    - 대조할 글자가 없는 출처(이미지·글자를 뽑지 못한 첨부)의 근거: needs_check (근거는 남긴다: evidence_failed가 아니다).
+      그대로 두면 "AI 정리"로 공개되는데, 포스터 속 주입·잘못 읽은 값이 글 근거보다 덜 의심받게 된다 (보안 리뷰).
+      믿을 수 있는 사람 검수(지금 값이 검수한 값과 같고 근거 문제가 없음)는 그대로.
+    - 통과·그 밖의 대조 불가: 기존 값을 그대로 둔다 (올리지 않는다).
     """
     statuses = {}
     for name, entry in (existing.items() if isinstance(existing, dict) else []):
@@ -380,11 +389,15 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
         previous = statuses.get(name)
         is_human = isinstance(previous, dict) and previous.get("status") == "human_verified"
         human_problem = _human_problem(name, previous, raw, check) if is_human else None
-        if not check.failures and not human_problem:
+        # 값이 바뀐 옛 검수 기록은 믿지 않는다 (_human_problem은 그 경우 문제를 돌려주지 않는다: 내보내기가 "ai"로 내리므로).
+        # 믿으면 대조 못 한 출처의 근거가 "확인 필요"로 내려가지 않고 "AI 정리"로 공개된다 (보안 재검토)
+        trusted_human = is_human and not human_problem and previous.get("checked_value") == value
+        unchecked = [] if trusted_human else check.unchecked_sources
+        if not check.failures and not human_problem and not unchecked:
             continue
-        if is_human and not check.evidence_failures and not human_problem:
+        if trusted_human and not check.evidence_failures:
             continue  # 상식 검사만 걸렸고 사람이 지금 값·근거를 봤다
-        reasons = check.failures + ([human_problem] if human_problem else [])
+        reasons = check.failures + ([human_problem] if human_problem else []) + unchecked
         entry = {"status": "needs_check", "checked_value": value, "note": "; ".join(dict.fromkeys(reasons)),
                  "evidence_failed": bool(check.evidence_failures or human_problem), "by": VERIFIER}
         if is_human:

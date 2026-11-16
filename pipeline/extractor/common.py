@@ -82,8 +82,10 @@ def add_usage(meta: dict, usage: dict, cost_usd, models: list[str], succeeded: b
         meta["models_seen"] = sorted(set(meta.get("models_seen", [])) | set(models))
 
 
-def probe(claude: str, model: str, timeout: int, allow_env_account: bool, ledger: CallLedger, meta: dict) -> None:
+def probe(claude: str, model: str, timeout: int, allow_env_account: bool, ledger: CallLedger, meta: dict,
+          with_image: bool = False) -> None:
     """공지를 보내기 전에 한 번: 도구가 모두 꺼졌는지, 로그인 계정으로 도는지 (주입된 공지가 열린 환경으로 가지 않게).
+    with_image: 이미지 입력을 켰으면 시험 이미지를 함께 넣어 그 입력 방식에서도 확인한다.
 
     Raises: StopRun (상한·확인 실패)
     """
@@ -91,7 +93,7 @@ def probe(claude: str, model: str, timeout: int, allow_env_account: bool, ledger
         raise StopRun(f"오늘 호출 상한 {ledger.limit}번에 닿음")
     ledger.add()
     try:
-        usage, cost = claude_cli.probe(claude, model, timeout, allow_env_account)
+        usage, cost = claude_cli.probe(claude, model, timeout, allow_env_account, with_image=with_image)
     except claude_cli.ClaudeError as error:
         add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
         raise StopRun(f"공지를 보내기 전 확인에서 멈춤: {error} (격리 옵션을 빼지 말고 claude update 뒤 다시, 안 되면 팀에 알리기)") from None
