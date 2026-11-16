@@ -96,7 +96,7 @@ function renderFields(card, boards) {
   const rows = fieldRows(card, boards);
   const link = applyLink(card);
   // 좁은 화면에서는 CSS가 표를 display:block으로 펼친다. 그러면 일부 브라우저가 표 구조를 화면 읽기에 넘기지 않아
-  // 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow
+  // 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow에서 단다. 넓은 화면에서는 기본 역할과 같아 해가 없다
   const table = el('table', { class: 'fields', role: 'table' },
     el('caption', { class: 'sr-only' }, '대회 카드 항목: 값, 확인 상태, 근거'),
     el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));

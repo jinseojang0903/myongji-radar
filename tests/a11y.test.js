@@ -147,7 +147,8 @@ test('좁은 화면에서 블록으로 펼치는 카드 항목 표는 역할을 
   assert.match(CARD_PAGE, /el\('td', \{ class: 'st', role: 'cell' \}/);
 });
 
-test('맞춤 추천 입력창의 예시는 360px 입력창에 들어가는 길이다 (#104)', () => {
+// 360px 입력창(글자 약 15px)에 한글 20자 안팎이 들어간다 (헤드리스 Edge 캡처로 확인한 길이를 상한으로)
+test('맞춤 추천 입력창의 예시는 20자 이하다 (360px에서 잘리지 않게, #104)', () => {
   const RECOMMEND = readFileSync(new URL('../site/recommend.html', import.meta.url), 'utf8');
   const placeholder = RECOMMEND.match(/id="q"[^>]*placeholder="([^"]*)"/)?.[1];
   assert.ok(placeholder && placeholder.length <= 20, `예시 문장 ${placeholder?.length}자`);
