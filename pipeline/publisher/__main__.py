@@ -111,6 +111,8 @@ def publish(args) -> int:
                             "--max-new", str(args.max_new), "--max-calls", str(args.max_calls), "--timeout", str(args.timeout)]
             if args.use_env_account:
                 extract_argv.append("--use-env-account")
+            if args.cross_model:
+                extract_argv += ["--cross-model", args.cross_model]
             run_stage("extract", extract_main, extract_argv, log)
             outcome["extract"] = _extract_summary(data / "extractions")
             check_analysis(notices, analysis)  # 추출하는 동안 다음 수집이 원문을 바꾸지 않았는지 (잠금 밖에서 불렸을 때 대비)
@@ -202,6 +204,8 @@ def main(argv=None) -> int:
             stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="명지레이더 매일 공개 (추출 → 근거 대조 → cards.json)")
     parser.add_argument("--model", required=True, help="claude --model 값 (모델 비교 #9로 정한 모델)")
+    parser.add_argument("--cross-model", default=None,
+                        help="교차 검증 모델 (#15, 예: sonnet). 주 모델과 달라야 한다. 호출이 두 배가 되므로 하루 상한을 함께 본다")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data", help="수집 데이터 폴더 (site/ 밖)")
     parser.add_argument("--out", type=Path, default=SITE / "data" / "cards.json", help="사이트 카드 파일")
     parser.add_argument("--claude", default="claude", help="claude 실행 파일 (기본: PATH의 claude)")

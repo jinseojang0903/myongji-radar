@@ -23,7 +23,7 @@ from pathlib import Path
 
 from collector.asset_text import attachment_texts
 from exporter.cards import CARD_ID_PATTERN
-from verifier.checks import check_extraction, fail_all, merge_statuses
+from verifier.checks import check_extraction, cross_verify, fail_all, merge_statuses
 from verifier.stamp import stamp_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +69,8 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
             notices = [notice if isinstance(notice, dict) else {} for notice in bundle.get("notices") or []]
             checks = check_extraction(extraction, notices, [originals.get(notice.get("url")) for notice in notices])
             statuses = merge_statuses(bundle.get("statuses"), extraction, checks)
+            meta = bundle.get("meta") if isinstance(bundle.get("meta"), dict) else {}
+            statuses = cross_verify(statuses, extraction, bundle.get("cross_extraction"), checks, meta.get("cross_model"))
         except Exception as error:  # 카드 하나의 이상한 값이 전체 검증을 멈추지 않게. 그 카드는 검증 없이 통과하지 않는다
             reason = f"검증 중 오류 ({type(error).__name__})"
             # 모든 항목을 내린 것도 검증을 거친 결과다 (내보내기가 근거를 공개하지 않는다)

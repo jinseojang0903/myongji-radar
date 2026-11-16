@@ -175,6 +175,52 @@ class DailyExtractTests(unittest.TestCase):
         self.assertEqual((code, len(fake.calls)), (0, 2))
         self.assertIn("창업 아이디어 공모전", fake.calls[1]["input"].decode("utf-8"), "상한에 걸리면 최신 공지부터")
 
+    def test_cross_model_extracts_again_after_the_main_model(self):
+        """교차 검증(#15): 주 모델 다음에 같은 입력을 다른 모델로 한 번 더. 묶음에 결과와 모델을 남긴다."""
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--cross-model", "haiku")
+        self.assertEqual(code, 0)
+        models = [call["command"][call["command"].index("--model") + 1] for call in fake.calls]
+        self.assertEqual(models, ["sonnet"] * 3 + ["haiku"] * 3, "주 모델 확인 호출 + 2건, 교차 모델 확인 호출 + 2건")
+        first = self.bundles()[0]
+        self.assertEqual(first["cross_extraction"], EXAMPLE)
+        self.assertEqual(first["meta"]["cross_model"], "claude-haiku-test")
+        fake = FakeRun()
+        self.assertEqual((self.run_cli(fake, "--cross-model", "haiku")[0], fake.calls), (0, []), "둘 다 뽑아 뒀으면 부르지 않는다")
+        self.run_cli(FakeRun())
+        self.assertIsNone(self.bundles()[0]["cross_extraction"], "교차 모델을 주지 않은 실행의 묶음에는 교차 결과가 없다")
+
+    def test_cross_model_waits_when_the_daily_limit_is_used_by_the_main_model(self):
+        fake = FakeRun()
+        code, log = self.run_cli(fake, "--cross-model", "haiku", "--max-calls", "3")
+        self.assertEqual((code, len(fake.calls)), (0, 3), "주 모델(확인 + 2건)이 상한을 다 쓰면 교차 검증은 다음 실행에서")
+        self.assertIn("교차 검증 2건은 오늘 호출 상한", log)
+        self.assertIsNone(self.bundles()[0]["cross_extraction"])
+
+    def test_cross_failures_are_given_up_and_cross_stop_does_not_block_bundles(self):
+        failing = lambda: FakeRun(stream(), stream(), stream(), stream(), stream(output=None), stream(output=None))
+        for _ in range(3):
+            code, _ = self.run_cli(failing(), "--cross-model", "haiku")
+            self.assertEqual(code, 0, "교차 호출이 형식에 못 맞춰도 주 결과로 공개한다")
+        fake = FakeRun()
+        self.run_cli(fake, "--cross-model", "haiku")
+        self.assertEqual(fake.calls, [], "같은 판을 교차 모델로 3번 실패한 카드는 더 부르지 않는다 (매일 상한을 먹지 않게)")
+        # 교차 모델의 확인 호출이 멈춰도(격리 어긋남 등) 주 결과로 묶음은 만든다
+        self.notices[0]["version_id"] = 2
+        self.write_inputs()
+        open_tools = stream(init={**INIT, "tools": ["Bash"]})
+        code, log = self.run_cli(FakeRun(stream(), stream(), open_tools), "--cross-model", "opus")
+        self.assertEqual(code, 0)
+        self.assertIn("[교차 검증 멈춤]", log)
+        self.assertEqual(len(self.bundles()), 2)
+        self.assertTrue(all(bundle["cross_extraction"] is None for bundle in self.bundles()))
+
+    def test_cross_model_must_differ_from_the_main_model(self):
+        fake = FakeRun()
+        code, log = self.run_cli(fake, "--cross-model", "sonnet")
+        self.assertEqual((code, fake.calls), (2, []), "같은 모델끼리는 교차 검증이 아니다: 부르기 전에 멈춘다")
+        self.assertIn("--cross-model은 --model과 다른 모델", log)
+
     def test_cards_stay_while_waiting_for_re_extraction(self):
         self.run_cli(FakeRun())
         self.notices[0]["version_id"] = 2

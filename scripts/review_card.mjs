@@ -14,9 +14,10 @@ export const DEFAULT_BASE = 'https://myongji-radar-site.vercel.app';
 // 문의처는 공개 전에 근거·메일을 비워서 공개 화면만으로는 원문과 대조할 수 없다 (reviews.py와 같은 목록)
 export const REVIEWABLE_FIELDS = ['apply', 'stages', 'campus', 'grades', 'enrollment', 'team', 'deliverables', 'benefits',
   'mileage', 'how_to_apply'];
-// "AI 정리"만 검수로 올린다 (reviews.py PROMOTABLE과 같다). "원문 확인 필요"는 내보내기가 값을 고쳤거나 공지끼리
-// 충돌한 경우 등 이유가 여럿이라, 한쪽만 대조하고 검수 완료가 되지 않게 이슈로 남긴다
-const PROMOTABLE = new Set(['ai']);
+// "AI 정리"·"자동 검증 통과"만 검수로 올린다 (reviews.py PROMOTABLE과 같다). "원문 확인 필요"는 내보내기가 값을
+// 고쳤거나 공지끼리 충돌한 경우 등 이유가 여럿이라, 한쪽만 대조하고 검수 완료가 되지 않게 이슈로 남긴다
+export const PROMOTABLE = new Set(['ai', 'auto_verified']);
+const STATUS_LABELS = { ai: 'AI 정리', auto_verified: '자동 검증 통과' };
 // 터미널을 조작하는 제어 문자(ESC 등)를 출력 전에 지운다. 배포 데이터는 내보내기가 이미 지우지만 --file은 아무 파일이나 받는다
 const CONTROL = /[\p{Cc}\p{Cf}]/gu;
 const printable = (text) => String(text).replace(CONTROL, '');
@@ -107,7 +108,7 @@ export async function main(argv, { log = console.log, load = loadCards, now = ne
     log('틀린 항목은 붙이지 말고 이슈로 알려 주세요. 신청기간·자격(캠퍼스·학년·학적·팀 인원)이 판정에 쓰입니다.\n');
   }
   for (const item of items) {
-    log(`## ${item.label} (${item.name}) — 지금 상태: AI 정리`);
+    log(`## ${item.label} (${item.name}) — 지금 상태: ${STATUS_LABELS[item.status]}`);
     log(`값: ${printable(canonicalJson(item.value))}`);
     if (item.note) log(`메모: ${printable(item.note)}`);
     for (const evidence of item.evidence) {

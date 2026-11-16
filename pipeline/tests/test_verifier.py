@@ -13,8 +13,8 @@ from verifier import __main__ as verifier_main
 from verifier.__main__ import main as cli_main
 from verifier.__main__ import read_originals, verify_bundles
 from verifier.stamp import has_valid_stamp
-from verifier.checks import (NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote, evidence_fingerprint,
-                             merge_statuses, normalize)
+from verifier.checks import (CROSS_FIELDS, _comparable, NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote,
+                             evidence_fingerprint, merge_statuses, normalize)
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = json.loads((ROOT / "prompts/extract_v0.2/example_output.json").read_text(encoding="utf-8"))
@@ -333,6 +333,63 @@ class PipelineTests(unittest.TestCase):
         warnings = []
         card = build_card(CardBundle(**{key: item[key] for key in ("card_id", "notices", "extraction", "statuses", "meta")}), warnings)
         return card, warnings
+
+    def cross_data(self, fields, cross_fields, warnings=()):
+        data = self.bundles(fields)
+        data["bundles"][0]["meta"] = {"cross_model": "claude-sonnet-test"}
+        data["bundles"][0]["cross_extraction"] = {"is_contest": {"value": True, "reason": ""}, "fields": cross_fields,
+                                                  "warnings": list(warnings)}
+        return data
+
+    def test_cross_model_agreement_makes_key_fields_auto_verified(self):
+        """교차 검증(#15): 근거 대조를 통과하고 다른 모델과 값이 같은 핵심 항목만 자동 검증 통과."""
+        fields = fields_copy()
+        cross = copy.deepcopy(fields)
+        cross["team"]["value"] = {**fields["team"]["value"], "max": 99}  # 팀 인원은 두 모델이 다름
+        fields["campus"]["value"] = {"any": False, "allowed": ["인문", "자연"]}
+        cross["campus"]["value"] = {"any": False, "allowed": ["자연", "인문"]}  # 순서만 다르면 같은 값
+        data, _ = verify_bundles(self.cross_data(fields, cross), {URL: original()})
+        statuses = data["bundles"][0]["statuses"]
+        passed = [name for name in CROSS_FIELDS if statuses.get(name, {}).get("status") == "auto_verified"]
+        self.assertEqual(passed, ["campus", "grades", "enrollment"],
+                         "근거를 모두 코드로 대조했고 값이 같은 항목만. 신청기간·단계는 이미지 근거라(사람 확인) 올리지 않는다")
+        self.assertNotIn("team", statuses, "값이 다르면 올리지 않는다 (내리지도 않는다)")
+        self.assertNotIn("apply", statuses)
+        self.assertTrue(all(statuses[name]["by"] == "verifier" for name in passed))
+        card, _ = self.card(data)
+        self.assertEqual(card["fields"]["campus"]["status"], "auto_verified")
+        self.assertIn("다른 모델(claude-sonnet-test)로 다시 뽑아도 같은 값", card["fields"]["campus"]["note"])
+        self.assertEqual(card["fields"]["team"]["status"], "ai")
+        # 다시 검증해도 같은 결과 (전에 쓴 auto_verified는 지우고 다시 판단)
+        again, _ = verify_bundles(data, {URL: original()})
+        self.assertEqual(again["bundles"][0]["statuses"], statuses)
+
+    def test_cross_comparison_is_per_field(self):
+        """같은 날짜를 연도 추정 표시만으로 다르게 보지 않고, 순서가 뜻이 있는 단계는 순서를 본다."""
+        day = lambda date, inferred: {"date": date, "time": None, "year_inferred": inferred}
+        self.assertEqual(_comparable("apply", {"start": day("2026-10-01", True), "end": day("2026-10-21", False)}),
+                         _comparable("apply", {"start": day("2026-10-01", False), "end": day("2026-10-21", True)}))
+        first, second = {"name": "예선", "end": day("2026-10-01", False)}, {"name": "본선", "end": day("2026-11-01", False)}
+        self.assertNotEqual(_comparable("stages", [first, second]), _comparable("stages", [second, first]))
+        self.assertEqual(_comparable("campus", {"any": False, "allowed": ["자연", "인문"]}),
+                         _comparable("campus", {"any": False, "allowed": ["인문", "자연"]}), "AI 출력 모양 {any, allowed}")
+        self.assertNotEqual(_comparable("grades", {"any": False, "allowed": [1, 2]}),
+                            _comparable("grades", {"any": True, "allowed": []}))
+        self.assertEqual(_comparable("enrollment", {"allowed": ["재학"], "excluded": ["휴학", "수료"]}),
+                         _comparable("enrollment", {"allowed": ["재학"], "excluded": ["수료", "휴학"]}))
+        self.assertEqual(_comparable("team", {"max": 3, "individual_ok": True}),
+                         _comparable("team", {"min": None, "max": 3, "individual_ok": True}), "빠진 키와 null은 같다")
+        self.assertNotEqual(_comparable("team", {"max": 1, "individual_ok": True}),
+                            _comparable("team", {"max": True, "individual_ok": 1}), "True와 1은 다르다")
+
+    def test_cross_check_is_skipped_on_injection_warnings_or_failed_evidence(self):
+        fields = fields_copy()
+        data, _ = verify_bundles(self.cross_data(fields, copy.deepcopy(fields), warnings=["지시문 의심"]), {URL: original()})
+        self.assertFalse(any(entry.get("status") == "auto_verified" for entry in data["bundles"][0]["statuses"].values()))
+        broken = copy.deepcopy(fields)
+        broken["campus"]["evidence"][0]["quote"] = "지어낸 캠퍼스 문장"
+        data, _ = verify_bundles(self.cross_data(broken, copy.deepcopy(broken)), {URL: original()})
+        self.assertEqual(data["bundles"][0]["statuses"]["campus"]["status"], "needs_check", "근거를 지어냈으면 두 모델이 같아도 내린다")
 
     def test_failed_evidence_never_reaches_the_card(self):
         fields = fields_copy()
