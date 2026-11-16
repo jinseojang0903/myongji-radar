@@ -179,6 +179,28 @@ class DailyPublishingTests(unittest.TestCase):
         argv = publish.call_args.args[0]
         self.assertEqual(argv[argv.index("--max-new") + 1], "2")
 
+    def test_cross_model_is_optional_validated_and_forwarded(self):
+        """교차 검증 모델(#15): 없으면 넘기지 않고, 있으면 주 모델과 다른 허용 모델만."""
+        with patch.object(daily, "call_publisher", return_value=0) as publish:
+            self.assertEqual(self.run_day(), 0)
+        self.assertNotIn("--cross-model", publish.call_args.args[0])
+        for value in ('"opus"', '"gpt"', "true"):  # 주 모델과 같음, 모르는 모델, 문자열 아님
+            self.settings.write_text(self.settings.read_text(encoding="utf-8").split("cross_model")[0] + f"cross_model={value}\n",
+                                     encoding="utf-8")
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                load_publishing(self.settings)
+        self.settings.write_text(self.settings.read_text(encoding="utf-8").split("cross_model")[0] + 'cross_model="sonnet"\n',
+                                 encoding="utf-8")
+        self.assertEqual(load_publishing(self.settings).cross_model, "sonnet")
+
+    def test_cross_model_reaches_the_publisher_on_a_new_day(self):
+        self.write_settings()
+        self.settings.write_text(self.settings.read_text(encoding="utf-8") + 'cross_model="sonnet"\n', encoding="utf-8")
+        with patch.object(daily, "call_publisher", return_value=0) as publish:
+            self.assertEqual(self.run_day(), 0)
+        argv = publish.call_args.args[0]
+        self.assertEqual(argv[argv.index("--cross-model") + 1], "sonnet")
+
     def test_checked_in_settings_require_explicit_activation(self):
         settings = load_publishing(daily.ROOT / "config/publishing.toml")
         self.assertFalse(settings.enabled)

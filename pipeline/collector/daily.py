@@ -205,6 +205,8 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                             emit("publish_started")
                             publish_args = ["--model", publishing.model, "--data-dir", str(data_dir),
                                             "--max-new", str(publishing.max_new)]
+                            if publishing.cross_model:
+                                publish_args += ["--cross-model", publishing.cross_model]
                             if publishing.push:
                                 publish_args.append("--push")
                             published = call_publisher(publish_args)
