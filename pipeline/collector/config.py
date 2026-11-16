@@ -7,6 +7,9 @@ from urllib.parse import urlsplit
 from .adapters import ADAPTERS
 from .models import Source
 
+# 수집할 수 있는 호스트: .mju.ac.kr 하위의 정확한 호스트 (출처 등록 명령 collector.onboard도 같은 규칙)
+MJU_HOST = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+mju\.ac\.kr")
+
 
 def load_sources(path: Path) -> list[Source]:
     config = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -48,8 +51,7 @@ def load_sources(path: Path) -> list[Source]:
         if (not isinstance(source.allowed_hosts, list) or not source.allowed_hosts
                 or any(not isinstance(host, str) or not host.strip() for host in source.allowed_hosts)):
             raise ValueError(f"{source.id}: allowed_hosts는 비어 있지 않은 문자열 목록이어야 합니다")
-        if any(not re.fullmatch(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+mju\.ac\.kr", host)
-               for host in source.allowed_hosts):
+        if any(not MJU_HOST.fullmatch(host) for host in source.allowed_hosts):
             raise ValueError(f"{source.id}: allowed_hosts는 .mju.ac.kr 하위의 정확한 호스트만 허용합니다")
         for field in ("rss_url", "list_url"):
             if not getattr(source, field):
