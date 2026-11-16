@@ -3,7 +3,7 @@
 import { el, externalLink } from './html.js';
 import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
-import { judgeCard } from './rules.js';
+import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
 import { fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
@@ -57,6 +57,12 @@ async function main() {
   );
 }
 
+// 마감 타일에 날짜를 못 쓸 때: 공지에 없음과 형식을 못 읽음을 나눈다 (마감일이 있는 대회를 "없음"으로 안내하지 않게)
+const DEADLINE_MISSING_TEXT = {
+  none: '공지에서 마감일을 찾지 못함',
+  unreadable: '마감일 형식을 읽지 못함. 원문 공지에서 확인하세요',
+};
+
 function renderHeader(card, now, conditions) {
   const deadline = deadlineOf(card, now);
   const deadlineText = formatDeadline(deadline);
@@ -71,7 +77,7 @@ function renderHeader(card, now, conditions) {
     // 마감은 이 화면에서 가장 먼저 보여야 하는 정보라 따로 크게 둔다
     el('div', { class: 'deadline-tile' },
       ddayElement(deadline),
-      el('span', { class: 'small' }, deadlineText ? `신청 마감 ${deadlineText}` : '공지에서 마감일을 찾지 못함')),
+      el('span', { class: 'small' }, deadlineText ? `신청 마감 ${deadlineText}` : DEADLINE_MISSING_TEXT[deadline.state] ?? '원문 공지에서 마감일을 확인하세요')),
   );
   section.append(renderJudgment(card, now, conditions));
   return section;
@@ -96,7 +102,7 @@ function renderJudgment(card, now, conditions) {
 }
 
 // 판정(rules.js)에 쓰는 항목: 사람이 원문과 대조해야 "검수 완료"가 되고, 그 전에는 확인 전으로 보인다
-const KEY_FIELDS = new Set(['apply', 'campus', 'grades', 'enrollment', 'team']);
+const KEY_FIELD_SET = new Set(KEY_FIELDS);
 
 function renderFields(card, boards) {
   const rows = fieldRows(card, boards);
@@ -108,9 +114,9 @@ function renderFields(card, boards) {
     el('h2', { id: 'h-fields' }, '대회 카드'),
     el('h3', { class: 'group-title key' }, '지원 판단 항목'),
     el('p', { class: 'small group-help' }, '신청기간·캠퍼스·학년·학적·팀 인원은 팀이 원문과 대조해야 "검수 완료"가 됩니다. 왼쪽 점선·노란 띠는 아직 확인하지 않은 값입니다.'),
-    fieldTable(rows.filter((row) => KEY_FIELDS.has(row.name)), '지원 판단 항목: 값, 확인 상태, 근거', link),
+    fieldTable(rows.filter((row) => KEY_FIELD_SET.has(row.name)), '지원 판단 항목: 값, 확인 상태, 근거', link),
     el('h3', { class: 'group-title' }, '대회 정보'),
-    fieldTable(rows.filter((row) => !KEY_FIELDS.has(row.name)), '대회 정보: 값, 확인 상태, 근거', link),
+    fieldTable(rows.filter((row) => !KEY_FIELD_SET.has(row.name)), '대회 정보: 값, 확인 상태, 근거', link),
     el('div', { class: 'row stack-top source-links' }, ...sources.map((source, index) => {
       const text = `원문 공지 보기 (${source.boardName}${source.postedAt ? ` ${formatShortDate(source.postedAt)}` : ''})`;
       const anchor = externalLink(source.url, text);
@@ -135,7 +141,7 @@ function fieldTable(rows, caption, link) {
 function trustOf(row) {
   if (row.badge.kind === 'need') return 'need';
   if (row.badge.kind === 'human') return 'human';
-  return row.badge.kind === 'before' && KEY_FIELDS.has(row.name) ? 'before' : null;
+  return row.badge.kind === 'before' && KEY_FIELD_SET.has(row.name) ? 'before' : null;
 }
 
 function renderFieldRow(row, link) {

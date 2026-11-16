@@ -30,7 +30,8 @@ python -m http.server 8000
 | `recommend.html`, `js/recommend-page.js`, `js/recommend.js` | 맞춤 추천: 문장 → 조건 칩(해석기), 칩으로 고치기, 판정 4상태별 결과·사유, 제출물·마감 필터, 문의 초안 복사, 저장된 조건 지우기 | #24 |
 | `log.html`, `js/log-page.js`, `js/log.js` | 제작 기록: 처리 단계별 담당, 정확도 표(측정 전은 "측정 중"), 프롬프트 버전, AI가 틀린 것과 잡은 방법, 1분 AI 검수 체험, 사용한 AI 도구 | #26 |
 | `data/log.json` | 제작 기록 데이터 (팀이 손으로 씀, 계약 4절). 수치는 측정일·출처가 있어야 화면에 나온다 | #26 |
-| `css/style.css` | 공통 스타일. 색은 모두 CSS 변수 | #21 |
+| `css/style.css` | 공통 스타일. 색은 모두 CSS 변수 (11/16 전면 개편: 레이더 첫 화면, 마감 색 띠, 지원 판단 항목 구획) | #21 |
+| `fonts/` | Pretendard 글꼴(SIL OFL 1.1, `LICENSE-Pretendard.txt`). 상용 한글 2,350자 묶음 세 굵기. 인터넷 없이 열리도록 CDN 대신 파일로 둔다 | |
 | `js/html.js` | 요소 만들기(`el`), 외부 링크 검사(`safeUrl`, `externalLink`) | #21 |
 | `js/data.js` | 데이터 읽기. `data/cards.json`이 없으면(404) 예시를 읽는다 | #21 |
 | `js/cards.js` | 화면 계산: 형식 검사, 마감·D-day, 카드 배지, 필터·정렬 (DOM 없음, Node 테스트) | #21 |

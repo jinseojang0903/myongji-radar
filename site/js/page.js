@@ -52,11 +52,10 @@ export function ddayElement(deadline, extraClass = '') {
   return el('span', { class: ['dday', tone, extraClass].filter(Boolean).join(' ') }, dday.text);
 }
 
-/** 목록 카드 왼쪽 띠 색: 3일 이내·7일 이내·마감 전·마감일 없음 */
+/** 목록 카드 왼쪽 띠 색. D-day 칩과 같은 기준(ddayLabel의 7일 이내)을 쓴다: 마감 임박·마감 전·마감일 없음 */
 export function deadlineTone(deadline) {
   if (deadline.state !== 'open') return 'none';
-  if (deadline.daysLeft <= 3) return 'soon';
-  return deadline.daysLeft <= 7 ? 'week' : 'open';
+  return ddayLabel(deadline).isUrgent ? 'soon' : 'open';
 }
 
 /**
