@@ -55,8 +55,25 @@ class OnboardTests(unittest.TestCase):
         self.assertEqual((proposal.sampled, proposal.readable), (3, 3))
         entry = proposal.entry
         self.assertEqual((entry["id"], entry["rss_url"], entry["allowed_hosts"]), ("mju_math", RSS, [HOST]))
-        self.assertEqual(entry["name"], "공지사항", "이름은 페이지 제목에서 학교 이름을 뺀 것")
+        self.assertEqual(entry["name"], f"공지사항 ({HOST})", "페이지 제목에서 학교 이름을 빼고, 흔한 이름이면 호스트를 덧붙인다")
+        self.assertTrue(proposal.name_from_page)
         self.assertNotIn("discovery", entry)
+
+    def test_widget_and_other_host_links_do_not_pick_the_board(self):
+        widget = ('<html><title>수학과 공지</title><div class="side"><a href="/bbs/math/999/1/artclView.do">최신글</a>'
+                  '<a class="artclLinkView" href="https://other.mju.ac.kr/bbs/math/555/1/artclView.do">다른 호스트</a></div>'
+                  + PAGE.decode("utf-8").split("<body>", 1)[1]).encode("utf-8")
+        proposal = self.probe(LIST, {LIST: widget, RSS: RSS_XML, **details()})
+        self.assertTrue(proposal.ok, proposal.reason)
+        self.assertEqual(proposal.entry["rss_url"], RSS, "목록 표의 같은 호스트 글 링크(777)만 본다")
+        self.assertEqual(proposal.entry["name"], "수학과 공지")
+
+    def test_names_are_cleaned_for_the_public_card(self):
+        self.assertEqual(onboard.clean_name("수학과\n공지‮\x07  게시판"), "수학과 공지 게시판")
+        self.assertEqual(onboard.clean_name("가" * 60), "가" * 40)
+        self.assertEqual(onboard.clean_name("\n\t "), "")
+        entry = {"id": "mju_x", "name": '따옴표 "와 \\ 그리고 \x7f', "priority": 100, "rss_url": RSS, "allowed_hosts": [HOST]}
+        self.assertIn('name = "따옴표 \\"와 \\\\ 그리고 \\u007f"', onboard.toml_entry(entry))
 
     def test_given_name_is_used_and_html_list_is_the_fallback(self):
         proposal = self.probe(LIST, {LIST: PAGE, **details()}, name="수학과 공지")
@@ -66,7 +83,8 @@ class OnboardTests(unittest.TestCase):
 
     def test_unsupported_unreadable_and_known_boards(self):
         fetcher = FakeFetcher({})
-        for url in ("http://math.mju.ac.kr/x", "https://example.com/bbs/a/1/rssList.do", "https://user:pw@math.mju.ac.kr/"):
+        for url in ("http://math.mju.ac.kr/x", "https://example.com/bbs/a/1/rssList.do", "https://user:pw@math.mju.ac.kr/",
+                    "https://math.mju.ac.kr:abc/x", "https://math.mju.ac.kr:8443/x"):
             proposal = onboard.probe(url, fetcher, self.existing, DEFAULTS)
             self.assertFalse(proposal.ok)
             self.assertIn("지원 안 됨", proposal.reason)
@@ -86,6 +104,21 @@ class OnboardTests(unittest.TestCase):
         taken = {source.id for source in self.existing} | {"mju_math"}
         proposal = onboard.probe(LIST, FakeFetcher({LIST: PAGE, RSS: RSS_XML, **details()}), self.existing, DEFAULTS, None, taken)
         self.assertEqual(proposal.entry["id"], "mju_math_777")
+        taken.add("mju_math_777")
+        third = onboard.probe(RSS, FakeFetcher({RSS: RSS_XML, **details()}), self.existing, DEFAULTS, "이름", taken)
+        self.assertFalse(third.ok)
+        self.assertIn("출처 id를 만들지 못함", third.reason, "원인을 그대로 보여 준다")
+        self.assertEqual(onboard._source_id("x" * 60, "12345", set())[:4], "mju_")
+        self.assertEqual(len(onboard._source_id("x" * 60, "12345", {"mju_" + "x" * 36})), 40)
+        self.assertTrue(onboard._source_id("x" * 60, "12345", {"mju_" + "x" * 36}).endswith("_12345"))
+
+    def test_same_board_twice_in_one_run_is_registered_once(self):
+        fetcher = FakeFetcher({LIST: PAGE, RSS: RSS_XML, **details()})
+        taken, known = {source.id for source in self.existing}, onboard.known_boards(self.existing)
+        first = onboard.probe(LIST, fetcher, self.existing, DEFAULTS, "수학과", taken, known)
+        second = onboard.probe(RSS, fetcher, self.existing, DEFAULTS, "수학과", taken, known)
+        self.assertTrue(first.ok)
+        self.assertIsNone(second.ok, "같은 실행에서 앞서 통과한 게시판은 건너뛴다")
 
     def test_write_appends_and_rolls_back_on_invalid_config(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -107,11 +140,14 @@ class OnboardTests(unittest.TestCase):
             fetcher = FakeFetcher({LIST: PAGE, RSS: RSS_XML, **details()})
             out = io.StringIO()
             with mock.patch.object(onboard, "Fetcher", return_value=fetcher), contextlib.redirect_stdout(out):
-                code = onboard.main([LIST, "https://example.com/x", "--config", str(config), "--write", "--name", "수학과 공지"])
+                code = onboard.main([LIST, "https://example.com/x", "--config", str(config), "--write",
+                                     "--name", "수학과 공지", "--name", "학교 밖"])
             self.assertEqual(code, 1, "일부 주소를 등록하지 못하면 1")
             self.assertIn("[등록 가능]", out.getvalue())
             self.assertIn("[더함] 1곳", out.getvalue())
             self.assertTrue(any(source.id == "mju_math" for source in load_sources(config)))
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                onboard.main([LIST, RSS, "--name", "하나만", "--config", str(config)])  # 이름 수가 주소 수와 다름
 
 
 if __name__ == "__main__":
