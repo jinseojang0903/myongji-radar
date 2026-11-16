@@ -8,12 +8,12 @@
 
 근거 대조에 실패하면 needs_check + evidence_failed로 내린다. 내보내기는 그 항목의 근거를 공개하지 않는다
 (사람이 검수한 항목이어도: 사람이 본 것은 그때의 근거다). 상식 검사만 실패하면 사람이 검수한 값은 그대로 둔다.
-통과해도 auto_verified로 올리지 않는다: 계약상 auto_verified는 다른 모델과의 일치까지 봐야 하는데,
-교차 검증 모델이 아직 정해지지 않았다. 그때까지 통과 항목은 "ai"(확인 전)로 남는다.
-TODO(jinseojang0903/2026-11-05): 교차 검증 모델이 정해지면 근거·상식·모델 일치를 모두 통과하고
-extraction.warnings(주입 의심)가 없는 항목만 auto_verified로.
+3. 교차 검증(cross_verify): 묶음에 다른 모델로 뽑은 결과(cross_extraction)가 있으면, 근거·상식을 통과하고 값이 같은
+   핵심 항목(CROSS_FIELDS)만 auto_verified로 올린다. 어느 쪽에든 지시문 의심(warnings)이 있으면 올리지 않는다.
+   교차 결과가 없으면 통과 항목은 "ai"(확인 전)로 남는다.
 """
 import html
+import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -403,6 +403,47 @@ def _human_problem(name: str, record: dict, raw: dict, check: FieldCheck) -> str
     if check.unverifiable or name == "contact":
         return "사람이 검수한 근거 기록이 없음"
     return None
+
+
+# 교차 검증(#15)으로 자동 검증 통과까지 올리는 항목: 판정에 쓰는 구조화 값. 자유 글(혜택·제출물 설명·신청 방법 등)은
+# 두 모델이 글자까지 같을 일이 드물어 비교하지 않는다. 문의처는 사람이 본 것만 공개하는 항목이라 제외한다
+CROSS_FIELDS = ("apply", "stages", "campus", "grades", "enrollment", "team")
+
+
+def _comparable(value):
+    """두 모델의 값 비교용: 목록 순서(캠퍼스·학년·학적 목록, 단계)만 다른 것은 같은 값으로 본다."""
+    if isinstance(value, dict):
+        return {key: _comparable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        items = [_comparable(item) for item in value]
+        return sorted(items, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+    return value
+
+
+def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: dict[str, FieldCheck], cross_model: str | None) -> dict:
+    """교차 검증 모델의 값과 같은 핵심 항목을 auto_verified로 올린다 (계약 1절: 근거 문장 실재·모델 일치·형식·상식 통과).
+
+    올리는 조건: 이 도구나 사람이 이미 남긴 기록이 없고(merge_statuses 뒤 statuses에 없음), 근거를 모두 코드로 대조해
+    통과했으며(대조 못 한 근거 없음), 두 모델 모두 found이고 값이 같고, 어느 쪽에도 지시문 의심(warnings)이 없을 때.
+    값이 달라도 내리지 않는다: 내리면 사람 검수 대상(AI 정리)에서 빠지고, 다른 모델이 틀렸을 수도 있다.
+    """
+    if not isinstance(cross, dict) or not isinstance(cross.get("fields"), dict):
+        return statuses
+    if extraction.get("warnings") or cross.get("warnings"):
+        return statuses
+    fields = extraction.get("fields") if isinstance(extraction.get("fields"), dict) else {}
+    result = dict(statuses)
+    for name in CROSS_FIELDS:
+        check, raw, other = checks.get(name), fields.get(name), cross["fields"].get(name)
+        if name in result or check is None or check.result != "pass":
+            continue
+        if not (isinstance(raw, dict) and isinstance(other, dict) and raw.get("flag") == "found" and other.get("flag") == "found"):
+            continue
+        if raw.get("value") is None or _comparable(raw.get("value")) != _comparable(other.get("value")):
+            continue
+        result[name] = {"status": "auto_verified", "checked_value": raw.get("value"), "by": VERIFIER,
+                        "note": f"다른 모델({cross_model or '교차 모델'})로 다시 뽑아도 같은 값"}
+    return result
 
 
 def fail_all(extraction, existing, reason: str) -> dict:
