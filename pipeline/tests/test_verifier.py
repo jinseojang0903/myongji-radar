@@ -85,6 +85,7 @@ class NormalizeTests(unittest.TestCase):
         self.assertFalse(contains_quote(normalize("상금 100,200원"), normalize("상금 100")), "붙여 쓴 쉼표는 자릿점")
         self.assertFalse(contains_quote(normalize("상금 100, 200"), normalize("100,200")), "목록을 자릿점으로 바꾼 인용")
         self.assertTrue(contains_quote(normalize("모집 인원: 2, 3학년"), normalize("2, 3학년")))
+        self.assertTrue(contains_quote(normalize("상금 100,\n200"), normalize("상금 100")), "쉼표 뒤 줄바꿈도 목록")
 
     def test_quotes_do_not_start_inside_a_negated_word(self):
         self.assertFalse(contains_quote(normalize("개인 참가는 불가능합니다."), normalize("가능합니다.")))
