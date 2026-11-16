@@ -3,7 +3,7 @@
 import { el, externalLink } from './html.js';
 import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
-import { judgeCard } from './rules.js';
+import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
 import { fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
@@ -57,18 +57,27 @@ async function main() {
   );
 }
 
+// 마감 타일에 날짜를 못 쓸 때: 공지에 없음과 형식을 못 읽음을 나눈다 (마감일이 있는 대회를 "없음"으로 안내하지 않게)
+const DEADLINE_MISSING_TEXT = {
+  none: '공지에서 마감일을 찾지 못함',
+  unreadable: '마감일 형식을 읽지 못함. 원문 공지에서 확인하세요',
+};
+
 function renderHeader(card, now, conditions) {
   const deadline = deadlineOf(card, now);
   const deadlineText = formatDeadline(deadline);
   const byline = organizerLine(card);
-  const section = el('section', { class: 'panel', 'aria-labelledby': 'h-card' },
-    el('h1', { id: 'h-card' }, card.title),
-    byline ? el('p', { class: 'lead' }, byline) : null,
-    el('div', { class: 'row' },
+  const section = el('section', { class: 'panel detail-head', 'aria-labelledby': 'h-card' },
+    el('div', { class: 'head-main' },
+      el('h1', { id: 'h-card' }, card.title),
+      byline ? el('p', { class: 'lead' }, byline) : null,
+      el('div', { class: 'row' },
+        ...badgeElements(card),
+        ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag)))),
+    // 마감은 이 화면에서 가장 먼저 보여야 하는 정보라 따로 크게 둔다
+    el('div', { class: 'deadline-tile' },
       ddayElement(deadline),
-      deadlineText ? el('span', { class: 'small' }, `신청 마감 ${deadlineText}`) : null,
-      ...badgeElements(card),
-      ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag))),
+      el('span', { class: 'small' }, deadlineText ? `신청 마감 ${deadlineText}` : DEADLINE_MISSING_TEXT[deadline.state] ?? '원문 공지에서 마감일을 확인하세요')),
   );
   section.append(renderJudgment(card, now, conditions));
   return section;
@@ -76,13 +85,13 @@ function renderHeader(card, now, conditions) {
 
 function renderJudgment(card, now, conditions) {
   if (!hasJudgedConditions(conditions)) {
-    return el('p', { class: 'small' }, '내 조건을 고르면 이 대회에 신청할 수 있는지 판정합니다. ',
+    return el('p', { class: 'small judgment' }, '내 조건을 고르면 이 대회에 신청할 수 있는지 판정합니다. ',
       el('a', { href: 'recommend.html' }, '맞춤 추천에서 조건 고르기'));
   }
   const judged = judgeCard(card, conditions, { now });
   const view = RESULT_VIEW[judged.result];
   const shown = judged.result === 'eligible' ? judged.reasons : judged.reasons.filter((reason) => reason.outcome !== 'ok');
-  return el('div', { class: 'stack-top' },
+  return el('div', { class: 'judgment' },
     el('span', { class: `badge ${view.cls}` }, view.text),
     el('ul', { class: 'reason-list' }, ...shown.map((reason) => el('li', { class: 'reason' },
       reason.outcome === 'ok' ? `✓ ${reason.message}` : reason.message,
@@ -92,21 +101,23 @@ function renderJudgment(card, now, conditions) {
     el('p', { class: 'small' }, 'AI가 정리한 결과입니다. 신청 전에 원문 공지를 꼭 확인하세요.'));
 }
 
+// 판정(rules.js)에 쓰는 항목: 사람이 원문과 대조해야 "검수 완료"가 되고, 그 전에는 확인 전으로 보인다
+const KEY_FIELD_SET = new Set(KEY_FIELDS);
+
 function renderFields(card, boards) {
   const rows = fieldRows(card, boards);
   const link = applyLink(card);
-  // 좁은 화면에서는 CSS가 표를 display:block으로 펼친다. 그러면 일부 브라우저가 표 구조를 화면 읽기에 넘기지 않아
-  // 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow에서 단다. 넓은 화면에서는 기본 역할과 같아 해가 없다
-  const table = el('table', { class: 'fields', role: 'table' },
-    el('caption', { class: 'sr-only' }, '대회 카드 항목: 값, 확인 상태, 근거'),
-    el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
   const sources = sourceLinks(card, boards);
   const spread = spreadText(card, boards);
   const checkedAt = parseContractDate(card.meta?.checked_at);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-fields' },
     el('h2', { id: 'h-fields' }, '대회 카드'),
-    table,
-    el('div', { class: 'row stack-top' }, ...sources.map((source, index) => {
+    el('h3', { class: 'group-title key' }, '지원 판단 항목'),
+    el('p', { class: 'small group-help' }, '신청기간·캠퍼스·학년·학적·팀 인원은 팀이 원문과 대조해야 "검수 완료"가 됩니다. 왼쪽 점선·노란 띠는 아직 확인하지 않은 값입니다.'),
+    fieldTable(rows.filter((row) => KEY_FIELD_SET.has(row.name)), '지원 판단 항목: 값, 확인 상태, 근거', link),
+    el('h3', { class: 'group-title' }, '대회 정보'),
+    fieldTable(rows.filter((row) => !KEY_FIELD_SET.has(row.name)), '대회 정보: 값, 확인 상태, 근거', link),
+    el('div', { class: 'row stack-top source-links' }, ...sources.map((source, index) => {
       const text = `원문 공지 보기 (${source.boardName}${source.postedAt ? ` ${formatShortDate(source.postedAt)}` : ''})`;
       const anchor = externalLink(source.url, text);
       // 허용되지 않은 주소면 externalLink가 글자(span)만 돌려준다. 버튼처럼 보이지 않게 한다
@@ -116,6 +127,21 @@ function renderFields(card, boards) {
     spread ? el('p', { class: 'small' }, spread) : null,
     el('p', { class: 'small' }, '카드는 AI 정리 → 근거 문장이 원문에 있는지 코드로 대조 → 팀의 원문 대조(신청기간·자격) 순서로 확인합니다. 다른 모델로 다시 뽑아 비교하는 단계는 만들어 두었고 아직 켜지 않았습니다. 항목마다 어디까지 확인했는지는 상태 배지로 보여 줍니다.',
       checkedAt ? ` 마지막 확인 ${checkedAt.date}.` : ''));
+}
+
+// 좁은 화면에서는 CSS가 표를 display:block으로 펼친다. 그러면 일부 브라우저가 표 구조를 화면 읽기에 넘기지 않아
+// 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow에서 단다. 넓은 화면에서는 기본 역할과 같아 해가 없다
+function fieldTable(rows, caption, link) {
+  return el('table', { class: 'fields', role: 'table' },
+    el('caption', { class: 'sr-only' }, caption),
+    el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
+}
+
+// 값 옆 띠: 원문 확인 필요(노란 띠), 확인 전 핵심 항목(점선), 검수 완료(초록). 글자 배지와 함께 보여 색만으로 구분하지 않는다
+function trustOf(row) {
+  if (row.badge.kind === 'need') return 'need';
+  if (row.badge.kind === 'human') return 'human';
+  return row.badge.kind === 'before' && KEY_FIELD_SET.has(row.name) ? 'before' : null;
 }
 
 function renderFieldRow(row, link) {
@@ -148,7 +174,10 @@ function renderFieldRow(row, link) {
     // 펼친 뒤 Tab·화면 읽기로 나아가면 근거와 "원문 보기"를 지나쳐 다음 행으로 간다 (#104)
     valueCell.append(el('div', {}, button), evidence);
   }
-  return el('tr', { role: 'row' }, el('th', { scope: 'row', role: 'rowheader' }, row.label), valueCell, statusCell);
+  const tr = el('tr', { role: 'row' }, el('th', { scope: 'row', role: 'rowheader' }, row.label), valueCell, statusCell);
+  const trust = trustOf(row);
+  if (trust) tr.dataset.trust = trust;
+  return tr;
 }
 
 function renderEvidence(item) {

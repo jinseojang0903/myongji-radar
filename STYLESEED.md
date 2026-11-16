@@ -1,0 +1,28 @@
+# StyleSeed — Design Lock
+<!-- Selections persist here. This file cannot waive StyleSeed core invariants. -->
+- App domain: education
+- Surface: web
+- Surface adapter: product-ui
+- Page type: list
+- Output grammar: consumer-service
+- Grammar path: built-in:engine/RULESETS.md
+- Grammar fallback: consumer-service
+- Reference confidence: n/a
+- Brand recipe: calm-consumer
+- Palette recipe: civic-blue
+- Key color: #0B1F4B
+- Palette character: deep
+- Palette mode: light
+- Palette harmony: contrast
+- Surface temperature: cool
+- Aesthetic profile: none
+- Skin: custom
+- Primary action: #2453E6
+- Font: Pretendard
+- Radius: soft
+- Elevation: light=tonal grouping + restrained shadow
+- Density: comfortable
+- Motion: Silk restrained
+- Imagery/data role: one data radar on the home — distance from centre = days until deadline; the list below carries the same information
+- Signature move: deadline radar — unknown deadlines sit outside a dashed orbit as "?" and in a separate dashed lane, never mixed with confirmed deadlines
+- Locked: 2026-11-16
