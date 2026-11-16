@@ -95,9 +95,11 @@ function renderJudgment(card, now, conditions) {
 function renderFields(card, boards) {
   const rows = fieldRows(card, boards);
   const link = applyLink(card);
-  const table = el('table', { class: 'fields' },
+  // 좁은 화면에서는 CSS가 표를 display:block으로 펼친다. 그러면 일부 브라우저가 표 구조를 화면 읽기에 넘기지 않아
+  // 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow에서 단다. 넓은 화면에서는 기본 역할과 같아 해가 없다
+  const table = el('table', { class: 'fields', role: 'table' },
     el('caption', { class: 'sr-only' }, '대회 카드 항목: 값, 확인 상태, 근거'),
-    el('tbody', {}, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
+    el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
   const sources = sourceLinks(card, boards);
   const checkedAt = parseContractDate(card.meta?.checked_at);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-fields' },
@@ -116,14 +118,14 @@ function renderFields(card, boards) {
 
 function renderFieldRow(row, link) {
   const evidenceId = `ev-${row.name}`;
-  const valueCell = el('td', {},
+  const valueCell = el('td', { role: 'cell' },
     // 정보 충돌이어도 정리한 값은 보여 주고, 출처별 근거를 바로 펼친다 (화면설계.md 4절 "정보 충돌")
     row.isConflict ? el('div', {}, el('b', {}, '정보 충돌: 출처마다 다르게 적혀 있습니다')) : null,
     row.text ?? el('span', { class: 'missing' }, row.status === 'missing' ? '공지에 없음' : '표시할 수 없는 값'),
     row.note ? el('div', { class: row.status === 'needs_check' ? 'field-note need' : 'field-note' }, row.note) : null,
     link ? el('div', { class: 'stack-top' }, externalLink(link.url, '신청 페이지 열기'), el('span', { class: 'small' }, ` (${link.host})`)) : null);
 
-  const statusCell = el('td', { class: 'st' }, el('span', { class: `badge ${BADGE_CLASS[row.badge.kind]}` }, row.badge.text));
+  const statusCell = el('td', { class: 'st', role: 'cell' }, el('span', { class: `badge ${BADGE_CLASS[row.badge.kind]}` }, row.badge.text));
   if (row.evidence.length > 0) {
     // 충돌이면 출처별 값을 바로 보여 준다 (화면설계.md 4절 "정보 충돌")
     const isOpen = row.isConflict;
@@ -144,7 +146,7 @@ function renderFieldRow(row, link) {
     // 펼친 뒤 Tab·화면 읽기로 나아가면 근거와 "원문 보기"를 지나쳐 다음 행으로 간다 (#104)
     valueCell.append(el('div', {}, button), evidence);
   }
-  return el('tr', {}, el('th', { scope: 'row' }, row.label), valueCell, statusCell);
+  return el('tr', { role: 'row' }, el('th', { scope: 'row', role: 'rowheader' }, row.label), valueCell, statusCell);
 }
 
 function renderEvidence(item) {

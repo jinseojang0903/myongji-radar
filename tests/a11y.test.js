@@ -137,6 +137,23 @@ test('오류 화면에도 제목이 있고, 마감 변경의 옛·새 날짜를 
   cssRule(CSS, /(^|\n)a\.item \.row > \.title\s*{\s*flex:\s*1 1 0;\s*min-width:\s*0;?\s*}/, '홈 카드에서만 긴 제목이 D-day를 다음 줄로 밀지 않게');
 });
 
+test('좁은 화면에서 블록으로 펼치는 카드 항목 표는 역할을 명시해 표 탐색을 지킨다 (#104)', () => {
+  const CARD_PAGE = readFileSync(new URL('../site/js/card-page.js', import.meta.url), 'utf8');
+  cssRule(CSS, /\.fields th, \.fields td\s*{[^}]*display:\s*block/, '이 시험은 좁은 화면에서 표를 블록으로 펼칠 때를 위한 것');
+  assert.match(CARD_PAGE, /el\('table', \{ class: 'fields', role: 'table' \}/);
+  assert.match(CARD_PAGE, /el\('tbody', \{ role: 'rowgroup' \}/);
+  assert.match(CARD_PAGE, /el\('tr', \{ role: 'row' \}, el\('th', \{ scope: 'row', role: 'rowheader' \}/);
+  assert.match(CARD_PAGE, /el\('td', \{ role: 'cell' \}/);
+  assert.match(CARD_PAGE, /el\('td', \{ class: 'st', role: 'cell' \}/);
+});
+
+// 360px 입력창(글자 약 15px)에 한글 20자 안팎이 들어간다 (헤드리스 Edge 캡처로 확인한 길이를 상한으로)
+test('맞춤 추천 입력창의 예시는 20자 이하다 (360px에서 잘리지 않게, #104)', () => {
+  const RECOMMEND = readFileSync(new URL('../site/recommend.html', import.meta.url), 'utf8');
+  const placeholder = RECOMMEND.match(/id="q"[^>]*placeholder="([^"]*)"/)?.[1];
+  assert.ok(placeholder && placeholder.length <= 20, `예시 문장 ${placeholder?.length}자`);
+});
+
 test('가로로 밀리는 표는 키보드로도 닿는다 (이름 붙은 영역 + tabindex)', () => {
   assert.match(LOG_PAGE, /el\('div', \{ class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': label \}/);
   const tables = (LOG_PAGE.match(/el\('table'/g) || []).length;
