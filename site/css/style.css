@@ -18,6 +18,8 @@
   --ev-bg: #f5f8ff; --note-bg: #fffaf0;
   --hl: #ffe97a; --on-dark: #ffffff;
   --amber: #e0a030;  /* 확인 전 점선 (장식선, 글자색 아님) */
+  /* 레이더 첫 화면(어두운 남색 위)에만 쓰는 신호색. 밝은 바탕 글자색으로 쓰지 않는다 */
+  --signal: #3ee6c1; --signal-hot: #ff8a8d; --scope-sub: #b4c1dd; --scope-deep: #050d22;
   --radius: 18px;
   --shadow: 0 1px 2px rgba(15, 26, 51, .04), 0 8px 24px rgba(15, 26, 51, .06);
   --shadow-lift: 0 2px 4px rgba(15, 26, 51, .05), 0 18px 40px rgba(15, 26, 51, .12);
@@ -67,50 +69,61 @@ h3 { letter-spacing: -0.02em; }
 .small { font-size: 13.5px; color: var(--sub); }
 .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 13.5px; font-weight: 700; letter-spacing: 0; }
 
-/* ── 홈 첫 화면: 레이더 ───────────────────────────────── */
-.hero { position: relative; overflow: hidden; isolation: isolate; color: var(--on-dark); border-radius: 28px; padding: 48px 48px 40px;
-  background: radial-gradient(120% 140% at 88% 18%, #23489f 0%, var(--navy) 52%, #07142f 100%);
-  box-shadow: 0 24px 60px rgba(11, 31, 75, .3); display: grid; gap: 18px; }
-.hero h1 { font-size: 44px; line-height: 1.18; letter-spacing: -0.045em; max-width: 13em; }
-.hero h1 em { font-style: normal; background: linear-gradient(90deg, #8fb6ff, #7ff0c8); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero .lead { color: rgba(255, 255, 255, .82); max-width: 34em; font-size: 17px; }
-.hero .eyebrow { justify-self: start; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); }
-.hero .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #5ee0a0; animation: pulse 2s ease-in-out infinite; }
+/* ── 홈 첫 화면: 마감 레이더 (STYLESEED.md) ─────────────────
+   중심까지의 거리 = 마감까지 남은 날. 민트 = 마감일이 있는 대회, 코랄 = 7일 이내,
+   마감일을 모르는 대회는 색 대신 점선 궤도 밖의 '?'로 둔다 (확정 정보처럼 보이지 않게). */
+.hero { position: relative; overflow: hidden; isolation: isolate; color: var(--on-dark); border-radius: 28px; padding: 44px 48px 40px;
+  background: radial-gradient(1100px 600px at 78% 35%, #1a3478 0%, var(--navy) 45%, var(--scope-deep) 100%);
+  box-shadow: 0 24px 60px rgba(11, 31, 75, .3); display: grid; gap: 12px 40px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; }
+.scope-copy { display: grid; gap: 16px; align-content: start; }
+.hero h1 { font-size: 44px; line-height: 1.18; letter-spacing: -0.045em; }
+.hero h1 em { font-style: normal; color: var(--signal); }
+.hero .eyebrow { justify-self: start; color: var(--signal); font-weight: 700; }
 .hero a:not(.btn) { color: var(--on-dark); }
-.hero .small { color: rgba(255, 255, 255, .78); }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
-.hero .btn.primary { background: var(--on-dark); color: var(--navy); border-color: var(--on-dark); box-shadow: 0 10px 28px rgba(0, 0, 0, .25); }
-.hero .btn.primary:hover { background: #e9efff; border-color: #e9efff; }
+.hero .small { color: var(--scope-sub); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero .btn.primary { background: var(--signal); color: var(--scope-deep); border-color: var(--signal); box-shadow: 0 10px 28px rgba(0, 0, 0, .25); }
+.hero .btn.primary:hover { background: #7ff0d6; border-color: #7ff0d6; }
 .hero .btn.ghost { background: rgba(255, 255, 255, .06); color: var(--on-dark); border-color: rgba(255, 255, 255, .45); }
 .hero .btn.ghost:hover { background: rgba(255, 255, 255, .14); }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 168px)); gap: 12px; margin: 10px 0 0; }
-.stat { background: rgba(8, 22, 52, .55); border: 1px solid rgba(255, 255, 255, .16); border-radius: 16px; padding: 14px 16px; }
-.stat dt { font-size: 13px; color: rgba(255, 255, 255, .78); font-weight: 600; }
-.stat dd { margin: 2px 0 0; font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.stat dd small { font-size: 15px; font-weight: 700; margin-left: 2px; opacity: .8; }
-.stat.hot dd { color: #ffb4a8; }
+/* 숫자 칸: 한 덩어리 계기판처럼 붙여 둔다 */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 4px 0 0; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .14); }
+.stat { background: rgba(5, 13, 34, .62); padding: 14px 16px 12px; }
+.stat dt { font-size: 13px; color: var(--scope-sub); font-weight: 600; }
+.stat dd { margin: 4px 0 0; font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--signal); }
+.stat dd small { font-size: 15px; font-weight: 700; margin-left: 2px; color: var(--scope-sub); }
+.stat.hot dd { color: var(--signal-hot); }
+.stat.unknown dd { color: var(--on-dark); }
+.scope-legend { margin: 0; font-size: 14px; color: var(--scope-sub); max-width: 34em; }
+.scope-legend b { color: var(--on-dark); }
 .hero-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 13px; color: rgba(255, 255, 255, .9); }
-.hero-note { font-size: 13px; color: rgba(255, 255, 255, .9); max-width: 46em; }
+.hero-note { margin: 0; font-size: 13px; color: rgba(255, 255, 255, .9); max-width: 46em; }
 .hero-note .badge { background: transparent; color: var(--on-dark); border-color: rgba(255, 255, 255, .6); }
-/* 레이더: 동심원·십자선·도는 빛·깜빡이는 점 (그림 파일 없이 CSS로만) */
-.radar { position: absolute; z-index: -1; right: -110px; top: 50%; width: 600px; aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%;
-  background:
-    linear-gradient(transparent calc(50% - .5px), rgba(255, 255, 255, .12) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px)),
-    linear-gradient(90deg, transparent calc(50% - .5px), rgba(255, 255, 255, .12) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px)),
-    repeating-radial-gradient(circle, rgba(255, 255, 255, .13) 0 1px, transparent 1px 60px),
-    radial-gradient(circle, rgba(83, 140, 255, .28), transparent 68%); }
-.radar::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(127, 176, 255, .55), rgba(127, 176, 255, .12) 40deg, transparent 90deg, transparent 360deg); animation: sweep 7s linear infinite; }
-.radar::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 30%, #7ff0c8 0 5px, rgba(127, 240, 200, .25) 6px 12px, transparent 13px),
-    radial-gradient(circle at 70% 64%, #ffd166 0 5px, rgba(255, 209, 102, .25) 6px 12px, transparent 13px),
-    radial-gradient(circle at 58% 22%, #ff8a7a 0 4px, rgba(255, 138, 122, .25) 5px 10px, transparent 11px),
-    radial-gradient(circle at 24% 66%, #8fb6ff 0 4px, transparent 5px);
-  animation: blink 3.2s ease-in-out infinite; }
+
+/* 레이더 그림 (js/radar.js가 SVG로 그린다) */
+.scope-figure { width: 100%; max-width: 520px; justify-self: center; }
+.rd { display: block; width: 100%; height: auto; overflow: visible; }
+.rd-ring circle { fill: none; stroke: rgba(160, 190, 255, .22); stroke-width: 1; }
+/* SVG 글자는 viewBox(430) 기준이라 휴대폰(약 340px)에서 0.8배로 줄어든다. 줄어든 뒤에도 11px 이상이 되게 */
+.rd-ring text { fill: #8fa2c9; font-size: 14px; font-weight: 600; font-family: inherit; }
+.rd-ring-week circle { stroke: rgba(255, 138, 141, .55); }
+.rd-ring-week text { fill: #ffa9ab; }
+.rd-ring-unknown circle { stroke: rgba(232, 238, 252, .5); stroke-dasharray: 3 6; }
+.rd-ring-unknown text { fill: #e8eefc; }
+.rd-axis { stroke: rgba(160, 190, 255, .12); }
+.rd-core { fill: var(--signal); }
+.rd-sweep { transform-origin: 0 0; animation: sweep 6s linear infinite; }
+.rd-blip { cursor: pointer; }
+.rd-hit { fill: transparent; }
+.rd-pip { fill: var(--signal); stroke: var(--scope-deep); stroke-width: 2; transition: transform .15s; }
+.rd-ping { fill: none; stroke: var(--signal); stroke-opacity: .5; transform-origin: 0 0; animation: ping 2.4s ease-out infinite; }
+.rd-blip-urgent .rd-pip { fill: #ff6b6f; }
+.rd-blip-urgent .rd-ping { stroke: #ff6b6f; }
+.rd-blip-unknown .rd-pip { fill: var(--navy); stroke: #e8eefc; stroke-width: 1.5; stroke-dasharray: 2.5 2.5; }
+.rd-q { fill: #e8eefc; font-size: 13px; font-weight: 800; text-anchor: middle; pointer-events: none; }
+.rd-blip:hover .rd-pip { transform: scale(1.35); }
 @keyframes sweep { to { transform: rotate(360deg); } }
-@keyframes blink { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(94, 224, 160, .5); } 50% { box-shadow: 0 0 0 6px rgba(94, 224, 160, 0); } }
+@keyframes ping { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
 
 /* ── 상태 배지: 색과 함께 글자·기호·선으로 구분한다 ─────────────── */
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; line-height: 1.5; }
@@ -140,8 +153,34 @@ h3 { letter-spacing: -0.02em; }
 .chip:hover { border-color: var(--blue); background: var(--blue-soft); }
 .chip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--on-dark); font-weight: 700; box-shadow: 0 6px 16px rgba(36, 83, 230, .28); }
 .chip[aria-pressed="true"]::before { content: "✓ " / ""; }  /* 눌림은 aria-pressed가 알린다. 기호는 읽지 않게 대체 글을 비운다 */
-.list-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 2px 12px; }
-.list-head h2 { font-size: 22px; }
+/* 홈 검색칸 */
+.search { position: relative; }
+.search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--sub); pointer-events: none; }
+.home-search { width: 100%; min-height: 52px; font: inherit; font-size: 16px; padding: 0 16px 0 46px; border: 1px solid var(--input-line); border-radius: 14px; background: var(--card); color: var(--text); }
+
+/* 마감 구간 (홈) */
+.list-status { margin: 0 2px 4px; }
+.lanes { display: grid; gap: 28px; }
+.lane { display: grid; gap: 12px; }
+.lane-head { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin: 0 2px; }
+.lane-head h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 21px; }
+.lane-count { display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 9px; border-radius: 999px; background: var(--navy); color: var(--on-dark); font-size: 13px; font-weight: 800; }
+.lane-week .lane-count { background: var(--no); }
+.lane-unknown .lane-count { background: var(--muted); }
+/* 마감일 확인 필요: 점선 테두리 + 옅은 사선 무늬로 마감이 확실한 구간과 다르게 보이게 */
+.lane-unknown { padding: 18px; border: 2px dashed var(--line-dashed); border-radius: 22px;
+  background: repeating-linear-gradient(-45deg, transparent 0 10px, rgba(95, 102, 115, .05) 10px 20px); }
+.lanes .list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
+.item-wrap { display: grid; align-content: start; background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
+.item-wrap > .item { border: 0; border-radius: 0; box-shadow: none; }
+.item-wrap > a.item:hover { transform: none; box-shadow: none; background: #fafbfe; }
+.item-wrap:hover { box-shadow: var(--shadow-lift); }
+.item.flash { box-shadow: inset 0 0 0 3px var(--ok); }  /* 레이더 점에서 옮겨 온 카드 */
+/* 감싼 상자가 overflow: hidden이라 바깥에 그리는 포커스 링이 잘린다. 안쪽에 그린다 */
+.item-wrap :focus-visible { outline-offset: -3px; }
+.item-source { display: flex; align-items: center; min-height: 44px; padding: 0 20px 0 26px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; text-decoration: none; }
+.item-source:hover { text-decoration: underline; background: var(--blue-soft); }
+.item .dday.none { background: var(--card); border: 1.5px dashed var(--line-dashed); }
 
 /* ── 대회 카드 목록 ───────────────────────────────────── */
 .list { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
@@ -281,11 +320,11 @@ h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note,
 .table-scroll { overflow-x: auto; }
 .metrics td.pending { white-space: nowrap; }
 
-/* 태블릿: 레이더를 조금 작게 */
+/* 태블릿 이하: 레이더를 글 위로 올려 한 열로 */
 @media (max-width: 900px) {
-  .hero { padding: 36px 28px 30px; }
+  .hero { padding: 32px 28px 30px; grid-template-columns: minmax(0, 1fr); }
   .hero h1 { font-size: 36px; }
-  .radar { width: 460px; right: -190px; opacity: .45; }
+  .scope-figure { order: -1; max-width: 420px; }
 }
 
 /* 휴대폰: 한 열, 항목 표는 라벨 위·값 아래 */
@@ -297,10 +336,9 @@ h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note,
   main { padding: 16px 16px 48px; gap: 16px; }
   .hero { padding: 28px 20px 24px; border-radius: 22px; }
   .hero h1 { font-size: 30px; }
-  .hero .lead { font-size: 15.5px; }
-  .radar { width: 360px; right: -200px; top: 18%; opacity: .3; }  /* 글자 뒤로 들어오므로 흐리게 (흰 글자 대비) */
-  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .scope-figure { max-width: 340px; }
   .stat { padding: 10px 10px; }
+  .lane-unknown { padding: 12px; }
   .stat dd { font-size: 24px; }
   .stat dt { font-size: 12px; }
   .panel { padding: 18px; }
@@ -337,6 +375,7 @@ h1, .lead, .item .title, .item .org, .reason, .notice, .ev, .quote, .field-note,
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
-  .radar::before, .radar::after, .hero .eyebrow::before { animation: none !important; }
+  .rd-sweep, .rd-ping { animation: none !important; }
+  .rd-ping { display: none; }
   html { scroll-behavior: auto; }
 }
