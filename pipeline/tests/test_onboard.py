@@ -112,6 +112,20 @@ class OnboardTests(unittest.TestCase):
         self.assertEqual(len(onboard._source_id("x" * 60, "12345", {"mju_" + "x" * 36})), 40)
         self.assertTrue(onboard._source_id("x" * 60, "12345", {"mju_" + "x" * 36}).endswith("_12345"))
 
+    def test_names_do_not_collide_within_one_run(self):
+        other_list, other_rss = f"https://{HOST}/math/2222/subview.do", f"https://{HOST}/bbs/math/888/rssList.do?row=50"
+        other_page = PAGE.replace(b"/bbs/math/777/", b"/bbs/math/888/")
+        other_details = {f"https://{HOST}/bbs/math/888/{n}/artclView.do": DETAIL for n in (501, 502, 503, 504)}
+        other_xml = RSS_XML.replace(b"/bbs/math/777/", b"/bbs/math/888/")
+        fetcher = FakeFetcher({LIST: PAGE, RSS: RSS_XML, **details(), other_list: other_page, other_rss: other_xml, **other_details})
+        taken, known, names = ({source.id for source in self.existing}, onboard.known_boards(self.existing),
+                               {source.name for source in self.existing})
+        first = onboard.probe(LIST, fetcher, self.existing, DEFAULTS, None, taken, known, names)
+        second = onboard.probe(other_list, fetcher, self.existing, DEFAULTS, None, taken, known, names)
+        self.assertTrue(first.ok, first.reason)
+        self.assertFalse(second.ok, "두 게시판이 모두 '공지사항 (호스트)'가 되면 공개 카드에서 구분되지 않는다")
+        self.assertIn("이미 있음", second.reason)
+
     def test_same_board_twice_in_one_run_is_registered_once(self):
         fetcher = FakeFetcher({LIST: PAGE, RSS: RSS_XML, **details()})
         taken, known = {source.id for source in self.existing}, onboard.known_boards(self.existing)
@@ -146,8 +160,9 @@ class OnboardTests(unittest.TestCase):
             self.assertIn("[등록 가능]", out.getvalue())
             self.assertIn("[더함] 1곳", out.getvalue())
             self.assertTrue(any(source.id == "mju_math" for source in load_sources(config)))
-            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
-                onboard.main([LIST, RSS, "--name", "하나만", "--config", str(config)])  # 이름 수가 주소 수와 다름
+            for bad in (["--name", "하나만"], ["--name", "", "--name", "둘"]):  # 이름 수가 다름, 빈 이름
+                with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                    onboard.main([LIST, RSS, *bad, "--config", str(config)])
 
 
 if __name__ == "__main__":

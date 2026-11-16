@@ -100,10 +100,6 @@ def _why(error: BaseException) -> str:
     return type(error).__name__
 
 
-def _is_network(error: BaseException) -> bool:
-    return isinstance(error, (requests.RequestException, OSError, FetchPolicyError))
-
-
 def _list_board(page: bytes, url: str, host: str) -> tuple[tuple[str, str] | None, str]:
     """목록 페이지 → (게시판, 이유). 목록 표의 글 링크(a.artclLinkView) 중 같은 호스트만 본다."""
     soup = BeautifulSoup(page, "html.parser", from_encoding="utf-8")
@@ -131,6 +127,7 @@ def _source_id(site: str, board: str, taken: set[str]) -> str | None:
 
 
 def _page_name(page: bytes | None, host: str, number: str, names: set[str]) -> str:
+    """페이지 제목으로 이름을 만든다. 흔하거나 이미 있는 이름이면 호스트를 덧붙인다 (그래도 겹치면 probe가 거절한다)."""
     title = ""
     if page:
         soup = BeautifulSoup(page, "html.parser", from_encoding="utf-8")
@@ -143,12 +140,13 @@ def _page_name(page: bytes | None, host: str, number: str, names: set[str]) -> s
 
 
 def probe(url: str, fetcher, existing: list[Source], defaults: dict, name: str | None = None,
-          taken: set[str] | None = None, known: set | None = None) -> Proposal:
+          taken: set[str] | None = None, known: set | None = None, names: set[str] | None = None) -> Proposal:
     """주소 하나를 검사해 설정 칸을 제안한다. 어떤 실패도 ok=False와 이유로 돌려준다 (예외로 올리지 않음).
-    taken·known(출처 id, 등록된 게시판)은 같은 실행에서 통과한 제안을 더해 다음 주소의 중복을 막는다."""
+    taken·known·names(출처 id, 등록된 게시판, 게시판 이름)는 같은 실행에서 통과한 제안을 더해 다음 주소의 중복을 막는다."""
     proposal = Proposal(url)
     taken = taken if taken is not None else {source.id for source in existing}
     known = known if known is not None else known_boards(existing)
+    names = names if names is not None else {source.name for source in existing}
     try:
         parts = urlsplit(url)
         host = parts.hostname or ""
@@ -181,17 +179,17 @@ def probe(url: str, fetcher, existing: list[Source], defaults: dict, name: str |
     if source_id is None:
         proposal.reason = f"출처 id를 만들지 못함 (mju_{site} 계열 id가 이미 있음. 설정에 직접 다른 id로 넣기)"
         return proposal
-    names = {source.name for source in existing}
     proposal.name_from_page = not name
     entry = {"id": source_id, "name": name or _page_name(page, host, number, names), "priority": 100,
              "allowed_hosts": allowed}
     adapter = K2WebAdapter()
     rss_url = f"https://{host}/bbs/{site}/{number}/rssList.do?row=50"
     refs, last_error = [], None
+    raw = None
     for repair in (False, True):
         try:
-            raw = fetcher.get(rss_url, allowed)
-        except Exception as error:  # 네트워크·없음: 다시 요청하지 않고 목록 페이지로
+            raw = raw if raw is not None else fetcher.get(rss_url, allowed)
+        except Exception as error:  # 요청 실패(없음·시간 초과 등): 다시 요청하지 않고 목록 페이지로
             last_error = error
             break
         try:
@@ -223,9 +221,13 @@ def probe(url: str, fetcher, existing: list[Source], defaults: dict, name: str |
         proposal.reason = (f"공고 {proposal.sampled}건 중 제목·본문을 읽은 글이 없음"
                            + (f" ({_why(sample_error)})" if sample_error else "") + ": 게시판 구조가 다르거나 로그인 필요")
         return proposal
+    if entry["name"] in names:
+        proposal.reason = f"게시판 이름 \"{entry['name']}\"이 이미 있음 (공개 카드에서 구분되지 않는다. --name으로 다른 이름을 주기)"
+        return proposal
     proposal.ok, proposal.entry = True, entry
     taken.add(source_id)
     known.add((host, site, number))
+    names.add(entry["name"])
     return proposal
 
 
@@ -278,17 +280,20 @@ def main(argv=None) -> int:
     if args.name and len(args.name) != len(args.urls):
         parser.error(f"--name은 주소 수({len(args.urls)})만큼 주거나 주지 않는다 (지금 {len(args.name)}개)")
     names = [clean_name(name) for name in args.name]
-    if any(args.name) and not all(names):
+    if args.name and not all(names):
         parser.error("--name에 보이는 글자가 없는 이름이 있다")
     try:
         existing = load_sources(args.config)
         defaults = read_defaults(args.config)
-    except (ValueError, OSError, KeyError) as error:
+    except KeyError as error:
+        print(f"[오류] 출처 설정의 [defaults]에 {error} 값이 없음", file=sys.stderr)
+        return 2
+    except (ValueError, OSError) as error:
         print(f"[오류] 출처 설정을 읽지 못함: {error}", file=sys.stderr)
         return 2
     fetcher = Fetcher()
-    taken, known = {source.id for source in existing}, known_boards(existing)
-    proposals = [probe(url, fetcher, existing, defaults, names[index] if names else None, taken, known)
+    taken, known, used_names = {source.id for source in existing}, known_boards(existing), {source.name for source in existing}
+    proposals = [probe(url, fetcher, existing, defaults, names[index] if names else None, taken, known, used_names)
                  for index, url in enumerate(args.urls)]
     accepted = [proposal for proposal in proposals if proposal.ok]
     for proposal in proposals:
