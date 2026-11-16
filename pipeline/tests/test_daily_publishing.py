@@ -21,8 +21,10 @@ class DailyPublishingTests(unittest.TestCase):
         self.settings = self.fixture.root / "publishing.toml"
         self.write_settings()
 
-    def write_settings(self, *, enabled=True, model="opus", push=True, max_new=5):
-        self.settings.write_text(f'version=1\nenabled={str(enabled).lower()}\nmodel="{model}"\npush={str(push).lower()}\nmax_new={max_new}\n', encoding="utf-8")
+    def write_settings(self, *, enabled=True, model="opus", push=True, max_new=5, cross_model=None):
+        cross = "" if cross_model is None else f"cross_model={cross_model}\n"
+        self.settings.write_text(f'version=1\nenabled={str(enabled).lower()}\nmodel="{model}"\npush={str(push).lower()}\nmax_new={max_new}\n'
+                                 + cross, encoding="utf-8")
 
     def run_day(self):
         return daily.run_daily(self.fixture.data, self.fixture.config, self.fixture.rules,
@@ -185,17 +187,24 @@ class DailyPublishingTests(unittest.TestCase):
             self.assertEqual(self.run_day(), 0)
         self.assertNotIn("--cross-model", publish.call_args.args[0])
         for value in ('"opus"', '"gpt"', "true"):  # 주 모델과 같음, 모르는 모델, 문자열 아님
-            self.settings.write_text(self.settings.read_text(encoding="utf-8").split("cross_model")[0] + f"cross_model={value}\n",
-                                     encoding="utf-8")
-            with self.subTest(value=value), self.assertRaises(ValueError):
+            self.write_settings(cross_model=value)
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid publishing configuration"):
                 load_publishing(self.settings)
-        self.settings.write_text(self.settings.read_text(encoding="utf-8").split("cross_model")[0] + 'cross_model="sonnet"\n',
-                                 encoding="utf-8")
+        self.write_settings(cross_model='"sonnet"')
         self.assertEqual(load_publishing(self.settings).cross_model, "sonnet")
 
+    def test_dry_run_rejects_a_bad_cross_model(self):
+        self.write_settings(cross_model='"opus"')
+        argv = ["collector.daily", "--dry-run", "--config", str(self.fixture.config), "--rules", str(self.fixture.rules),
+                "--data-dir", str(self.fixture.data), "--publish-config", str(self.settings)]
+        with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()), \
+                self.assertRaises(SystemExit) as stopped:
+            daily.main()
+        self.assertEqual(stopped.exception.code, 1, "설정 확인 실패로 끝난다")
+        self.fixture.fetcher.get.assert_not_called()
+
     def test_cross_model_reaches_the_publisher_on_a_new_day(self):
-        self.write_settings()
-        self.settings.write_text(self.settings.read_text(encoding="utf-8") + 'cross_model="sonnet"\n', encoding="utf-8")
+        self.write_settings(cross_model='"sonnet"')
         with patch.object(daily, "call_publisher", return_value=0) as publish:
             self.assertEqual(self.run_day(), 0)
         argv = publish.call_args.args[0]
