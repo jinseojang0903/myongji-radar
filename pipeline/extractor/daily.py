@@ -128,7 +128,7 @@ def is_same_version(entry: dict | None, notice: dict) -> bool:
 
     판 번호만 본다. 원문이 바뀌면 수집기가 새 판(새 번호)을 만들고, 같은 번호에서 내용 해시만 바뀌는 것은 파서를
     고쳐 저장된 HTML을 다시 읽었을 때뿐이다(collector.repository.save). 그 경우 옛 결과로 카드를 남기고 다시 뽑는다
-    (is_current가 해시까지 본다). 옛 근거 문장은 새 본문에도 그대로 있어 검증기 대조를 거친다.
+    (is_current가 해시까지 본다). 옛 결과의 근거도 새 본문으로 검증기 대조를 거친다 (대조에 실패한 항목은 근거를 싣지 않는다).
     """
     return (entry is not None and entry.get("version_id") is not None
             and entry.get("version_id") == notice.get("version_id"))

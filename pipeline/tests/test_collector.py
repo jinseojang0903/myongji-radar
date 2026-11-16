@@ -37,6 +37,14 @@ class CollectorTests(unittest.TestCase):
                          ["- 2026. 11. 9.(월) ~ 2026. 12. 11.(목) 23:00", "소스의 줄바꿈은 띄어쓰기", "첫", "둘", "구분", "내용"])
         self.assertEqual(notice.parser_version, "k2web-v1.2", "바뀐 파서는 저장된 원문을 다시 읽게 판을 올린다")
 
+    def test_office_processing_instructions_and_comments_are_not_text(self):
+        """한글·워드에서 붙여 넣은 공지의 <?xml:namespace ...?>는 처리 지시문이라 본문 글자가 아니다."""
+        from bs4 import BeautifulSoup
+        from collector.adapters.k2web import normalized_text
+        html = ('<div><?xml:namespace prefix = o ns = "urn:schemas-microsoft-com:office:office" />'
+                '<!-- 주석 --><p>본문<![CDATA[데이터]]></p></div>')
+        self.assertEqual(normalized_text(BeautifulSoup(html, "html.parser").div), "본문데이터")
+
     def test_deeply_nested_markup_does_not_hit_the_recursion_limit(self):
         from bs4 import BeautifulSoup
         from collector.adapters.k2web import normalized_text
