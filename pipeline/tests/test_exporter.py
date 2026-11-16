@@ -361,6 +361,15 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertEqual(item["status"], "needs_check")
         item = one_field("deliverables", field({"tags": ["영상"], "text": "제출 문의 +82 10-1111-2222"}))
         self.assertNotIn("1111", item["value"]["text"])
+        # 신청서·동의서 첨부에 흔한 끊어 쓴 번호 (첨부 입력 보안 리뷰). 금액 범위·시각·유선 번호·해 범위는 가리지 않는다
+        item = one_field("benefits", field("상금", quote="주민번호 990101-1234567, 학번 6012 - 3456, 상금 1000-2000만원, "
+                                                        "0900-1800 문의 02-3300-1669 2025-2026학년도"))
+        self.assertEqual(len(item["evidence"]), 1)
+        quote = item["evidence"][0]["quote"]
+        for leaked in ["1234567", "3456"]:
+            self.assertNotIn(leaked, json.dumps(item, ensure_ascii=False))
+        for kept in ["1000-2000만원", "0900-1800", "02-3300-1669", "2025-2026학년도"]:
+            self.assertIn(kept, quote)
 
     def test_invisible_and_control_characters_are_removed(self):
         fields = example_fields()

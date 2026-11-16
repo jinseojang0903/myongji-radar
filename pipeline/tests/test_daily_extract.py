@@ -2,6 +2,7 @@
 실제 규칙 분석기로 만든 analysis.json → 매일 추출 → 검증기(#15) → 내보내기(#17)까지 이어 본다.
 (unittest discover -s tests로 돌린다: 시험 도우미를 test_extractor에서 가져온다)"""
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -17,6 +18,7 @@ from collector.models import Notice
 from collector.repository import Repository
 from exporter.__main__ import read_verified_bundles
 from exporter.cards import boards_from_sources, build_cards_json
+from collector.asset_text import attachment_texts
 from extractor import claude as claude_cli
 from extractor import daily
 from extractor.__main__ import main as cli_main
@@ -95,6 +97,83 @@ class DailyExtractTests(unittest.TestCase):
         runs = (self.folder / "extractions" / "_runs.jsonl").read_text(encoding="utf-8")
         self.assertNotIn("모집", runs, "실행 기록에 공지 내용이 없다")
         self.assertEqual(json.loads(runs.splitlines()[0])["totals"]["calls"], 2)
+
+    def add_attachment(self, notice, name, text, relative=None):
+        relative = relative or f"asset_text/{hashlib.sha256((notice['external_id'] + name + text).encode()).hexdigest()}.txt"
+        target = self.folder / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        notice["attachments"].append({"url": "https://ctl.mju.ac.kr/file.hwp", "name": name, "sha256": "0" * 64,
+                                      "text_status": "extracted", "text_path": relative})
+
+    def test_attachment_text_goes_to_ai_and_its_name_to_the_bundle(self):
+        self.add_attachment(self.notices[0], "공고문.hwp", "첨부에만 있는 조건: 졸업유예생 제외")
+        self.add_attachment(self.notices[0], "공고문.hwp", "두 번째 같은 이름")
+        self.add_attachment(self.notices[0], "", "이름 없는 첨부")
+        self.add_attachment(self.notices[0], "밖.hwp", "data 밖", relative="../outside.txt")
+        self.notices[0]["attachments"].append({"url": "https://ctl.mju.ac.kr/poster.pdf", "name": "포스터.pdf",
+                                               "text_status": "needs_review", "text_reason": "no_text_or_image_only"})
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake)
+        self.assertEqual(code, 0)
+        sent = "".join(call["input"].decode("utf-8") for call in fake.calls)
+        self.assertIn('<attachment name="공고문.hwp">\n첨부에만 있는 조건: 졸업유예생 제외\n</attachment>', sent)
+        self.assertIn('<attachment name="공고문.hwp (2)">', sent, "같은 이름은 구분해 근거가 한 첨부만 가리키게")
+        self.assertIn('<attachment name="첨부 3">', sent)
+        self.assertNotIn("data 밖", sent, "data 폴더 밖 경로는 읽지 않는다")
+        self.assertNotIn("포스터.pdf", sent, "글자를 뽑지 못한 첨부는 넣지 않는다")
+        self.assertEqual(self.bundles()[0]["notices"][0]["files"], ["공고문.hwp", "공고문.hwp (2)", "첨부 3"])
+        # 검증기는 같은 이름·같은 글자로 대조한다
+        original = read_originals(self.folder / "notices.json")[self.notices[0]["url"]]
+        self.assertEqual(original["attachments"][0], {"name": "공고문.hwp", "text": "첨부에만 있는 조건: 졸업유예생 제외"})
+
+    def test_attachment_names_do_not_shift_when_another_attachment_is_converted_later(self):
+        self.notices[0]["attachments"].append({"url": "https://ctl.mju.ac.kr/a.hwp", "name": "R&D <안내>.hwp",
+                                               "text_status": "needs_review"})
+        self.add_attachment(self.notices[0], "R&D <안내>.hwp", "두 번째 파일")
+        self.add_attachment(self.notices[0], "본선진출팀 명단.hwp", "김철수 010-0000-0000")
+        names = [name for name, _ in attachment_texts(self.notices[0], self.folder)]
+        self.assertEqual(names[0], "R＆D ＜안내＞.hwp (2)",
+                         "글자를 못 뽑은 첫 파일도 이름 순서에 들어가, 나중에 변환돼도 두 번째 파일의 이름이 바뀌지 않는다")
+        self.write_inputs()
+        fake = FakeRun()
+        self.run_cli(fake)
+        sent = "".join(call["input"].decode("utf-8") for call in fake.calls)
+        self.assertNotIn("김철수", sent)
+        self.assertEqual(self.bundles()[0]["notices"][0]["files"], ["R＆D ＜안내＞.hwp (2)"], "AI에 넣은 첨부 이름만 남긴다")
+
+    def test_notices_without_cards_go_before_stale_cards(self):
+        self.run_cli(FakeRun())  # 100·103 카드가 생김
+        for card_id in ("100", "103"):
+            cache = self.folder / "extractions" / f"{CTL if card_id == '100' else 'mju-startup-ctl-792-'}{card_id}.json"
+            entry = json.loads(cache.read_text(encoding="utf-8"))
+            entry.pop("inputs")  # 첨부를 넣기 전 결과 (옛 결과로 공개 중)
+            cache.write_text(json.dumps(entry, ensure_ascii=False), encoding="utf-8")
+        self.notices.append(collected(104, "새 공모전 참가자 모집 안내", "공모전 모집", published_at="2026-09-01T10:00:00+09:00"))
+        self.write_inputs()
+        fake = FakeRun()
+        self.run_cli(fake, "--max-new", "1")
+        self.assertIn("새 공모전", fake.calls[1]["input"].decode("utf-8"), "게시일이 이르더라도 카드가 없는 공지가 먼저")
+
+    def test_body_only_results_are_re_extracted_with_attachments(self):
+        self.run_cli(FakeRun())
+        cache = self.folder / "extractions" / f"{CTL}100.json"
+        entry = json.loads(cache.read_text(encoding="utf-8"))
+        entry.pop("inputs")  # 첨부를 넣기 전(본문만)에 뽑은 결과
+        cache.write_text(json.dumps(entry, ensure_ascii=False), encoding="utf-8")
+        fake = FakeRun()
+        code, _ = self.run_cli(fake)
+        self.assertEqual((code, len(fake.calls)), (0, 2), "확인 호출 + 본문만으로 뽑은 1건을 다시")
+        self.assertIn(CTL + "100", self.card_ids(), "다시 뽑는 동안에도 카드는 남는다")
+
+    def test_newest_notices_are_extracted_first(self):
+        self.notices[3]["published_at"] = "2026-11-10T10:00:00+09:00"  # 창업 공모전이 더 최신
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--max-new", "1")
+        self.assertEqual((code, len(fake.calls)), (0, 2))
+        self.assertIn("창업 아이디어 공모전", fake.calls[1]["input"].decode("utf-8"), "상한에 걸리면 최신 공지부터")
 
     def test_cards_stay_while_waiting_for_re_extraction(self):
         self.run_cli(FakeRun())

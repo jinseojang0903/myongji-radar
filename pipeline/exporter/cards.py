@@ -24,6 +24,7 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import unquote_plus, urlsplit
 
+from collector.personal_numbers import RESIDENT_NUMBER, SPLIT_STUDENT_ID
 from extractor.common import posted_day
 
 SCHEMA_VERSION = "0.1"
@@ -89,6 +90,9 @@ MOBILE_IN_TEXT = re.compile(r"(?<!\d)(?:\+?82" + PHONE_SEPARATOR + r"(?:\(0\))?"
                             + PHONE_SEPARATOR + r"\d{3,4}" + PHONE_SEPARATOR + r"\d{4}(?!\d)", re.ASCII)
 MOBILE_DIGITS = re.compile(r"0?1[016789]\d{7,8}", re.ASCII)
 LONG_NUMBER_IN_TEXT = re.compile(r"(?<!\d)\d{8,}(?!\d)", re.ASCII)  # 학번(8자리)·계좌번호 등
+# 끊어 쓴 번호 (첨부 입력 보안 리뷰): 주민등록번호, "학번" 뒤의 4-4자리. AI 입력과 같은 꼴 (collector/personal_numbers.py)
+RRN_IN_TEXT = RESIDENT_NUMBER
+SPLIT_NUMBER_IN_TEXT = SPLIT_STUDENT_ID
 PHONE = re.compile(r"^[\s0-9A-Za-z()+\-.~,/:가-힣]*$")
 URL_HOST = re.compile(r"^[a-z0-9.-]+$", re.ASCII)
 GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$", re.ASCII)  # 사이트 Date.parse가 읽는 꼴
@@ -908,7 +912,8 @@ def _mask(text: str, pattern: re.Pattern, replace) -> str:
 
 def _has_personal_contact(text: str) -> bool:
     probe = _probe(text)
-    return bool(MOBILE_IN_TEXT.search(probe) or LONG_NUMBER_IN_TEXT.search(probe)
+    return bool(MOBILE_IN_TEXT.search(probe) or LONG_NUMBER_IN_TEXT.search(probe) or RRN_IN_TEXT.search(probe)
+                or SPLIT_NUMBER_IN_TEXT.search(probe)
                 or any(not _is_school_domain(match.group(1)) for match in EMAIL_IN_TEXT.finditer(probe)))
 
 
@@ -953,6 +958,8 @@ def _clean(text, limit: int) -> tuple[str, set[str]]:
     cleaned = _mask(cleaned, EMAIL_IN_TEXT, replace_email)
     cleaned = _mask(cleaned, URL_IN_TEXT, replace_url)
     cleaned = _mask(cleaned, MOBILE_IN_TEXT, replace_with("(휴대폰 번호 생략)"))
+    cleaned = _mask(cleaned, RRN_IN_TEXT, replace_with("(번호 생략)"))
+    cleaned = _mask(cleaned, SPLIT_NUMBER_IN_TEXT, replace_with("(번호 생략)"))
     cleaned = _mask(cleaned, LONG_NUMBER_IN_TEXT, replace_with("(번호 생략)"))
     if len(cleaned) > limit:
         events.add("clipped")
