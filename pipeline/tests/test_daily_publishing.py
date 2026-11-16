@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import unittest
+from datetime import timedelta
 from unittest.mock import patch
 import requests
 
@@ -20,8 +21,8 @@ class DailyPublishingTests(unittest.TestCase):
         self.settings = self.fixture.root / "publishing.toml"
         self.write_settings()
 
-    def write_settings(self, *, enabled=True, model="opus", push=True):
-        self.settings.write_text(f'version=1\nenabled={str(enabled).lower()}\nmodel="{model}"\npush={str(push).lower()}\n', encoding="utf-8")
+    def write_settings(self, *, enabled=True, model="opus", push=True, max_new=5):
+        self.settings.write_text(f'version=1\nenabled={str(enabled).lower()}\nmodel="{model}"\npush={str(push).lower()}\nmax_new={max_new}\n', encoding="utf-8")
 
     def run_day(self):
         return daily.run_daily(self.fixture.data, self.fixture.config, self.fixture.rules,
@@ -38,12 +39,14 @@ class DailyPublishingTests(unittest.TestCase):
                 def publish(argv):
                     with self.assertRaises(AlreadyRunning), CollectorLock(self.fixture.data):
                         pass
-                    self.assertEqual(argv, ["--model", "opus", "--data-dir", str(self.fixture.data), "--push"])
+                    self.assertEqual(argv, ["--model", "opus", "--data-dir", str(self.fixture.data), "--max-new", "5", "--push"])
                     return published
                 with patch.object(daily, "call_publisher", side_effect=publish) as called:
                     self.assertEqual(self.run_day(), 0)
                     self.assertEqual(self.state()["status"], "success")
                     self.assertEqual(self.state()["publish_exit_code"], published)
+                    event = next(e for e in reversed(self.fixture.events()) if e["event"] == "publish_finished")
+                    self.assertEqual(event["reason"], "published_with_warnings" if published else "published")
                     before = (self.fixture.data / "daily_status.json").read_bytes()
                     self.assertEqual(self.run_day(), 0)
                     called.assert_called_once()
@@ -58,6 +61,11 @@ class DailyPublishingTests(unittest.TestCase):
                 self.assertEqual(self.state()["publish_exit_code"], code)
                 self.assertEqual(self.state()["status"], status)
                 self.assertEqual(self.state()["failure_phase"], "publish")
+                before = (self.fixture.data / "daily_status.json").read_bytes()
+                with patch.object(daily, "call_collector") as collect:
+                    self.assertEqual(self.run_day(), code)
+                collect.assert_not_called()
+                self.assertEqual((self.fixture.data / "daily_status.json").read_bytes(), before)
 
     def test_collection_partial_failure_still_analyzes_but_never_publishes(self):
         self.fixture.numbers = [1, 2]
@@ -118,7 +126,7 @@ class DailyPublishingTests(unittest.TestCase):
 
     def test_publisher_exception_or_invalid_code_is_failure_without_private_message(self):
         for result in (RuntimeError("PRIVATE_PUBLISH_SECRET"), 99, True, None, False):
-            self.fixture.today = self.fixture.today.replace(day=self.fixture.today.day + 1)
+            self.fixture.today += timedelta(days=1)
             with self.subTest(result=type(result).__name__), patch.object(daily, "call_publisher") as publish:
                 if isinstance(result, Exception):
                     publish.side_effect = result
@@ -128,6 +136,8 @@ class DailyPublishingTests(unittest.TestCase):
                 self.assertEqual(self.state()["status"], "failed")
                 self.assertEqual(self.state()["failure_phase"], "publish")
                 self.assertNotIn("PRIVATE_PUBLISH_SECRET", json.dumps(self.fixture.events()))
+                self.assertEqual(self.run_day(), 1)
+                publish.assert_called_once()
 
     def test_keyboard_interrupt_never_records_publish_as_success(self):
         with patch.object(daily, "call_publisher", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
@@ -135,6 +145,44 @@ class DailyPublishingTests(unittest.TestCase):
         self.assertEqual(self.state()["status"], "failed")
         self.assertEqual(self.state()["exit_code"], 1)
         self.assertEqual(self.state()["failure_phase"], "publish")
+        with patch.object(daily, "call_publisher") as publish:
+            self.assertEqual(self.run_day(), 1)
+        publish.assert_not_called()
+
+    def test_publish_in_progress_is_saved_before_call_and_survives_process_stop(self):
+        def publish(argv):
+            state = self.state()
+            self.assertEqual(state["failure_phase"], "publish")
+            self.assertEqual(state["exit_code"], 1)
+            self.assertEqual(state["collection_exit_code"], 0)
+            self.assertEqual(state["analysis_exit_code"], 0)
+            # finally조차 실행되지 않는 강제 종료 시 디스크에 남을 상태를 보존한다.
+            self.interrupted_state = (self.fixture.data / "daily_status.json").read_bytes()
+            return 0
+        with patch.object(daily, "call_publisher", side_effect=publish):
+            self.assertEqual(self.run_day(), 0)
+        (self.fixture.data / "daily_status.json").write_bytes(self.interrupted_state)
+        with patch.object(daily, "call_publisher") as publish, patch.object(daily, "call_collector") as collect:
+            self.assertEqual(self.run_day(), 1)
+        publish.assert_not_called()
+        collect.assert_not_called()
+
+    def test_max_new_is_validated_before_collection_and_forwarded(self):
+        for value in (0, -1, 'true', '"5"', '1.5'):
+            self.write_settings(max_new=value)
+            with self.subTest(value=value), patch.object(daily, "call_collector") as collect:
+                self.assertEqual(self.run_day(), 1)
+                collect.assert_not_called()
+        self.write_settings(max_new=2)
+        with patch.object(daily, "call_publisher", return_value=0) as publish:
+            self.assertEqual(self.run_day(), 0)
+        argv = publish.call_args.args[0]
+        self.assertEqual(argv[argv.index("--max-new") + 1], "2")
+
+    def test_checked_in_settings_require_explicit_activation(self):
+        settings = load_publishing(daily.ROOT / "config/publishing.toml")
+        self.assertFalse(settings.enabled)
+        self.assertEqual(settings.max_new, 5)
 
     def test_warning_only_collection_can_publish_without_push(self):
         self.write_settings(push=False)
@@ -173,7 +221,7 @@ class DailyPublishingTests(unittest.TestCase):
                      'version=1\nenabled=false\nmodel="opus"\npush="true"',
                      'version=1\nenabled=false\nmodel="opus"\npush=true\nextra=1',
                      'version=1\nenabled=false\nmodel="unknown"\npush=true'):
-            self.settings.write_text(text, encoding="utf-8")
+            self.settings.write_text(text + '\nmax_new=5\n', encoding="utf-8")
             with self.subTest(text=text), self.assertRaises(ValueError):
                 load_publishing(self.settings)
 

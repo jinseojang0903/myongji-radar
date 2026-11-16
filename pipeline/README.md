@@ -203,7 +203,7 @@ python -m exporter --bundles data/card_bundles.verified.json --out ../site/data/
 
 ## 매일 공개 (#19 뒷단)
 
-#63에서 예약 실행 스크립트에 연결했다. `pipeline/config/publishing.toml`에서 활성화 여부·모델·푸시를 관리하며 초기 모델은 #9의 잠정 결정인 `opus`다. 스크립트는 이 설정을 `collector.daily --publish-config`로 전달하고 수집·분석이 모두 성공한 경우에만 동일한 잠금 안에서 publisher를 호출한다. 직접 `collector.daily`를 공개 설정 없이 실행하면 기존 수집·분석만 한다. `-ValidateOnly`는 공개 설정까지 검사하되 실제 수집·AI·푸시는 하지 않는다.
+#63에서 예약 실행 스크립트에 연결했다. `pipeline/config/publishing.toml`에서 활성화 여부·모델·푸시·새 추출 상한을 관리하며 초기 모델은 #9의 잠정 결정인 `opus`다. 병합 기본값은 `enabled=false`, `max_new=5`이며 첫 실행을 지켜볼 준비가 된 뒤 공개를 켠다. 스크립트는 이 설정을 `collector.daily --publish-config`로 전달하고 수집·분석이 모두 성공한 경우에만 동일한 잠금 안에서 publisher를 호출한다. 직접 `collector.daily`를 공개 설정 없이 실행하면 기존 수집·분석만 한다. `-ValidateOnly`는 공개 설정까지 검사하되 실제 수집·AI·푸시는 하지 않는다.
 
 `publisher/`가 규칙 분석 다음 단계를 순서대로 돌린다. 매일 수집(#31: 수집 → 규칙 분석)이 끝난 뒤에 부른다.
 

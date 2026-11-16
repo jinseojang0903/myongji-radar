@@ -141,8 +141,13 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                          error_type=type(exc).__name__, recovery="collector.daily --recover-state", exit_code=1)
                     return 1
                 if previous_date == started.date() and previous["collection_attempted"]:
-                    emit("skipped", reason="already_attempted_today", exit_code=0)
-                    return 0
+                    # 재실행으로 공개 실패를 성공으로 덮지 않는다. 수집·AI는 반복하지 않는다.
+                    code = 0
+                    if previous.get("failure_phase") == "publish":
+                        published = previous.get("publish_exit_code")
+                        code = published if type(published) is int and published in (2, 3) else 1
+                    emit("skipped", reason="already_attempted_today", exit_code=code)
+                    return code
             state = {"invocation_id": invocation, "local_date": started.date().isoformat(),
                      "started_at": started.isoformat(), "finished_at": None, "status": "starting",
                      "collection_attempted": False, "collection_run_id": None,
@@ -195,15 +200,20 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                             # Ctrl+C 같은 BaseException도 finally에서 성공으로 기록하지 않는다.
                             exit_code = 1
                             state.update(status="failed", failure_phase="publish", diagnostic="data/publish_logs")
+                            state["exit_code"] = exit_code
+                            atomic_json(state_path, state)
                             emit("publish_started")
-                            publish_args = ["--model", publishing.model, "--data-dir", str(data_dir)]
+                            publish_args = ["--model", publishing.model, "--data-dir", str(data_dir),
+                                            "--max-new", str(publishing.max_new)]
                             if publishing.push:
                                 publish_args.append("--push")
                             published = call_publisher(publish_args)
                             if type(published) is not int or published not in (0, 1, 2, 3):
                                 raise ValueError("invalid publisher exit code")
                             state["publish_exit_code"] = published
-                            emit("publish_finished", exit_code=published)
+                            emit("publish_finished", exit_code=published,
+                                 reason={0: "published", 1: "published_with_warnings",
+                                         2: "publish_stopped", 3: "push_failed"}[published])
                             if published in (0, 1):
                                 exit_code = 0
                                 state["status"] = "success"
