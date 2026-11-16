@@ -3,15 +3,55 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin, urlsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, CData, NavigableString, Tag
 
 from ..models import Notice, NoticeRef, Source
 from ..text_safety import safe_terminal
 
+# 줄을 바꾸는 태그. 그 밖의 태그(span·b·font·a 등 글자 꾸밈)는 앞뒤 글자를 이어 붙인다.
+# 한글 문서에서 붙여 넣은 공지는 "2026. 11. 9.(<span>월</span>)"처럼 글자마다 span으로 쪼개져 있어,
+# 태그마다 줄을 바꾸면 한 줄이 여러 줄로 찢어지고 AI 인용 근거가 "2026. 11. 9.("처럼 잘린다.
+BLOCK_TAGS = {"address", "article", "aside", "blockquote", "body", "caption", "center", "dd", "details", "dir", "div", "dl",
+              "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr",
+              "html", "legend", "li", "main", "menu", "nav", "ol", "option", "p", "pre", "section", "summary", "table",
+              "tbody", "td", "tfoot", "th", "thead", "title", "tr", "ul"}
+# 글자로 읽지 않는 태그 (본문은 parse_detail이 이미 script·style·noscript를 지우지만 제목·목록 글에도 같은 함수를 쓴다)
+SKIPPED_TAGS = {"script", "style", "noscript", "template"}
+# 글자로 모으는 노드 종류. NavigableString의 하위 종류인 주석·처리 지시문(한글·워드에서 붙여 넣은 공지의
+# "<?xml:namespace ...?>")·문서 선언은 글자가 아니다. bs4 get_text의 기본값과 같다
+TEXT_TYPES = (NavigableString, CData)
+LINE_BREAK = "\x00"  # 내부 줄 표시 (원문 글자의 줄바꿈은 HTML 규칙대로 띄어쓰기로 본다)
+
 
 def normalized_text(node) -> str:
+    """HTML 노드 → 글자. 블록 태그와 <br>에서만 줄을 바꾸고, 줄마다 공백을 하나로 접는다.
+    트리를 반복으로 돈다 (깊게 중첩된 공지에서 재귀 한도에 걸리지 않게)."""
+    parts = []
+    stack = [iter(node.children)] if isinstance(node, Tag) else []
+    closing = []  # 스택 깊이마다 닫을 때 줄을 바꿀지
+    while stack:
+        child = next(stack[-1], None)
+        if child is None:
+            stack.pop()
+            if closing and closing.pop():
+                parts.append(LINE_BREAK)
+            continue
+        if isinstance(child, NavigableString):
+            if type(child) in TEXT_TYPES:  # 하위 종류(주석·처리 지시문 등)는 정확한 종류로 거른다
+                parts.append(str(child).replace(LINE_BREAK, " "))
+            continue
+        if not isinstance(child, Tag) or child.name in SKIPPED_TAGS:
+            continue
+        if child.name == "br":
+            parts.append(LINE_BREAK)
+            continue
+        is_block = child.name in BLOCK_TAGS
+        if is_block:
+            parts.append(LINE_BREAK)
+        stack.append(iter(child.children))
+        closing.append(is_block)
     return "\n".join(
-        line for part in node.get_text("\n").splitlines()
+        line for part in "".join(parts).split(LINE_BREAK)
         if (line := safe_terminal(" ".join(part.split())))
     )
 

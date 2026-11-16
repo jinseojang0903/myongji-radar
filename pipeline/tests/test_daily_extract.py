@@ -167,6 +167,22 @@ class DailyExtractTests(unittest.TestCase):
         self.assertEqual((code, len(fake.calls)), (0, 2), "확인 호출 + 본문만으로 뽑은 1건을 다시")
         self.assertIn(CTL + "100", self.card_ids(), "다시 뽑는 동안에도 카드는 남는다")
 
+    def test_parser_only_change_keeps_the_card_and_re_extracts(self):
+        """파서를 고쳐 같은 판(번호)의 본문 글자만 바뀌면 카드를 내리지 않고 다시 뽑는다. 원문이 바뀐 새 판은 내린다."""
+        self.run_cli(FakeRun())
+        self.notices[0]["body_text"] = self.notices[0]["body_text"].replace("~", " ~ ")  # 같은 판, 파서만 다름
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--max-new", "1")
+        self.assertEqual((code, len(fake.calls)), (0, 2), "확인 호출 + 바뀐 1건을 다시")
+        self.assertIn(CTL + "100", self.card_ids())
+        self.notices[0]["version_id"] = 9  # 원문이 바뀐 새 판
+        self.notices[3]["body_text"] += " 바뀜"
+        self.notices[3]["version_id"] = 9
+        self.write_inputs()
+        self.run_cli(FakeRun(stream(), stream(output=None), stream(output=None)), "--max-new", "1")
+        self.assertNotIn("mju-startup-ctl-792-103", self.card_ids(), "새 판을 다시 뽑지 못하면 카드를 내린다")
+
     def test_newest_notices_are_extracted_first(self):
         self.notices[3]["published_at"] = "2026-11-10T10:00:00+09:00"  # 창업 공모전이 더 최신
         self.write_inputs()

@@ -37,7 +37,8 @@ class Notice:
     body_text: str
     images: list[dict] = field(default_factory=list)
     attachments: list[dict] = field(default_factory=list)
-    parser_version: str = "k2web-v1.1"
+    # v1.2: 글자 꾸밈 태그(span 등)에서 줄을 바꾸지 않는다. 바뀌면 다음 수집이 저장된 원문을 다시 읽어 같은 판을 갱신한다
+    parser_version: str = "k2web-v1.2"
 
 
 class Adapter(Protocol):

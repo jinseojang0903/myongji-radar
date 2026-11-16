@@ -124,14 +124,19 @@ def read_cache(cache_dir: Path, card_id: str, notice: dict) -> dict | None:
 
 
 def is_same_version(entry: dict | None, notice: dict) -> bool:
-    """지금 원문과 같은 판에서 뽑은 결과인지 (모델·프롬프트는 달라도). 묶음에는 같은 판의 결과만 넣는다."""
+    """지금 원문과 같은 판(수집 원문 HTML이 같음)에서 뽑은 결과인지. 묶음에는 같은 판의 결과만 넣는다.
+
+    판 번호만 본다. 원문이 바뀌면 수집기가 새 판(새 번호)을 만들고, 같은 번호에서 내용 해시만 바뀌는 것은 파서를
+    고쳐 저장된 HTML을 다시 읽었을 때뿐이다(collector.repository.save). 그 경우 옛 결과로 카드를 남기고 다시 뽑는다
+    (is_current가 해시까지 본다). 옛 결과의 근거도 새 본문으로 검증기 대조를 거친다 (대조에 실패한 항목은 근거를 싣지 않는다).
+    """
     return (entry is not None and entry.get("version_id") is not None
-            and entry.get("version_id") == notice.get("version_id") and entry.get("input_hash") == content_hash(notice))
+            and entry.get("version_id") == notice.get("version_id"))
 
 
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str) -> bool:
-    """같은 판을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
-    return (is_same_version(entry, notice) and entry.get("model") == model
+    """같은 판·같은 입력(내용 해시)을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
+    return (is_same_version(entry, notice) and entry.get("input_hash") == content_hash(notice) and entry.get("model") == model
             and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint
             and entry.get("inputs") == INPUTS)
 

@@ -24,6 +24,33 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(refs[0].url, "https://example.com/bbs/test/1/2/artclView.do")
         self.assertEqual(refs[0].published_at, "2026-11-02T10:24:28+09:00")
 
+    def test_inline_spans_stay_on_one_line_and_blocks_break(self):
+        """한글 문서에서 붙여 넣은 공지는 글자마다 span이라, 태그마다 줄을 바꾸면 날짜 줄이 찢어진다 (근거 "2026. 11. 9.(" 잘림)."""
+        html = ('<h2 class="artclViewTitle">제목<span>이어짐</span></h2><div class="artclView">'
+                '<p><span>&nbsp;- 2026. 11. 9.(</span><span>월</span><span>) ~ 2026. 12. 11.(</span><span>목</span>'
+                '<span>) 23:00</span></p><p>소스의\n줄바꿈은 띄어쓰기</p>첫<br>둘<table><tr><td>구분</td><td>내용</td></tr></table>'
+                '<!-- 주석 --><style>.x{}</style></div>').encode("utf-8")
+        notice = self.adapter.parse_detail(html, NoticeRef("1/2", "https://example.com/bbs/test/1/2/artclView.do", "", None),
+                                           self.source)
+        self.assertEqual(notice.title, "제목이어짐")
+        self.assertEqual(notice.body_text.splitlines(),
+                         ["- 2026. 11. 9.(월) ~ 2026. 12. 11.(목) 23:00", "소스의 줄바꿈은 띄어쓰기", "첫", "둘", "구분", "내용"])
+        self.assertEqual(notice.parser_version, "k2web-v1.2", "바뀐 파서는 저장된 원문을 다시 읽게 판을 올린다")
+
+    def test_office_processing_instructions_and_comments_are_not_text(self):
+        """한글·워드에서 붙여 넣은 공지의 <?xml:namespace ...?>는 처리 지시문이라 본문 글자가 아니다."""
+        from bs4 import BeautifulSoup
+        from collector.adapters.k2web import normalized_text
+        html = ('<div><?xml:namespace prefix = o ns = "urn:schemas-microsoft-com:office:office" />'
+                '<!-- 주석 --><p>본문<![CDATA[데이터]]></p></div>')
+        self.assertEqual(normalized_text(BeautifulSoup(html, "html.parser").div), "본문데이터")
+
+    def test_deeply_nested_markup_does_not_hit_the_recursion_limit(self):
+        from bs4 import BeautifulSoup
+        from collector.adapters.k2web import normalized_text
+        deep = BeautifulSoup("<div>" + "<span>" * 3000 + "깊음" + "</span>" * 3000 + "</div>", "html.parser")
+        self.assertEqual(normalized_text(deep.div), "깊음")
+
     def test_image_only_body_and_attachment(self):
         html = b'''<h2 class="artclViewTitle">Title</h2>
             <div class="artclView"><script>ignore()</script><img src="/poster.png"></div>

@@ -87,7 +87,7 @@ class CollectorHardeningTests(unittest.TestCase):
         notice = K2WebAdapter().parse_detail(html, NoticeRef("test/1/1", "https://test.mju.ac.kr/post", "", None), self.source)
         self.assertNotIn('\x1b', notice.title)
         self.assertEqual(notice.body_text, '본문내용')
-        self.assertEqual(notice.parser_version, 'k2web-v1.1')
+        self.assertEqual(notice.parser_version, 'k2web-v1.2')
 
     def test_raw_replace_failure_preserves_database_and_cleans_temporary_file(self):
         repo = Repository(self.root / "data")
