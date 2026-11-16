@@ -109,7 +109,7 @@ function renderFields(card, boards) {
       anchor.className = anchor.tagName === 'A' ? (index === 0 ? 'btn primary' : 'btn') : 'small';
       return anchor;
     })),
-    el('p', { class: 'small' }, '카드는 AI 정리 → 근거 문장이 원문에 있는지 코드로 대조 → 팀의 원문 대조(신청기간·자격) 순서로 확인합니다. 다른 모델로 다시 뽑아 비교하는 단계는 준비 중입니다. 항목마다 어디까지 확인했는지는 상태 배지로 보여 줍니다.',
+    el('p', { class: 'small' }, '카드는 AI 정리 → 근거 문장이 원문에 있는지 코드로 대조 → 다른 모델로 다시 뽑아 값 비교(켜져 있을 때, 같으면 자동 검증 통과) → 팀의 원문 대조(신청기간·자격) 순서로 확인합니다. 항목마다 어디까지 확인했는지는 상태 배지로 보여 줍니다.',
       checkedAt ? ` 마지막 확인 ${checkedAt.date}.` : ''));
 }
 
