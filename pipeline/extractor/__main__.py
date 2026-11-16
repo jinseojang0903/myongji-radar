@@ -256,6 +256,9 @@ def main(argv=None) -> int:
                           help="ANTHROPIC_API_KEY 등 환경변수의 계정으로 돌린다 (본인 키일 때만)")
     daily = commands.add_parser("daily", help="수집 원문·규칙 분석에서 대회 후보를 뽑아 카드 묶음 파일을 만든다 (매일 실행)")
     daily.add_argument("--model", required=True, help="claude --model 값 (모델 비교 #9로 정한 모델)")
+    daily.add_argument("--cross-model", default=None,
+                       help="교차 검증 모델 (#15). 주 모델로 뽑은 카드를 이 모델로 한 번 더 뽑아, 검증기가 값이 같은 핵심 항목을 "
+                            "자동 검증 통과로 올린다. 주 모델과 달라야 한다. 없으면 교차 검증 안 함")
     daily.add_argument("--notices", type=Path, default=ROOT / "data" / "notices.json", help="수집 원문 (python -m collector export)")
     daily.add_argument("--analysis", type=Path, default=ROOT / "data" / "analysis.json", help="규칙 분석 (python -m collector analyze)")
     daily.add_argument("--out", type=Path, default=ROOT / "data" / "card_bundles.json", help="카드 묶음 (검증기·내보내기 입력)")
