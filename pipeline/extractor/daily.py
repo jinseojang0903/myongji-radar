@@ -293,10 +293,10 @@ def _call_pending(args, pending, candidates, boards, fingerprint, failures, cros
             left = max(0, len(pending) - args.max_new)
             if left:
                 print(f"[남음] {left}건은 --max-new {args.max_new}를 넘어 다음 실행에서", file=sys.stderr)
-        # 교차 검증은 주 결과가 지금 것인 카드만 (방금 뽑은 것 포함). 주 모델 다음이라 상한에 걸리면 이쪽이 남는다.
-        # --max-new는 주 모델과 교차 모델에 따로 적용된다 (둘을 합친 호출은 하루 상한 --max-calls가 막는다)
     except StopRun as stop:
         return stop
+    # 교차 검증은 주 결과가 지금 것인 카드만 (방금 뽑은 것 포함). 주 모델 다음이라 상한에 걸리면 이쪽이 남는다.
+    # --max-new는 주 모델과 교차 모델에 따로 적용된다 (둘을 합친 호출은 하루 상한 --max-calls가 막는다)
     cross_items = _cross_pending(args, candidates, fingerprint, cross_failures) if cross_model else []
     if cross_items and ledger.remaining() > 0:
         meta["cross_to_extract"] = len(cross_items)

@@ -425,8 +425,11 @@ def _comparable(name: str, value) -> str:
     if name == "apply" and isinstance(value, dict):
         value = {"start": _moment(value.get("start")), "end": _moment(value.get("end"))}
     elif name == "stages" and isinstance(value, list):
+        # 단계 종류(name)와 날짜만 본다. label은 자유 글이라 두 모델이 다르게 적기 쉽다 (같은 name의 두 단계는 순서·날짜로 구분)
         value = [[item.get("name"), _moment(item.get("start")), _moment(item.get("end"))] if isinstance(item, dict) else item
                  for item in value]
+    elif name in ("campus", "grades") and isinstance(value, dict):
+        value = {"any": value.get("any"), "allowed": _sorted_list(value.get("allowed"))}  # AI 출력은 {any, allowed}
     elif name in ("campus", "grades"):
         value = _sorted_list(value)
     elif name == "enrollment" and isinstance(value, dict):

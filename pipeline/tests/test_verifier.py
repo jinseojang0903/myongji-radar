@@ -346,8 +346,8 @@ class PipelineTests(unittest.TestCase):
         fields = fields_copy()
         cross = copy.deepcopy(fields)
         cross["team"]["value"] = {**fields["team"]["value"], "max": 99}  # 팀 인원은 두 모델이 다름
-        if isinstance(fields["campus"]["value"], list):
-            cross["campus"]["value"] = list(reversed(fields["campus"]["value"]))  # 순서만 다르면 같은 값
+        fields["campus"]["value"] = {"any": False, "allowed": ["인문", "자연"]}
+        cross["campus"]["value"] = {"any": False, "allowed": ["자연", "인문"]}  # 순서만 다르면 같은 값
         data, _ = verify_bundles(self.cross_data(fields, cross), {URL: original()})
         statuses = data["bundles"][0]["statuses"]
         passed = [name for name in CROSS_FIELDS if statuses.get(name, {}).get("status") == "auto_verified"]
@@ -371,7 +371,10 @@ class PipelineTests(unittest.TestCase):
                          _comparable("apply", {"start": day("2026-10-01", False), "end": day("2026-10-21", True)}))
         first, second = {"name": "예선", "end": day("2026-10-01", False)}, {"name": "본선", "end": day("2026-11-01", False)}
         self.assertNotEqual(_comparable("stages", [first, second]), _comparable("stages", [second, first]))
-        self.assertEqual(_comparable("campus", ["자연", "인문"]), _comparable("campus", ["인문", "자연"]))
+        self.assertEqual(_comparable("campus", {"any": False, "allowed": ["자연", "인문"]}),
+                         _comparable("campus", {"any": False, "allowed": ["인문", "자연"]}), "AI 출력 모양 {any, allowed}")
+        self.assertNotEqual(_comparable("grades", {"any": False, "allowed": [1, 2]}),
+                            _comparable("grades", {"any": True, "allowed": []}))
         self.assertEqual(_comparable("enrollment", {"allowed": ["재학"], "excluded": ["휴학", "수료"]}),
                          _comparable("enrollment", {"allowed": ["재학"], "excluded": ["수료", "휴학"]}))
         self.assertEqual(_comparable("team", {"max": 3, "individual_ok": True}),
