@@ -36,7 +36,8 @@ async function main() {
 }
 
 function showError(message) {
-  document.getElementById('log-main')?.replaceChildren(el('p', { class: 'error' }, message));
+  // 제목(h1)을 남겨 제목으로 이동하는 화면 읽기 사용자가 빈 화면으로 느끼지 않게 (#104)
+  document.getElementById('log-main')?.replaceChildren(el('h1', { class: 'sr-only' }, '제작 기록'), el('p', { class: 'error' }, message));
 }
 
 // 저장소 파일 링크. el()은 사이트 밖 주소를 막으므로, 검사한 저장소 주소만 여기서 직접 단다

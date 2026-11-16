@@ -122,6 +122,21 @@ test('근거 펼침 버튼 바로 뒤에 근거가 온다 (펼친 뒤 Tab으로 
   assert.doesNotMatch(CARD_PAGE, /statusCell\.append\([^)]*button/, '버튼을 상태 칸에 두면 근거보다 뒤에 온다');
 });
 
+test('오류 화면에도 제목이 있고, 마감 변경의 옛·새 날짜를 글자로 구분하고, 홈 카드 링크 이름은 제목이다 (#104)', () => {
+  const CARD_PAGE = readFileSync(new URL('../site/js/card-page.js', import.meta.url), 'utf8');
+  const HOME = readFileSync(new URL('../site/js/home.js', import.meta.url), 'utf8');
+  assert.match(CARD_PAGE, /replaceChildren\(el\('h1', \{ class: 'sr-only' \}, '대회 카드'\), el\('p', \{ class: 'error' \}/);
+  assert.match(LOG_PAGE, /replaceChildren\(el\('h1', \{ class: 'sr-only' \}, '제작 기록'\), el\('p', \{ class: 'error' \}/);
+  assert.match(CARD_PAGE, /'이전 마감: '\), el\('span', \{ class: 'old' \}/);
+  assert.match(CARD_PAGE, /'바뀐 마감: '\), el\('b'/);
+  assert.match(HOME, /el\('a', \{ class: 'item', href: [^\n]*'aria-labelledby': `\$\{titleId\} \$\{ddayId\}` \}/);
+  assert.match(HOME, /const titleId = `card-title-\$\{index\}`/, '카드 id가 겹쳐도 제목 id는 겹치지 않게 순번으로');
+  assert.match(HOME, /dday\.id = ddayId/);
+  assert.match(HOME, /el\('h3', \{ class: 'title', id: titleId \}, card\.title\)/);
+  cssRule(CSS, /\.item \.title\s*{[^}]*margin:\s*0/, '홈 카드 제목(h3)의 기본 여백 없애기');
+  cssRule(CSS, /(^|\n)a\.item \.row > \.title\s*{\s*flex:\s*1 1 0;\s*min-width:\s*0;?\s*}/, '홈 카드에서만 긴 제목이 D-day를 다음 줄로 밀지 않게');
+});
+
 test('가로로 밀리는 표는 키보드로도 닿는다 (이름 붙은 영역 + tabindex)', () => {
   assert.match(LOG_PAGE, /el\('div', \{ class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': label \}/);
   const tables = (LOG_PAGE.match(/el\('table'/g) || []).length;

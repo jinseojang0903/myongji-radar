@@ -86,9 +86,9 @@ function renderList(data, now, rejectedCount, isSample) {
     return;
   }
   let failedCount = 0;
-  const elements = items.flatMap(({ card, deadline }) => {
+  const elements = items.flatMap(({ card, deadline }, index) => {
     try {
-      return [renderItem(card, deadline, data.boards)];
+      return [renderItem(card, deadline, data.boards, index)];
     } catch (error) {
       // 카드 하나 때문에 목록 전체가 사라지지 않게 그 카드만 빼고 알린다
       console.error('카드를 그리지 못함', card.id, error);
@@ -102,13 +102,19 @@ function renderList(data, now, rejectedCount, isSample) {
   list.replaceChildren(...elements);
 }
 
-function renderItem(card, deadline, boards) {
+function renderItem(card, deadline, boards, index) {
   const change = latestDeadlineChange(card);
   const summary = summaryLine(card, deadline);
-  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}` },
+  // 카드 전체가 링크라 이름이 제목·배지·요약까지 길게 읽혔다. 이름은 제목과 D-day로 하고, 제목을 h3로 두어
+  // 제목 단위로 건너뛸 수 있게 (#104). id는 목록 순번으로 만든다 (카드 id가 겹쳐 들어와도 다른 카드 이름을 읽지 않게)
+  const titleId = `card-title-${index}`;
+  const ddayId = `card-dday-${index}`;
+  const dday = ddayElement(deadline, 'spacer');
+  dday.id = ddayId;
+  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'aria-labelledby': `${titleId} ${ddayId}` },
     el('div', { class: 'row' },
-      el('span', { class: 'title' }, card.title),
-      ddayElement(deadline, 'spacer')),
+      el('h3', { class: 'title', id: titleId }, card.title),
+      dday),
     el('span', { class: 'org' }, [card.organizer, card.scope, boardNames(card, boards).join(', ')].filter(Boolean).join(' · ')),
     el('div', { class: 'row' },
       ...deliverableTags(card).map((tag) => el('span', { class: 'tag' }, tag)),

@@ -75,7 +75,10 @@ h2 { font-size: 16.5px; margin: 0; }
 .list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 .item { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; text-decoration: none; color: inherit; }
 .item:hover { border-color: var(--blue); }
-.item .title { font-weight: 700; font-size: 15.5px; }
+.item .title { font-weight: 700; font-size: 15.5px; margin: 0; }  /* 홈 카드 제목은 h3 (#104) */
+/* 홈 카드: 긴 제목은 남은 폭 안에서 줄을 바꾸고 D-day는 다음 줄로 밀리지 않고 옆에 둔다.
+   추천 화면(div.item)은 배지가 제목 앞에 있어 같은 규칙이면 제목이 좁은 칸으로 눌리므로 걸지 않는다 */
+a.item .row > .title { flex: 1 1 0; min-width: 0; }
 .item .org { font-size: 13px; color: var(--sub); }
 .notice { font-size: 13.5px; font-weight: 700; color: var(--warn); background: var(--warn-bg); border-radius: 6px; padding: 3px 8px; }
 .notice span { font-weight: 400; }

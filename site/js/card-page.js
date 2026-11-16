@@ -20,7 +20,8 @@ const RESULT_VIEW = {
 main().catch((error) => {
   // 그리다가 예상 못 한 오류가 나도 "불러오는 중…"에 멈춰 있지 않게 (상세는 콘솔에만)
   console.error('카드 상세를 그리지 못함', error);
-  document.getElementById('card-main')?.replaceChildren(el('p', { class: 'error' },
+  // 제목(h1)을 남겨 제목으로 이동하는 화면 읽기 사용자가 빈 화면으로 느끼지 않게 (#104)
+  document.getElementById('card-main')?.replaceChildren(el('h1', { class: 'sr-only' }, '대회 카드'), el('p', { class: 'error' },
     '대회 정보를 보여 주지 못했습니다. 잠시 뒤 다시 열어 주세요. ', el('a', { href: 'index.html' }, '홈으로')));
 });
 
@@ -165,8 +166,11 @@ function renderHistory(card, boards) {
   return el('section', { class: 'panel', 'aria-labelledby': 'h-history' },
     el('h2', { id: 'h-history' }, '마감 변경 이력'),
     el('div', { class: 'timeline' }, ...history.flatMap((change) => [
-      el('div', {}, el('span', { class: 'old' }, change.oldText), change.oldSource ? el('span', { class: 'small' }, ` · ${change.oldSource}`) : null),
-      el('div', {}, '→ ', el('b', {}, change.newText), change.newSource ? el('span', { class: 'small' }, ` · ${change.newSource}`) : null),
+      // 취소선은 화면 읽기에서 읽히지 않아 옛 날짜와 새 날짜를 글자로 구분한다 (#104)
+      el('div', {}, el('span', { class: 'sr-only' }, '이전 마감: '), el('span', { class: 'old' }, change.oldText),
+        change.oldSource ? el('span', { class: 'small' }, ` · ${change.oldSource}`) : null),
+      el('div', {}, el('span', { 'aria-hidden': 'true' }, '→ '), el('span', { class: 'sr-only' }, '바뀐 마감: '), el('b', {}, change.newText),
+        change.newSource ? el('span', { class: 'small' }, ` · ${change.newSource}`) : null),
       change.checkedAt ? el('div', { class: 'small' }, `최신 공지 기준으로 표시 · 확인 ${change.checkedAt}`) : null,
     ])));
 }
