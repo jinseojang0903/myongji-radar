@@ -74,6 +74,7 @@ def normalize(text: str) -> Normalized:
     """대조용 정규화. HTML 이스케이프를 풀고 NFKC, 보이지 않는 글자 제거, 기호 변형 통일, 영문 소문자.
 
     공백은 지우되 숫자와 숫자 사이의 공백은 하나 남긴다 ("10월 2\\n1." 이 "10월21."로 붙어 "10월 21"과 맞지 않게).
+    "숫자, 숫자"의 쉼표 뒤 공백도 남긴다 (목록 "100, 200"과 자릿점 "100,000"을 구분).
     NFKC 전후로 기호를 바꾼다: NFKC가 일부 변형(0x318D 등)을 다른 글자로 먼저 바꾸기 때문.
     """
     text = unicodedata.normalize("NFKC", html.unescape(text).translate(FOLD)).translate(FOLD)
@@ -89,7 +90,10 @@ def normalize(text: str) -> Normalized:
     chars, starts, lines, previous, after_newline = [], [], [], None, False
     for index, char in enumerate(collapsed):
         if char in " \n":
-            if collapsed[index - 1].isdigit() and index + 1 < len(collapsed) and collapsed[index + 1].isdigit():
+            next_is_digit = index + 1 < len(collapsed) and collapsed[index + 1].isdigit()
+            # 쉼표 뒤 공백도 남긴다: "100, 200"(목록)이 "100,200"(자릿점)으로 붙어 "상금 100" 인용이 실패하지 않게 (#49)
+            after_list_comma = collapsed[index - 1] == "," and index >= 2 and collapsed[index - 2].isdigit()
+            if (collapsed[index - 1].isdigit() or after_list_comma) and next_is_digit:
                 chars.append(" ")
                 starts.append(False)
                 lines.append(False)
