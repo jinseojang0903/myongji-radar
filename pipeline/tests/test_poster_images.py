@@ -44,6 +44,22 @@ class ImageSelectionTests(unittest.TestCase):
                          "이름은 공지 안 순서로 매긴다 (원래 파일 이름·alt는 공지가 정하는 글이라 쓰지 않는다)")
         self.assertEqual(images[0].data, PNG)
 
+    def test_name_list_images_and_mismatched_records_are_left_out(self):
+        """모집 공지에 붙은 명단 사진: alt·주소 파일 이름에 명단 낱말이 있으면 넣지 않는다 (첨부와 같은 규칙, 보안 리뷰)."""
+        other = store(self.folder, PNG + b"other")
+        notice = {"images": [
+            store(self.folder, PNG + b"1", alt="본선 진출팀 명단"),
+            store(self.folder, PNG + b"2", url="https://ctl.mju.ac.kr/%EC%88%98%EC%83%81%EC%9E%90.png"),  # 수상자.png
+            dict(store(self.folder, PNG + b"3"), local_path=other["local_path"]),  # 기록의 해시와 다른 파일을 가리킴
+            store(self.folder, PNG + b"4", alt="대회 포스터"),
+        ]}
+        self.assertEqual([image.name for image in poster_images(notice, self.folder)], ["이미지 4.png"])
+
+    def test_image_names_never_collide_with_attachment_names(self):
+        notice = {"images": [store(self.folder, PNG)], "attachments": [{"name": "이미지 1.png"}]}
+        self.assertEqual([image.name for image in poster_images(notice, self.folder)], ["이미지 1 (이미지).png"],
+                         "근거의 file로 이미지와 첨부를 가를 수 있게")
+
     def test_at_most_max_images_and_format_sniffing(self):
         notice = {"images": [store(self.folder, PNG + bytes([index])) for index in range(MAX_IMAGES + 2)]}
         self.assertEqual(len(image_refs(notice)), MAX_IMAGES)
@@ -74,6 +90,7 @@ class StreamInputTests(unittest.TestCase):
         self.assertEqual(command[command.index("--tools") + 1], "", "이미지를 넣어도 도구는 모두 끈다")
         self.assertEqual(command[command.index("--disallowedTools") + 1], "mcp__*")
         self.assertEqual(sent["cwd_files"], [], "이미지를 파일로 두지 않는다 (빈 임시 폴더)")
+        self.assertTrue(sent["input"].isascii(), "U+2028 같은 글자가 받는 쪽에서 줄바꿈으로 읽히지 않게 ASCII로")
         message = stdin_message(sent)
         self.assertEqual((message["type"], message["message"]["role"]), ("user", "user"))
         content = message["message"]["content"]

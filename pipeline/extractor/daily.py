@@ -204,7 +204,8 @@ def run_daily(args) -> int:
         entry = read_cache(args.cache, item["card_id"], notice)
         if not args.force and is_current(entry, notice, args.model, fingerprint, args.images):
             continue
-        if not args.force and _failure_count(failures, item["card_id"], notice, args.model, fingerprint) >= MAX_FAILURES:
+        if not args.force and _failure_count(failures, item["card_id"], notice, args.model, fingerprint,
+                                             expected_inputs(notice, args.images)) >= MAX_FAILURES:
             given_up.append(item["card_id"])
             continue
         has_card[item["card_id"]] = is_same_version(entry, notice)  # 옛 결과로라도 카드가 공개 중인지
@@ -218,7 +219,9 @@ def run_daily(args) -> int:
               file=sys.stderr)
     meta = {"model": args.model, "cross_model": cross_model, "prompt_version": PROMPT_VERSION, "prompt_fingerprint": fingerprint,
             "started_at": now_text(), "totals": new_totals(), "candidates": len(candidates), "to_extract": len(pending),
-            "given_up": len(given_up), "excluded": len(warnings), "cancellations": len(cancellations)}
+            "given_up": len(given_up), "excluded": len(warnings), "cancellations": len(cancellations),
+            # 포스터 이미지: 켰는지, 이번에 이미지와 함께 부른 공지 수, 기록상 이미지가 있는데 파일 검증에서 한 장도 못 넣은 공지 수
+            "images": args.images, "image_calls": 0, "images_missing": 0}
     cross_failures = _read_failures(_cross_dir(args)) if cross_model else {}
     if cross_model:
         meta["cross_totals"] = new_totals()  # 교차 호출의 토큰·비용·성공 수는 따로 센다 (월 비용 환산이 섞이지 않게)
@@ -280,7 +283,8 @@ def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failure
         entry = read_cache(args.cache, item["card_id"], item["notice"])
         if not is_current(entry, item["notice"], args.model, fingerprint, args.images) or _current_cross(args, item, entry, fingerprint):
             continue
-        if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint) >= MAX_FAILURES:
+        if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint,
+                          expected_inputs(item["notice"], args.images)) >= MAX_FAILURES:
             continue
         items.append(item)
     return sorted(items, key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
@@ -346,6 +350,14 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
         attachments = attachment_texts(notice, args.notices.parent)  # 검증기도 같은 함수로 읽어 대조한다
         inputs = expected_inputs(notice, args.images)
         images = poster_images(notice, args.notices.parent) if IMAGES_INPUT in inputs else []
+        if IMAGES_INPUT in inputs and not is_cross:
+            if images:
+                meta["image_calls"] = meta.get("image_calls", 0) + 1
+            else:
+                # 입력 종류는 그대로 남겨 매일 다시 부르지 않는다 (파일이 바뀌면 내용 해시가 바뀌어 다시 뽑는다). 대신 알린다
+                meta["images_missing"] = meta.get("images_missing", 0) + 1
+                print(f"[이미지 없음] {card_id}: 기록상 이미지가 있지만 파일 확인(해시·형식·크기)에서 한 장도 넣지 못함. 글만 넣음",
+                      file=sys.stderr)
         text, _ = build_input([InputNotice(board=boards.get(source_id, source_id),
                                            posted=posted_day(notice.get("published_at"), ""),
                                            url=str(notice.get("url") or ""), title=str(notice.get("title") or ""),
@@ -360,7 +372,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             if error.kind == "model" and failures is not None:
                 failures[card_id] = {"version_id": notice.get("version_id"), "model": model, "prompt_fingerprint": fingerprint,
                                      "input_hash": content_hash(notice),
-                                     "count": _failure_count(failures, card_id, notice, model, fingerprint) + 1,
+                                     "inputs": inputs, "count": _failure_count(failures, card_id, notice, model, fingerprint, inputs) + 1,
                                      "last_error": str(error)[:120]}
             print(f"[실패{' 교차' if is_cross else ''}] {card_id}: {error}", file=sys.stderr)
             last_errors = after_failure(error, last_errors)
@@ -397,13 +409,15 @@ def _persist_entry(data_dir: Path, notice: dict, entry: dict) -> None:
         repo.close()
 
 
-def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str) -> int:
-    """같은 판·입력·모델·프롬프트로 실패한 횟수 (어느 하나라도 바뀌면 0부터)."""
+def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str, inputs: list[str]) -> int:
+    """같은 판·입력(내용·종류)·모델·프롬프트로 실패한 횟수 (어느 하나라도 바뀌면 0부터).
+    입력 종류를 본다: 이미지를 넣어 3번 실패한 공지가 이미지를 끈 뒤에도 포기 상태로 남지 않게 (반대도)."""
     record = failures.get(card_id)
     if not isinstance(record, dict):
         return 0
     same = (record.get("version_id") == notice.get("version_id") and record.get("model") == model
-            and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice))
+            and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice)
+            and record.get("inputs", INPUTS) == inputs)  # 입력 종류가 없는 옛 기록은 글만 넣던 때 것
     count = record.get("count")
     return count if same and isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
 

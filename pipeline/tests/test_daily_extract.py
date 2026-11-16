@@ -47,7 +47,7 @@ def store(folder: Path, data: bytes, **extra) -> dict:
 
 def stdin_message(call: dict) -> dict:
     """이미지를 넣은 호출의 표준 입력 (stream-json 사용자 메시지 한 줄)."""
-    lines = call["input"].decode("utf-8").splitlines()
+    lines = call["input"].decode("utf-8").rstrip("\n").split("\n")
     assert len(lines) == 1, "메시지 한 줄"
     return json.loads(lines[0])
 
@@ -212,10 +212,60 @@ class DailyExtractTests(unittest.TestCase):
         self.run_cli(fake)
         self.assertEqual(len(fake.calls), 2, "다시 끄면 이미지로 뽑은 결과를 이미지 없이 다시 뽑는다")
 
-    def test_result_notice_images_never_go_to_the_ai(self):
+    def test_expected_inputs_leave_out_result_notice_images(self):
+        """결과 공지는 후보에서 이미 빠지지만(select_candidates), 입력 종류 판정도 결과 공지 이미지를 넣지 않는다."""
         notice = {"title": "AI 경진대회 수상자 발표", "images": [store(self.folder, PNG)]}
         self.assertNotIn("images-v1", daily.expected_inputs(notice, True), "명단 사진일 수 있다")
         self.assertIn("images-v1", daily.expected_inputs({"title": "AI 경진대회 모집", "images": notice["images"]}, True))
+        self.assertNotIn("images-v1", daily.expected_inputs({"title": "AI 경진대회 모집", "images": notice["images"]}, False))
+
+    def test_missing_image_file_is_reported_and_not_retried_every_day(self):
+        record = store(self.folder, PNG)
+        (self.folder / record["local_path"]).unlink()  # 기록은 있는데 파일이 없다
+        self.notices[0]["images"].append(record)
+        self.write_inputs()
+        fake = FakeRun()
+        code, log = self.run_cli(fake, "--images")
+        self.assertEqual(code, 0)
+        self.assertIn(f"[이미지 없음] {CTL}100", log)
+        self.assertTrue(all("--input-format" not in call["command"] for call in fake.calls[1:]), "글만 넣는다")
+        first = next(bundle for bundle in self.bundles() if bundle["card_id"] == CTL + "100")
+        self.assertEqual(first["notices"][0]["files"], [], "넣지 못한 이미지는 근거 파일이 될 수 없다")
+        run = json.loads((self.folder / "extractions" / "_runs.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual((run["images"], run["image_calls"], run["images_missing"]), (True, 0, 1))
+        fake = FakeRun()
+        self.run_cli(fake, "--images")
+        self.assertEqual(fake.calls, [], "매일 다시 부르지 않는다 (파일이 바뀌면 내용 해시가 바뀌어 다시 뽑는다)")
+
+    def test_images_with_cross_model_send_the_same_input_to_both_models(self):
+        self.notices[0]["images"].append(store(self.folder, PNG))
+        self.write_inputs()
+        fake = FakeRun()
+        code, _ = self.run_cli(fake, "--images", "--cross-model", "haiku")
+        self.assertEqual(code, 0)
+        with_image = [call for call in fake.calls if "--input-format" in call["command"]]
+        models = [call["command"][call["command"].index("--model") + 1] for call in with_image]
+        self.assertEqual(sorted(models), ["haiku", "haiku", "sonnet", "sonnet"], "주·교차 모두 확인 호출 + 포스터 공지 1건")
+        first = next(bundle for bundle in self.bundles() if bundle["card_id"] == CTL + "100")
+        self.assertIsNotNone(first["cross_extraction"], "주·교차 결과의 입력 종류가 같아 교차 결과를 쓴다")
+
+    def test_failures_are_counted_per_input_kind(self):
+        """이미지 없이 3번 실패해 포기한 공지도 이미지를 켜면 다시 부른다 (입력이 다르다)."""
+        self.notices[0]["images"].append(store(self.folder, PNG))
+        self.write_inputs()
+        notice = self.notices[0]
+        failures = {CTL + "100": {"version_id": notice["version_id"], "model": "sonnet",
+                                  "prompt_fingerprint": daily.prompt_fingerprint(), "input_hash": daily.content_hash(notice),
+                                  "count": daily.MAX_FAILURES, "last_error": "형식"}}
+        (self.folder / "extractions").mkdir()
+        (self.folder / "extractions" / daily.FAILURES_FILE).write_text(json.dumps(failures), encoding="utf-8")
+        fake = FakeRun()
+        _, log = self.run_cli(fake)
+        self.assertIn(f"[포기] {CTL}100", log, "입력 종류가 없는 옛 기록은 글만 넣던 때 것")
+        fake = FakeRun()
+        _, log = self.run_cli(fake, "--images")
+        self.assertNotIn(f"[포기] {CTL}100", log)
+        self.assertTrue(any("--input-format" in call["command"] for call in fake.calls[1:]), "이미지와 함께 다시 부른다")
 
     def test_parser_only_change_keeps_the_card_and_re_extracts(self):
         """파서를 고쳐 같은 판(번호)의 본문 글자만 바뀌면 카드를 내리지 않고 다시 뽑는다. 원문이 바뀐 새 판은 내린다."""

@@ -10,16 +10,20 @@
 - 형식은 파일 앞부분 바이트로 본다 (PNG·JPEG·GIF·WebP. 확장자·서버가 준 형식은 믿지 않는다).
 - 공지 하나에 MAX_IMAGES장, 한 장 MAX_IMAGE_BYTES까지 (토큰 비용·호출당 시간. 포스터는 대개 한두 장이다).
 - 이름은 "이미지 N.확장자"로 매긴다 (N은 공지의 이미지 순서). 내려받은 원래 이름·alt 글은 공지가 정하는 글이라 쓰지 않는다.
-  AI가 근거의 file에 이 이름을 적고, 검증기는 이미지 근거를 글자 대조 없이 "사람 확인"으로 돌린다 (verifier/checks.py).
+  첨부 이름과 겹치면 " (이미지)"를 붙인다 (근거의 file로 이미지와 첨부를 가른다). AI가 근거의 file에 이 이름을 적고,
+  검증기는 이미지 근거를 글자 대조 없이 "확인 필요"로 내린다 (verifier/checks.py merge_statuses).
 - 결과 공지(수상자 명단 등)의 이미지는 넣지 않는다 (호출하는 쪽이 is_result_notice로 거른다. 명단 사진일 수 있다).
-  **남은 위험:** 모집 공지의 이미지에 이름·학번이 찍혀 있으면 가리지 못하고 AI로 간다 (글자와 달리 코드로 가릴 수 없다).
+  모집 공지에 붙은 이미지도 alt·주소의 파일 이름에 명단 낱말(진출팀·수상자·명단 등)이 있으면 넣지 않는다 (첨부와 같은 규칙).
+  **남은 위험:** 그 밖의 이미지에 이름·학번이 찍혀 있으면 가리지 못하고 AI로 간다 (글자와 달리 코드로 가릴 수 없다).
 """
 import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
-from collector.asset_text import private_path
+from collector.asset_text import attachment_names, private_path
+from extractor.prompt import NAME_LIST_TITLE
 
 # 입력 종류 표시 (daily.INPUTS 뒤에 붙인다). 이 파일의 규칙(상한·이름·형식)이 바뀌면 번호를 올려 옛 결과를 다시 뽑게 한다
 INPUT_MARK = "images-v1"
@@ -50,13 +54,21 @@ def image_refs(notice: dict) -> list[tuple[int, dict]]:
     refs = []
     for number, item in enumerate(notice.get("images") or [], start=1):
         if (isinstance(item, dict) and item.get("download_status") == "downloaded"
-                and isinstance(item.get("local_path"), str) and ASSET_PATH.fullmatch(item["local_path"])
                 and isinstance(item.get("sha256"), str) and SHA256.fullmatch(item["sha256"])
-                and type(item.get("size_bytes")) is int and 0 < item["size_bytes"] <= MAX_IMAGE_BYTES):
+                # 파일 이름이 기록의 해시와 같아야 한다 (조작된 기록이 다른 이미지를 가리키지 않게)
+                and item.get("local_path") == f"assets/{item['sha256']}.bin"
+                and type(item.get("size_bytes")) is int and 0 < item["size_bytes"] <= MAX_IMAGE_BYTES
+                and not _looks_like_name_list(item)):
             refs.append((number, item))
         if len(refs) == MAX_IMAGES:
             break
     return refs
+
+
+def _looks_like_name_list(item: dict) -> bool:
+    """alt·주소의 파일 이름에 명단 낱말이 있는지 (거르는 데만 쓰고 AI 입력에는 넣지 않는다)."""
+    labels = [item.get("alt"), unquote(urlsplit(item["url"]).path.rsplit("/", 1)[-1]) if isinstance(item.get("url"), str) else None]
+    return any(isinstance(label, str) and NAME_LIST_TITLE.search("".join(label.split())) for label in labels)
 
 
 def media_type_of(data: bytes) -> tuple[str, str] | None:
@@ -72,18 +84,20 @@ def media_type_of(data: bytes) -> tuple[str, str] | None:
 def poster_images(notice: dict, data_dir: Path) -> list[PosterImage]:
     """수집 원문(notices.json의 공지 하나) → AI에 넣을 이미지. 읽을 수 없거나 바뀐 파일·모르는 형식은 건너뛴다."""
     images = []
+    taken = set(attachment_names(notice))
     for number, item in image_refs(notice):
         try:
-            path = private_path(data_dir, item["local_path"])
-            if path.stat().st_size > MAX_IMAGE_BYTES:
-                continue
-            data = path.read_bytes()
+            with private_path(data_dir, item["local_path"]).open("rb") as file:
+                data = file.read(MAX_IMAGE_BYTES + 1)  # 기록보다 커진 파일을 다 읽지 않게
         except (OSError, ValueError):
             continue
-        if hashlib.sha256(data).hexdigest() != item["sha256"]:
+        if len(data) > MAX_IMAGE_BYTES or hashlib.sha256(data).hexdigest() != item["sha256"]:
             continue
         kind = media_type_of(data)
         if kind is None:
             continue
-        images.append(PosterImage(f"이미지 {number}.{kind[1]}", kind[0], data))
+        name = f"이미지 {number}.{kind[1]}"
+        if name in taken:
+            name = f"이미지 {number} (이미지).{kind[1]}"
+        images.append(PosterImage(name, kind[0], data))
     return images

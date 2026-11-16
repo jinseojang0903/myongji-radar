@@ -107,7 +107,8 @@ def user_message(text: str, images: list[PosterImage]) -> bytes:
         content.append({"type": "image", "source": {"type": "base64", "media_type": image.media_type,
                                                     "data": base64.b64encode(image.data).decode("ascii")}})
     message = {"type": "user", "message": {"role": "user", "content": content}, "parent_tool_use_id": None}
-    return (json.dumps(message, ensure_ascii=False) + "\n").encode("utf-8")
+    # ASCII로만: U+2028 같은 글자를 받는 쪽이 줄바꿈으로 읽어 메시지가 나뉠 여지를 없앤다 (보안 리뷰)
+    return (json.dumps(message, ensure_ascii=True) + "\n").encode("ascii")
 
 
 def build_command(claude: str, model: str, stream_input: bool = False) -> list[str]:
@@ -139,9 +140,9 @@ def child_env(allow_env_account: bool) -> dict:
     return env
 
 
-def _run(text: str, claude: str, model: str, timeout: int, allow_env_account: bool, images: list[PosterImage] = ()):
+def _run(text: str, claude: str, model: str, timeout: int, allow_env_account: bool, images: list[PosterImage] | None = None):
     """claude를 한 번 실행 → (종료 코드, init 이벤트, result 이벤트, stderr, 걸린 초)."""
-    images = list(images)
+    images = list(images or [])
     command = build_command(claude, model, stream_input=bool(images))
     # 바이트로 넘긴다: 텍스트 모드는 Windows에서 줄바꿈을 \r\n으로 바꿔 근거 대조(#15)와 어긋난다
     stdin = user_message(text, images) if images else text.encode("utf-8")
@@ -208,7 +209,7 @@ def probe(claude: str, model: str, timeout: int = 300, allow_env_account: bool =
 
 
 def call(text: str, claude: str, model: str, timeout: int = 300, allow_env_account: bool = False,
-         allow_text_result: bool = True, images: list[PosterImage] = ()) -> CallResult:
+         allow_text_result: bool = True, images: list[PosterImage] | None = None) -> CallResult:
     """AI 입력 글 하나 (+ 포스터 이미지) → 추출 결과.
 
     allow_text_result: structured_output이 없을 때 모델 글(result)을 JSON으로 읽을지. 그 글은 CLI의 스키마 강제를
