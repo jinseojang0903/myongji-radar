@@ -96,10 +96,13 @@ const FUTURE_SENSITIVE = new Set(['campus', 'grade', 'enrollment', 'is_transfer'
 // 붙여 쓴 "휴학할", "편입하고싶", "휴학해야", "편입해볼"도 지금 상태가 아니다 (지금 상태는 "휴학했어", "휴학한", "휴학 중").
 // 맨 "하고"는 넣지 않는다: "인문캠하고 자연캠"의 하고는 "그리고"라서 계약 2절 2의 충돌로 다뤄야 한다
 // "할"은 뒤가 닫힌 목록일 때만 ("휴학할", "휴학할거야", "편입할지"). "할인"처럼 할로 시작하는 낱말은 미래가 아니다 (#37)
-const FUTURE_TAIL_RE = /^(예정|하려|할(?:$|거|건|게|까|지|수|예정|계획|생각|려|래)|하고싶|해야|하면|해볼|해보|될|되면|되는|준비|고민|생각)/;
-// 띄어 쓴 미래 표현. "거·건·수도"는 "할 거"·"할 수도"처럼 "할" 뒤에서만 미래라 FUTURE_AFTER_HAL_RE가 본다
-// ("자연캠 거 있어?", "2학년 건 뭐 있어?"의 거·건은 '것'). "때문에"는 이유라 "때"만 본다 (#37)
-const FUTURE_NEXT_RE = /^(예정|하려|계획|고민|준비|생각|싶|때(?!문)|해야|해볼|해보|하면|고려|할게)/;
+const FUTURE_TAIL_RE = /^(예정|하려|할(?:$|거|건|게|까|지|수|예정|계획|생각|려|래|꺼|껀|것|듯|텐)|하고싶|해야|하면|해볼|해보|될|되면|되는|준비|고민|생각)/;
+// 띄어 쓴 미래 표현. "때문에"는 이유라 "때"만 본다. 띄어 쓴 뒤 붙인 "할거야"·"할건데"도 미래다 (#37)
+// "거·건"은 따로 본다 (FUTURE_THING_RE): "자연캠 거 있어?"의 거는 '것'이지만 "편입 건 고민 중"은 미래다
+const FUTURE_NEXT_RE = /^(예정|하려|계획|고민|준비|생각|싶|때(?!문)|해야|해볼|해보|하면|고려|거의|할(?:거|건|게|까|지|수|예정|계획|생각|려|래|꺼|껀|것|듯|텐))/;
+// "편입 건 고민 중", "휴학 거 생각 중": '것' 뒤가 결정·고민 표현이면 지금 상태가 아니다
+const FUTURE_THING_RE = /^(거|건|게|걸|것)$/;
+const FUTURE_THING_NEXT_RE = /^(확정|예정|고민|생각|계획|고려|결정|준비|할|하려|해야|알아보|찾아보)/;
 const FUTURE_AFTER_HAL_RE = /^(예정|계획|생각|거|건|까|지|수도)/;
 const TIME_SHIFT_RE = /^(내년|내후년|다음학기|다음해|작년|재작년|예전|원래|이전|곧|나중|때)/;
 const GRADE_SHIFT_RE = /^(될|되면|되는|올라|진급)/;
@@ -382,6 +385,7 @@ function readContext(tokens, index, hit) {
   if (next === null) return result('plain');
   if (isTimeSensitive) {
     if (FUTURE_NEXT_RE.test(next)) return result('uncertain', index + 1);
+    if (FUTURE_THING_RE.test(next) && FUTURE_THING_NEXT_RE.test(at(2) ?? '')) return result('uncertain', index + 2);
     if (next === '할' && FUTURE_AFTER_HAL_RE.test(at(2) ?? '')) return result('uncertain', index + 2);
     // 띄어 쓴 "편입 하고 싶은데"만 미래. "자연캠 하고 인문캠"의 하고는 접속이다
     if (next === '하고' && /^싶/.test(at(2) ?? '')) return result('uncertain', index + 2);

@@ -354,7 +354,8 @@ test('리뷰 후속: 미래·함께·인원 표현의 접두 일치로 생기던
   assert.equal(pick('2학년 건 뭐 있어?', 'grade'), 2);
   assert.equal(pick('자연캠 때문에 혼자 나갈 대회', 'campus'), '자연');
   // 미래·지난 표현은 그대로 비운다
-  for (const sentence of ['휴학할 거야', '휴학할거야 공모전', '편입할지 고민', '휴학 할 수도 있어']) {
+  for (const sentence of ['휴학할 거야', '휴학할거야 공모전', '편입할지 고민', '휴학 할 수도 있어', '휴학 거의 확정', '휴학 거의 했어',
+    '편입 건 고민 중', '휴학 거 생각 중', '휴학 할거야', '편입 할건데', '휴학할꺼야', '휴학할듯']) {
     const result = parseConditions(sentence);
     assert.equal(result.enrollment, null, sentence);
     assert.equal(result.is_transfer, null, sentence);
