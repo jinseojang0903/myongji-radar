@@ -5,7 +5,8 @@ import tomllib
 
 MODELS = {"haiku", "sonnet", "opus"}
 REQUIRED_KEYS = {"version", "enabled", "model", "push", "max_new"}
-OPTIONAL_KEYS = {"cross_model"}  # 교차 검증 모델 (#15). 없으면 교차 검증 안 함
+# cross_model: 교차 검증 모델 (#15). 없으면 교차 검증 안 함. images: 포스터 이미지도 AI에 넣기 (#14). 없으면 끔
+OPTIONAL_KEYS = {"cross_model", "images"}
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,7 @@ class Publishing:
     push: bool
     max_new: int
     cross_model: str | None = None
+    images: bool = False
 
 
 def load_publishing(path: Path) -> Publishing:
@@ -27,6 +29,7 @@ def load_publishing(path: Path) -> Publishing:
             or type(data["max_new"]) is not int or data["max_new"] < 1
             # 교차 검증 모델은 허용 모델이고 주 모델과 달라야 한다 (같은 모델끼리는 교차 검증이 아니다)
             or ("cross_model" in data and (not isinstance(cross_model, str) or cross_model not in MODELS
-                                           or cross_model == data["model"]))):
+                                           or cross_model == data["model"]))
+            or ("images" in data and type(data["images"]) is not bool)):
         raise ValueError("invalid publishing configuration")
-    return Publishing(data["enabled"], data["model"], data["push"], data["max_new"], cross_model)
+    return Publishing(data["enabled"], data["model"], data["push"], data["max_new"], cross_model, data.get("images", False))

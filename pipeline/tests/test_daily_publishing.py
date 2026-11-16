@@ -21,10 +21,11 @@ class DailyPublishingTests(unittest.TestCase):
         self.settings = self.fixture.root / "publishing.toml"
         self.write_settings()
 
-    def write_settings(self, *, enabled=True, model="opus", push=True, max_new=5, cross_model=None):
+    def write_settings(self, *, enabled=True, model="opus", push=True, max_new=5, cross_model=None, images=None):
         cross = "" if cross_model is None else f"cross_model={cross_model}\n"
+        poster = "" if images is None else f"images={images}\n"
         self.settings.write_text(f'version=1\nenabled={str(enabled).lower()}\nmodel="{model}"\npush={str(push).lower()}\nmax_new={max_new}\n'
-                                 + cross, encoding="utf-8")
+                                 + cross + poster, encoding="utf-8")
 
     def run_day(self):
         return daily.run_daily(self.fixture.data, self.fixture.config, self.fixture.rules,
@@ -209,6 +210,22 @@ class DailyPublishingTests(unittest.TestCase):
             self.assertEqual(self.run_day(), 0)
         argv = publish.call_args.args[0]
         self.assertEqual(argv[argv.index("--cross-model") + 1], "sonnet")
+
+    def test_images_is_an_optional_boolean_forwarded_to_the_publisher(self):
+        """포스터 이미지 입력(#14): 없으면 끔, true면 --images를 넘긴다, 불리언이 아니면 설정 오류."""
+        with patch.object(daily, "call_publisher", return_value=0) as publish:
+            self.assertEqual(self.run_day(), 0)
+        self.assertNotIn("--images", publish.call_args.args[0])
+        self.assertFalse(load_publishing(self.settings).images)
+        self.write_settings(images='"true"')
+        with self.assertRaisesRegex(ValueError, "invalid publishing configuration"):
+            load_publishing(self.settings)
+
+    def test_images_reach_the_publisher(self):
+        self.write_settings(images="true")
+        with patch.object(daily, "call_publisher", return_value=0) as publish:
+            self.assertEqual(self.run_day(), 0)
+        self.assertIn("--images", publish.call_args.args[0])
 
     def test_checked_in_settings_require_explicit_activation(self):
         settings = load_publishing(daily.ROOT / "config/publishing.toml")

@@ -58,6 +58,13 @@ class PublisherTests(unittest.TestCase):
         return [json.loads(line) for path in sorted((self.data / "publish_logs").glob("*.jsonl"))
                 for line in path.read_text(encoding="utf-8").splitlines()]
 
+    def test_images_option_reaches_the_extractor(self):
+        """--images는 매일 추출까지 간다: 확인 호출이 시험 이미지를 stream-json으로 넣는다 (이 공지들엔 이미지가 없어 글만)."""
+        fake = FakeRun()
+        self.run_cli(fake, "--images")
+        self.assertIn("--input-format", fake.calls[0]["command"], "확인 호출은 이미지 입력 방식으로")
+        self.assertTrue(all("--input-format" not in call["command"] for call in fake.calls[1:]), "이미지가 없는 공지는 글만")
+
     def test_all_stages_write_cards(self):
         code, log = self.run_cli(FakeRun())
         self.assertEqual(code, 1, "예시 출력의 이미지 근거 파일이 공지에 없어 내보내기가 경고(1)를 낸다. 1도 정상 종료")
