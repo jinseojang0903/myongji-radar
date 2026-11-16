@@ -95,8 +95,14 @@ const NEGATION_WINDOW = 3;
 const FUTURE_SENSITIVE = new Set(['campus', 'grade', 'enrollment', 'is_transfer']);
 // 붙여 쓴 "휴학할", "편입하고싶", "휴학해야", "편입해볼"도 지금 상태가 아니다 (지금 상태는 "휴학했어", "휴학한", "휴학 중").
 // 맨 "하고"는 넣지 않는다: "인문캠하고 자연캠"의 하고는 "그리고"라서 계약 2절 2의 충돌로 다뤄야 한다
-const FUTURE_TAIL_RE = /^(예정|하려|할|하고싶|해야|하면|해볼|해보|될|되면|되는|준비|고민|생각)/;
-const FUTURE_NEXT_RE = /^(예정|하려|계획|고민|준비|생각|싶|때|해야|해볼|해보|하면|고려|거|건|수도|할게)/;
+// "할"은 뒤가 닫힌 목록일 때만 ("휴학할", "휴학할거야", "편입할지"). "할인"처럼 할로 시작하는 낱말은 미래가 아니다 (#37)
+const FUTURE_TAIL_RE = /^(예정|하려|할(?:$|거|건|게|까|지|수|예정|계획|생각|려|래|꺼|껀|것|듯|텐)|하고싶|해야|하면|해볼|해보|될|되면|되는|준비|고민|생각)/;
+// 띄어 쓴 미래 표현. "때문에"는 이유라 "때"만 본다. 띄어 쓴 뒤 붙인 "할거야"·"할건데"도 미래다 (#37)
+// "거·건"은 따로 본다 (FUTURE_THING_RE): "자연캠 거 있어?"의 거는 '것'이지만 "편입 건 고민 중"은 미래다
+const FUTURE_NEXT_RE = /^(예정|하려|계획|고민|준비|생각|싶|때(?!문)|해야|해볼|해보|하면|고려|거의|할(?:거|건|게|까|지|수|예정|계획|생각|려|래|꺼|껀|것|듯|텐))/;
+// "편입 건 고민 중", "휴학 거 생각 중": '것' 뒤가 결정·고민 표현이면 지금 상태가 아니다
+const FUTURE_THING_RE = /^(거|건|게|걸|것)(?:은|는|이|가|을|를|으로|로)?$/;
+const FUTURE_THING_NEXT_RE = /^(확정|예정|고민|생각|계획|고려|결정|준비|할|하려|해야|알아보|찾아보)/;
 const FUTURE_AFTER_HAL_RE = /^(예정|계획|생각|거|건|까|지|수도)/;
 const TIME_SHIFT_RE = /^(내년|내후년|다음학기|다음해|작년|재작년|예전|원래|이전|곧|나중|때)/;
 const GRADE_SHIFT_RE = /^(될|되면|되는|올라|진급)/;
@@ -112,7 +118,8 @@ const VERB_RE = /^(했|했어|했어요|했는데|했고|했지만|했음|했다
 // "친구랑", "친구들과"처럼 함께한다는 조사가 붙을 때만 팀 ("친구가 추천한 대회"는 아님)
 const FRIEND_TAIL_RE = /^(랑|이랑|와|과|하고|끼리|들과|들이랑|들하고|들끼리|들랑)/;
 // "같이 나갈", "함께 할"처럼 참가와 이어질 때만 팀 ("영상 같이 짧은 거", "같이 내용이 비슷한"은 아님)
-const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하|해|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
+// "하·해"는 용언으로 쓰일 때만: "함께 해외 대회", "같이 하이라이트 영상"은 팀이 아니다 (#37)
+const TOGETHER_NEXT_RE = /^(나가|나갈|참가|참여|할|하(?:$|자|고|는|면|려|기|실)|해(?:$|요|서|도|볼|보|야|줄)|내$|내고|내도|내면|내려|내볼|낼|만들|준비|출전|도전|팀|작업)/;
 // PPT를 "내면"·"제출"하는 것은 파일 제출이라 발표가 아니라 기획서 (계약 2절 1).
 // "PT"는 "PT 면접", "본선 PT"처럼 발표 자체를 말할 때가 많아 넣지 않는다
 const PPT_FILE_STEMS = new Set(['ppt', '피피티']);
@@ -364,6 +371,8 @@ function readContext(tokens, index, hit) {
   if (hit.tailUncertain || (hit.tailFuture && isTimeSensitive)) return result('uncertain');
   if (hit.dim === 'grade' && GRADE_RANGE_RE.test(hit.rest)) return result('uncertain');
   if (hit.isHeadcount && HEADCOUNT_SCOPE_RE.test(hit.rest)) return result('uncertain');
+  // "1인 1작품", "1인1작품": 인원이 아니라 제출 규칙이라 참가 형태로 정하지 않는다 (#37)
+  if (hit.isHeadcount && (/^\d/.test(hit.rest) || /^\d/.test(at(1) ?? ''))) return result('uncertain', /^\d/.test(hit.rest) ? index : index + 1);
   if (hit.dim === 'deliverables' && hit.rest === '도' && PERMIT_NEXT_RE.test(at(1) ?? '')) return result('permitted', index + 1);
   // "오프라인도 괜찮지 않아": 받아들이지 않는다는 부정이라 값으로 정하지 않는다 (계약 2절 3).
   // 한계: 그 밖의 "~지 않아" 부정("영상 하지 않아")은 아직 읽지 못한다
@@ -376,6 +385,7 @@ function readContext(tokens, index, hit) {
   if (next === null) return result('plain');
   if (isTimeSensitive) {
     if (FUTURE_NEXT_RE.test(next)) return result('uncertain', index + 1);
+    if (FUTURE_THING_RE.test(next) && FUTURE_THING_NEXT_RE.test(at(2) ?? '')) return result('uncertain', index + 2);
     if (next === '할' && FUTURE_AFTER_HAL_RE.test(at(2) ?? '')) return result('uncertain', index + 2);
     // 띄어 쓴 "편입 하고 싶은데"만 미래. "자연캠 하고 인문캠"의 하고는 접속이다
     if (next === '하고' && /^싶/.test(at(2) ?? '')) return result('uncertain', index + 2);

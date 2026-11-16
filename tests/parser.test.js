@@ -347,6 +347,32 @@ test('리뷰 재현: 해석 결과가 판정을 "가능"으로 확정하지 않�
   }
 });
 
+test('리뷰 후속: 미래·함께·인원 표현의 접두 일치로 생기던 오인식 (#37)', () => {
+  const pick = (sentence, key) => parseConditions(sentence)[key];
+  // '거·건'은 '것'이고, '때문에'는 이유라 지금 상태를 비우지 않는다
+  assert.equal(pick('자연캠 거 있어?', 'campus'), '자연');
+  assert.equal(pick('자연캠 거는 있어?', 'campus'), '자연');
+  assert.equal(pick('2학년 건 뭐 있어?', 'grade'), 2);
+  assert.equal(pick('자연캠 때문에 혼자 나갈 대회', 'campus'), '자연');
+  // 미래·지난 표현은 그대로 비운다
+  for (const sentence of ['휴학할 거야', '휴학할거야 공모전', '편입할지 고민', '휴학 할 수도 있어', '휴학 거의 확정', '휴학 거의 했어',
+    '편입 건 고민 중', '휴학 거 생각 중', '편입 건은 고민 중', '휴학 건으로 생각 중', '휴학 할거야', '편입 할건데', '휴학할꺼야', '휴학할듯']) {
+    const result = parseConditions(sentence);
+    assert.equal(result.enrollment, null, sentence);
+    assert.equal(result.is_transfer, null, sentence);
+  }
+  assert.equal(pick('2학년 때 나간 대회', 'grade'), null);
+  // '함께 해외', '같이 하이라이트'의 하·해는 낱말 첫머리일 뿐 참가가 아니다
+  assert.equal(pick('함께 해외 대회', 'participation'), null);
+  assert.equal(pick('같이 하이라이트 영상', 'participation'), null);
+  assert.equal(pick('같이 하자', 'participation'), '팀');
+  assert.equal(pick('친구랑 같이 해요', 'participation'), '팀');
+  // '1인 1작품'은 제출 규칙이지 참가 인원이 아니다
+  assert.equal(pick('1인 1작품 영상', 'participation'), null);
+  assert.equal(pick('1인1작품 영상', 'participation'), null);
+  assert.equal(pick('1인 참가 대회', 'participation'), '개인');
+});
+
 test('제출물 태그는 기타를 뺀 계약 태그', () => {
   assert.deepEqual(STUDENT_DELIVERABLE_TAGS, ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가']);
 });
