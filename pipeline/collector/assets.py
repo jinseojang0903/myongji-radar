@@ -9,7 +9,7 @@ from pathlib import Path
 
 import requests
 
-from .asset_text import MAX_TEXT_BYTES, private_path  # noqa: F401 (다른 모듈이 여기서도 가져간다)
+from .asset_text import MAX_TEXT_BYTES, private_path
 from .fetcher import FetchPolicyError, MAX_FILE_BYTES, ResponseTooLarge, RunDeadlineExceeded
 
 MAX_NOTICE_BYTES = 20 * 1024 * 1024

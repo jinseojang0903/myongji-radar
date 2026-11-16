@@ -24,6 +24,7 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import unquote_plus, urlsplit
 
+from collector.personal_numbers import RESIDENT_NUMBER, SPLIT_STUDENT_ID
 from extractor.common import posted_day
 
 SCHEMA_VERSION = "0.1"
@@ -89,12 +90,9 @@ MOBILE_IN_TEXT = re.compile(r"(?<!\d)(?:\+?82" + PHONE_SEPARATOR + r"(?:\(0\))?"
                             + PHONE_SEPARATOR + r"\d{3,4}" + PHONE_SEPARATOR + r"\d{4}(?!\d)", re.ASCII)
 MOBILE_DIGITS = re.compile(r"0?1[016789]\d{7,8}", re.ASCII)
 LONG_NUMBER_IN_TEXT = re.compile(r"(?<!\d)\d{8,}(?!\d)", re.ASCII)  # 학번(8자리)·계좌번호 등
-# 끊어 쓴 번호 (#109·첨부 입력 보안 리뷰): 주민등록번호 "990101-1234567", 끊어 쓴 학번 "6012-3456".
-# 신청서·동의서 첨부에 흔하다. "2025-2026"처럼 해를 이은 범위와 "1588-1234" 같은 대표번호(15xx·16xx·18xx)는
-# 대회 공지에 흔하고 개인 정보가 아니라 가리지 않는다
-RRN_IN_TEXT = re.compile(r"(?<!\d)\d{6}\s*-\s*[1-8]\d{6}(?!\d)", re.ASCII)
-SPLIT_NUMBER_IN_TEXT = re.compile(r"(?<!\d)(?!(?:19|20)\d{2}\s*-\s*(?:19|20)\d{2}(?!\d))(?!1[568]\d{2}\s*-)\d{4}\s*-\s*\d{4}(?!\d)",
-                                  re.ASCII)
+# 끊어 쓴 번호 (첨부 입력 보안 리뷰): 주민등록번호, "학번" 뒤의 4-4자리. AI 입력과 같은 꼴 (collector/personal_numbers.py)
+RRN_IN_TEXT = RESIDENT_NUMBER
+SPLIT_NUMBER_IN_TEXT = SPLIT_STUDENT_ID
 PHONE = re.compile(r"^[\s0-9A-Za-z()+\-.~,/:가-힣]*$")
 URL_HOST = re.compile(r"^[a-z0-9.-]+$", re.ASCII)
 GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$", re.ASCII)  # 사이트 Date.parse가 읽는 꼴

@@ -10,7 +10,7 @@
   20261015 같은 붙은 날짜도 가려지지만 공지 날짜는 대개 점·글자로 나뉜다. 가린 글자는 원문에 없으므로 그 부분을 인용한
   근거는 근거 대조(#15)에서 실패해 확인 필요가 된다 (안전한 쪽).
   이름 나열은 코드로 가리지 못한다: 결과 공지 판정이 놓친 명단은 AI로 간다 (README 남은 위험).
-- 첨부는 수집기가 HWP·HWPX·PDF에서 뽑아 둔 글자를 넣는다 (`collector.assets.attachment_texts`). 결과 공지면 본문처럼
+- 첨부는 수집기가 HWP·HWPX·PDF에서 뽑아 둔 글자를 넣는다 (`collector.asset_text.attachment_texts`). 결과 공지면 본문처럼
   첨부도 넣지 않는다 (명단 파일). 이름에 명단 낱말이 있는 첨부도 넣지 않는다. 첨부 하나는 MAX_ATTACHMENT_CHARS,
   공지 하나의 첨부 합계는 MAX_ATTACHMENTS_CHARS까지 넣고 자른다 (`fit_attachments`). 잘리면 `clipped="true"` 속성.
   인용한 근거는 검증기가 전체 글자로 대조한다. 첨부 글자에서도 학번·주민등록번호·끊어 쓴 8자리 번호를 가린다.
@@ -20,6 +20,8 @@ import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from collector.personal_numbers import RESIDENT_NUMBER, SPLIT_STUDENT_ID
 
 PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts" / "extract_v0.2"
 PROMPT_VERSION = "v0.2"
@@ -31,9 +33,6 @@ RESULT_TITLE = re.compile(r"결과발표|결과안내|모집결과|최종결과|
 SCHEDULE_TITLE = re.compile(r"결과발표일정|발표일정|발표일|발표예정")  # "모집 및 결과발표 일정 안내"
 RESULT_DELAY_TITLE = re.compile(r"(?:결과발표|발표)(?:일정)?연기")  # "결과 발표 연기"는 명단이 없다
 STUDENT_ID = re.compile(r"(?<!\d)\d{8}(?!\d)")
-# 신청서·동의서 첨부에 흔한 끊어 쓴 번호 (보안 리뷰). 내보내기 RRN_IN_TEXT·SPLIT_NUMBER_IN_TEXT와 같은 꼴
-RESIDENT_NUMBER = re.compile(r"(?<!\d)\d{6}\s*-\s*[1-8]\d{6}(?!\d)")
-SPLIT_STUDENT_ID = re.compile(r"(?<!\d)(?!(?:19|20)\d{2}\s*-\s*(?:19|20)\d{2}(?!\d))(?!1[568]\d{2}\s*-)\d{4}\s*-\s*\d{4}(?!\d)")
 ESCAPES = {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}
 # 첨부 상한: 본문(보통 수천 자)에 더해 공지 하나가 Opus 호출 한 번에 들어가는 입력을 묶는다 (토큰 비용·호출당 300초 제한).
 # HWP 공고문 본문은 대개 첫 12,000자 안에 신청기간·자격이 있다
@@ -56,7 +55,10 @@ class InputNotice:
 def prompt_fingerprint() -> str:
     """지시·출력 형식·입력 틀·입력 규칙(이 파일) 내용의 지문. 하나라도 바뀌면 매일 추출이 옛 결과를 다시 쓰지 않게."""
     digest = hashlib.sha256()
-    for path in (PROMPT_DIR / "system.md", PROMPT_DIR / "schema.json", PROMPT_DIR / "input_template.md", Path(__file__)):
+    # 첨부 이름 규칙(asset_text)·번호 가림(personal_numbers)이 바뀌어도 AI 입력이 바뀌므로 지문에 넣는다
+    collector = Path(__file__).resolve().parents[1] / "collector"
+    for path in (PROMPT_DIR / "system.md", PROMPT_DIR / "schema.json", PROMPT_DIR / "input_template.md", Path(__file__),
+                 collector / "asset_text.py", collector / "personal_numbers.py"):
         digest.update(path.read_bytes().replace(b"\r\n", b"\n"))  # 체크아웃마다 줄바꿈이 달라도 같은 지문
     return digest.hexdigest()[:16]
 
@@ -79,8 +81,9 @@ def is_result_notice(title: str) -> bool:
 
 
 def mask_student_ids(text: str) -> str:
+    """학번(8자리)·주민등록번호·"학번" 뒤의 끊어 쓴 번호를 가린다 (꼴은 collector/personal_numbers.py, 내보내기와 같다)."""
     text = RESIDENT_NUMBER.sub("(번호 생략)", text)
-    text = SPLIT_STUDENT_ID.sub("(번호 생략)", text)
+    text = SPLIT_STUDENT_ID.sub(" (번호 생략)", text)
     return STUDENT_ID.sub("(8자리 숫자 생략)", text)
 
 

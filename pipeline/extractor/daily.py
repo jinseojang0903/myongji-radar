@@ -41,7 +41,9 @@ CONTEST_TYPES = {"competition", "hackathon"}  # pipeline/config/rules.toml activ
 SKIPPED_NOTICE_KINDS = {"results", "cancellation"}
 CARD_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # 내보내기 CARD_ID_PATTERN과 같다
 DEFAULT_MAX_NEW = 30
-INPUTS = ["body", "attachments"]  # AI에 넣는 것. 바뀌면 옛 결과는 다시 뽑을 대상 (포스터 이미지는 아직)
+# AI에 넣는 것. 바뀌면 옛 결과는 다시 뽑을 대상 (포스터 이미지는 아직). 넣는 방식(첨부 상한·이름·번호 가림)이
+# 바뀌는 것은 prompt_fingerprint가 prompt.py·asset_text.py·personal_numbers.py 내용으로 잡는다
+INPUTS = ["body", "attachments"]
 MAX_FAILURES = 3
 FAILURES_FILE = "_failures.json"
 RUNS_FILE = "_runs.jsonl"
