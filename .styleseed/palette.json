@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "StyleSeed Palette Engine",
+    "version": "1.0.0",
+    "colorSpace": "OKLCH",
+    "targetGamut": "sRGB"
+  },
+  "input": {
+    "keyColor": "#2453E6",
+    "mode": "light",
+    "character": "deep",
+    "harmony": "contrast",
+    "temperature": "cool"
+  },
+  "normalizedKey": {
+    "hex": "#2453E6",
+    "oklch": {
+      "l": 0.5119,
+      "c": 0.2275,
+      "h": 265.07
+    }
+  },
+  "decisions": {
+    "character": "Deep character controls lightness/chroma before hue harmony.",
+    "accent": {
+      "hue": 120.07,
+      "offset": -145,
+      "method": "contrast",
+      "avoidsStatusCollisionBy": 27.93
+    },
+    "primaryAdjustedForContrast": false,
+    "accentAdjustedForContrast": false,
+    "allocation": {
+      "dominant": "canvas and surfaces",
+      "secondary": "chrome, type, and supporting structure",
+      "accent": "task-appropriate primary/accent emphasis; no universal percentage"
+    }
+  },
+  "ramps": {
+    "primary": {
+      "50": "#F5F8FF",
+      "100": "#E2EBFF",
+      "200": "#C5D8FF",
+      "300": "#9EBDFF",
+      "400": "#6E9AFF",
+      "500": "#4C7BEF",
+      "600": "#3561D5",
+      "700": "#244AB4",
+      "800": "#123090",
+      "900": "#04166D",
+      "950": "#010047"
+    },
+    "accent": {
+      "50": "#F3FFD3",
+      "100": "#E0F89A",
+      "200": "#CCE480",
+      "300": "#B2CB5D",
+      "400": "#93AB29",
+      "500": "#798F00",
+      "600": "#637600",
+      "700": "#4E5D00",
+      "800": "#384300",
+      "900": "#232B00",
+      "950": "#0F1400"
+    }
+  },
+  "roles": {
+    "background": "#ECF5FD",
+    "surface": "#FAFDFF",
+    "chrome": "#D8E3EC",
+    "foreground": "#090C0E",
+    "mutedForeground": "#4B5055",
+    "chromeForeground": "#090C0E",
+    "border": "#B1BCC7",
+    "primary": "#183DB2",
+    "primaryForeground": "#F9FCFF",
+    "accent": "#566600",
+    "accentForeground": "#F9FCFF",
+    "focus": "#183DB2",
+    "success": "#006425",
+    "successForeground": "#F9FCFF",
+    "warning": "#6E4B00",
+    "warningForeground": "#F9FCFF",
+    "danger": "#902824",
+    "dangerForeground": "#F9FCFF"
+  },
+  "contrast": [
+    {
+      "foreground": "foreground",
+      "background": "background",
+      "ratio": 17.79,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "mutedForeground",
+      "background": "background",
+      "ratio": 7.39,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "foreground",
+      "background": "surface",
+      "ratio": 19.2,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "chromeForeground",
+      "background": "chrome",
+      "ratio": 15.06,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "primaryForeground",
+      "background": "primary",
+      "ratio": 8.68,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "accentForeground",
+      "background": "accent",
+      "ratio": 6.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "successForeground",
+      "background": "success",
+      "ratio": 7.16,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "warningForeground",
+      "background": "warning",
+      "ratio": 7.64,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "dangerForeground",
+      "background": "danger",
+      "ratio": 8.11,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "background",
+      "ratio": 8.11,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "surface",
+      "ratio": 8.75,
+      "minimum": 3,
+      "pass": true
+    }
+  ],
+  "valid": true,
+  "assetBrief": {
+    "anchors": [
+      "#ECF5FD",
+      "#183DB2",
+      "#566600"
+    ],
+    "hierarchy": "Assign background, primary, and accent emphasis to the approved image role and content; preserve readable relationships without a fixed area ratio",
+    "avoid": [
+      "color roles that conflict with the approved task or brand",
+      "decorative color that obscures content or state meaning",
+      "essential text baked into generated imagery"
+    ]
+  },
+  "reasoning": [
+    "Character is chosen before harmony: lightness and chroma drive perceived calm or intensity more reliably than hue geometry alone.",
+    "The key hue is preserved while chroma is reduced to the sRGB gamut boundary instead of clipping RGB channels.",
+    "The contrast accent candidate is scored for separation from the key and reserved success, warning, and danger hues.",
+    "Reference colors are mapped through semantic roles; components should never consume raw ramp values directly.",
+    "Every text, action, status, and focus pair is checked after generation; failing fills are moved in lightness while preserving hue identity."
+  ],
+  "css": ":root {\n  --ss-background: #ECF5FD;\n  --ss-surface: #FAFDFF;\n  --ss-chrome: #D8E3EC;\n  --ss-foreground: #090C0E;\n  --ss-muted-foreground: #4B5055;\n  --ss-chrome-foreground: #090C0E;\n  --ss-border: #B1BCC7;\n  --ss-primary: #183DB2;\n  --ss-primary-foreground: #F9FCFF;\n  --ss-accent: #566600;\n  --ss-accent-foreground: #F9FCFF;\n  --ss-focus: #183DB2;\n  --ss-success: #006425;\n  --ss-success-foreground: #F9FCFF;\n  --ss-warning: #6E4B00;\n  --ss-warning-foreground: #F9FCFF;\n  --ss-danger: #902824;\n  --ss-danger-foreground: #F9FCFF;\n  --ss-primary-50: #F5F8FF;\n  --ss-primary-100: #E2EBFF;\n  --ss-primary-200: #C5D8FF;\n  --ss-primary-300: #9EBDFF;\n  --ss-primary-400: #6E9AFF;\n  --ss-primary-500: #4C7BEF;\n  --ss-primary-600: #3561D5;\n  --ss-primary-700: #244AB4;\n  --ss-primary-800: #123090;\n  --ss-primary-900: #04166D;\n  --ss-primary-950: #010047;\n  --ss-accent-50: #F3FFD3;\n  --ss-accent-100: #E0F89A;\n  --ss-accent-200: #CCE480;\n  --ss-accent-300: #B2CB5D;\n  --ss-accent-400: #93AB29;\n  --ss-accent-500: #798F00;\n  --ss-accent-600: #637600;\n  --ss-accent-700: #4E5D00;\n  --ss-accent-800: #384300;\n  --ss-accent-900: #232B00;\n  --ss-accent-950: #0F1400;\n}"
+}
