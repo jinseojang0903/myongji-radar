@@ -119,6 +119,14 @@ test('형식 검사: 틀린 수치는 그 칸만 "측정 중", 틀린 경로는 
     `stages:${RAW.stages.length}`, `tools:${RAW.tools.length}`].sort());
 });
 
+test('형식 검사: 썼다가 바꾼 도구(교체)는 빼지 않고 남긴다 (#122)', () => {
+  const raw = clone();
+  raw.tools.push({ name: '이미지 생성 AI', used_for: '아이콘 그림, 지금은 쓰지 않음', status: '교체', issue: '#122' });
+  const { data, rejected } = validateLogData(raw);
+  assert.equal(data.tools.at(-1).status, '교체');
+  assert.deepEqual(rejected.filter((item) => item.section === 'tools'), []);
+});
+
 test('형식 검사: 최상위 형식이 틀리면 오류', () => {
   assert.throws(() => validateLogData(null), /객체/);
   assert.throws(() => validateLogData({ ...clone(), updated_at: '11월 4일' }), /updated_at/);
