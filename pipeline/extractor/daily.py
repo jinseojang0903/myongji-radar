@@ -16,7 +16,8 @@
 - 같은 판·입력을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판·입력이 바뀌면 다시.
 - 묶음 파일에는 뽑아 둔 결과가 있는 후보만 넣는다. 사람 검수 기록(statuses)은 아직 없어 비워 둔다.
 - AI 입력은 본문과 글자를 뽑아 둔 첨부다 (INPUTS). 입력 종류가 다른 옛 결과는 다시 뽑을 대상이다 (그동안은 옛 결과로 남긴다).
-  새로 뽑을 공지가 상한보다 많으면 **최신 공지부터** 부른다 (접수 중일 가능성이 큰 공지가 먼저 갱신되게).
+  새로 뽑을 공지가 상한보다 많으면 **카드가 없는 공지 먼저, 그다음 최신 공지부터** 부른다 (접수 중일 가능성이 큰
+  공지가 먼저 갱신되고, 옛 결과로 공개 중인 카드가 상한을 먼저 쓰지 않게).
 - 호출 조건은 모델 비교(eval)와 같다: 확인 호출, 격리 실측, 계정 환경변수 차단, 하루 상한 (`extractor/claude.py`).
   스키마 강제를 거치지 않은 모델 글은 받지 않는다 (공개 경로라서).
 
@@ -28,13 +29,13 @@ import re
 import sys
 from pathlib import Path
 
-from collector.assets import attachment_texts
+from collector.asset_text import attachment_texts
 from collector.config import load_sources
 from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
                               write_json)
-from extractor.prompt import PROMPT_VERSION, InputNotice, build_input, is_result_notice, prompt_fingerprint
+from extractor.prompt import PROMPT_VERSION, InputNotice, build_input, fit_attachments, is_result_notice, prompt_fingerprint
 
 CONTEST_TYPES = {"competition", "hackathon"}  # pipeline/config/rules.toml activity_types 중 대회
 SKIPPED_NOTICE_KINDS = {"results", "cancellation"}
@@ -171,16 +172,21 @@ def run_daily(args) -> int:
     fingerprint = prompt_fingerprint()
     failures = _read_failures(args.cache)
     pending, given_up = [], []
+    has_card = {}
     for item in candidates:
         notice = item["notice"]
-        if not args.force and is_current(read_cache(args.cache, item["card_id"], notice), notice, args.model, fingerprint):
+        entry = read_cache(args.cache, item["card_id"], notice)
+        if not args.force and is_current(entry, notice, args.model, fingerprint):
             continue
         if not args.force and _failure_count(failures, item["card_id"], notice, args.model, fingerprint) >= MAX_FAILURES:
             given_up.append(item["card_id"])
             continue
+        has_card[item["card_id"]] = is_same_version(entry, notice)  # 옛 결과로라도 카드가 공개 중인지
         pending.append(item)
-    # 최신 공지부터 (같은 날이면 원래 순서). 하루 상한에 걸려도 접수 중일 가능성이 큰 공지가 먼저 갱신된다
-    pending.sort(key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
+    # 카드가 없는 공지(새 글·새 판을 기다려 내린 카드)를 먼저, 그다음 최신 공지부터 (같으면 원래 순서).
+    # 입력이 바뀌어 모두 다시 뽑을 때 옛 결과로 공개 중인 카드가 하루 상한을 먼저 쓰지 않게 한다
+    pending.sort(key=lambda item: (not has_card[item["card_id"]], posted_day(item["notice"].get("published_at"), "")),
+                 reverse=True)
     for card_id in given_up:
         print(f"[포기] {card_id}: 같은 판을 {MAX_FAILURES}번 실패해 부르지 않음 (공지·모델·프롬프트가 바뀌거나 --force면 다시)",
               file=sys.stderr)
@@ -275,7 +281,9 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
                     "version_id": notice.get("version_id"), "model": args.model,
                     "model_id": result.models[0] if result.models else None, "prompt_version": PROMPT_VERSION,
                     "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice), "inputs": INPUTS,
-                    "files": [name for name, _ in attachments], "extracted_at": now_text(), "output": result.output}
+                    # 실제로 AI에 넣은 첨부 이름만 (명단 이름 첨부·합계 상한으로 빠진 것은 근거가 될 수 없다)
+                    "files": [name for name, _, _ in fit_attachments(attachments)],
+                    "extracted_at": now_text(), "output": result.output}
         _persist_entry(args.notices.parent, notice, entry)
         write_json(args.cache / f"{card_id}.json", entry)
         print(f"[뽑음] {card_id} ({result.seconds:.0f}초)", file=sys.stderr)

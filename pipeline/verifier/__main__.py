@@ -21,7 +21,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-from collector.assets import attachment_texts
+from collector.asset_text import attachment_texts
 from exporter.cards import CARD_ID_PATTERN
 from verifier.checks import check_extraction, fail_all, merge_statuses
 from verifier.stamp import stamp_bundle
@@ -43,7 +43,8 @@ def read_originals(path: Path) -> dict[str, dict]:
     originals = {notice["url"]: notice for notice in raw["notices"]
                  if isinstance(notice, dict) and isinstance(notice.get("url"), str) and counts[notice["url"]] == 1}
     for notice in originals.values():
-        # 첨부 근거는 매일 추출이 AI에 넣은 것과 같은 이름·글자로 대조한다 (data/asset_text, 자르지 않은 전체)
+        # 첨부 근거는 매일 추출이 AI에 넣은 것과 같은 이름·글자로 대조한다 (data/asset_text, 자르지 않은 전체).
+        # 수집 원문의 첨부 칸(url·sha256 등)을 대조용 [{name, text}]로 바꾼다. 이 원문을 쓰는 곳은 checks.py뿐이다
         notice["attachments"] = [{"name": name, "text": text} for name, text in attachment_texts(notice, path.parent)]
     return originals
 

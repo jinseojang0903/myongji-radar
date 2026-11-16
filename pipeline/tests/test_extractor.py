@@ -12,7 +12,7 @@ from unittest import mock
 
 from extractor import claude as claude_cli
 from extractor.__main__ import main as cli_main, normalize_url
-from extractor.prompt import (CLIPPED_MARK, MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS_CHARS, InputNotice, build_input, escape,
+from extractor.prompt import (MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS_CHARS, InputNotice, build_input, escape, fit_attachments,
                               is_result_notice)
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,13 +89,19 @@ class PromptTests(unittest.TestCase):
     def test_attachments_are_clipped_masked_and_left_out_of_result_notices(self):
         long_text = "가" * (MAX_ATTACHMENT_CHARS + 10)
         notices = [InputNotice("b", "2026-10-01", "u1", "AI 경진대회 모집 안내", "본문",
-                               attachments=[("공고문.hwp", "자격 60123456 <b>"), ("규정.hwp", long_text),
+                               attachments=[("공고문.hwp", "자격 60123456 <b> 990101-1234567 6012-3456 2025-2026학년도"),
+                                            ("본선진출팀 명단.hwp", "김철수"), ("규정.hwp", long_text),
                                             ("서식.hwp", long_text), ("남은만큼.hwp", long_text), ("넘침.hwp", long_text)]),
                    InputNotice("b", "2026-10-29", "u2", "AI 경진대회 수상자 발표", "", attachments=[("명단.hwp", "홍길동")])]
         text, _ = build_input(notices)
-        self.assertIn('<attachment name="공고문.hwp">\n자격 (8자리 숫자 생략) &lt;b&gt;\n</attachment>', text)
-        self.assertIn("가" * MAX_ATTACHMENT_CHARS + CLIPPED_MARK, text, "첨부 하나는 상한에서 자른다")
-        self.assertIn('<attachment name="남은만큼.hwp">', text, "합계 상한까지 남은 만큼은 넣는다")
+        self.assertIn('<attachment name="공고문.hwp">\n자격 (8자리 숫자 생략) &lt;b&gt; (번호 생략) (번호 생략) 2025-2026학년도\n</attachment>',
+                      text, "학번·주민등록번호·끊어 쓴 번호는 가리고, 해를 이은 범위는 둔다")
+        self.assertIn('<attachment name="규정.hwp" clipped="true">\n' + "가" * MAX_ATTACHMENT_CHARS + "\n</attachment>", text,
+                      "첨부 하나는 상한에서 자르고, 잘린 사실은 글자 안이 아니라 속성으로")
+        self.assertNotIn("김철수", text, "모집 공지라도 이름에 명단 낱말이 있는 첨부는 넣지 않는다")
+        self.assertEqual([name for name, _, _ in fit_attachments(notices[0].attachments)],
+                         ["공고문.hwp", "규정.hwp", "서식.hwp", "남은만큼.hwp"])
+        self.assertIn('<attachment name="남은만큼.hwp" clipped="true">', text, "합계 상한까지 남은 만큼은 넣는다")
         self.assertNotIn("넘침.hwp", text, "공지 하나의 첨부 합계 상한을 다 쓰면 더 넣지 않는다")
         self.assertLessEqual(text.count("가"), MAX_ATTACHMENTS_CHARS)
         self.assertNotIn("홍길동", text, "결과 공지의 첨부는 명단일 수 있어 넣지 않는다")

@@ -9,24 +9,16 @@ from pathlib import Path
 
 import requests
 
+from .asset_text import MAX_TEXT_BYTES, private_path  # noqa: F401 (다른 모듈이 여기서도 가져간다)
 from .fetcher import FetchPolicyError, MAX_FILE_BYTES, ResponseTooLarge, RunDeadlineExceeded
 
 MAX_NOTICE_BYTES = 20 * 1024 * 1024
 MAX_ASSETS = 20
 CONVERSION_SECONDS = 15
-MAX_TEXT_BYTES = 800_000
 MAX_RUN_REQUESTS = 1000
 MAX_RUN_BYTES = 200 * 1024 * 1024
 MAX_RUN_SECONDS = 20 * 60
 FILE_FIELDS = ("sha256", "local_path", "size_bytes", "text_path", "text_status", "text_reason")
-
-
-def private_path(data_dir: Path, relative: str) -> Path:
-    root = data_dir.resolve()
-    path = root / relative
-    if not path.resolve().is_relative_to(root):
-        raise ValueError("첨부 경로가 data 밖을 가리킵니다")
-    return path
 
 
 def atomic_bytes(path: Path, content: bytes):
@@ -61,35 +53,6 @@ def convert_document(path: Path, data_dir: Path) -> tuple[str, str]:
         return "", safe
     text = result.stdout.decode("utf-8", errors="strict").strip()
     return (text, "") if text else ("", "no_text_or_image_only")
-
-
-def attachment_texts(notice: dict, data_dir: Path) -> list[tuple[str, str]]:
-    """수집 원문(notices.json의 공지 하나)에서 글자를 뽑아 둔 첨부 → [(첨부 이름, 글자)].
-
-    매일 추출(AI 입력)과 검증기(근거 대조)가 같은 이름·같은 글자를 보도록 이 함수 하나로 읽는다.
-    이름이 비면 "첨부 N", 같은 이름이 또 나오면 " (2)"를 붙여 근거의 file 이름이 한 첨부만 가리키게 한다.
-    글자를 뽑지 못한 첨부(이미지만 있는 PDF, 암호 등)·읽을 수 없는 파일·data 밖 경로는 건너뛴다 (사람이 원문에서 본다).
-    """
-    result, seen = [], set()
-    for number, item in enumerate(notice.get("attachments") or [], start=1):
-        if not isinstance(item, dict) or item.get("text_status") != "extracted" or not isinstance(item.get("text_path"), str):
-            continue
-        try:
-            path = private_path(data_dir, item["text_path"])
-            if path.stat().st_size > MAX_TEXT_BYTES:
-                continue
-            text = path.read_text(encoding="utf-8").strip()
-        except (OSError, ValueError):
-            continue
-        if not text:
-            continue
-        name = item.get("name").strip() if isinstance(item.get("name"), str) and item["name"].strip() else f"첨부 {number}"
-        unique, copy = name, 2
-        while unique in seen:
-            unique, copy = f"{name} ({copy})", copy + 1
-        seen.add(unique)
-        result.append((unique, text))
-    return result
 
 
 class AssetCollector:
