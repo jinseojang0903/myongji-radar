@@ -237,15 +237,17 @@ def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at
     aliases = aliases or {}
     cards, seen = [], set()
     report = {"rejected": [], "skipped": [], "warnings": [], "blocked": []}
-    matched: set[str] = set()
+    matched: set[str] = set()   # 이번 묶음에서 찾은 차단 목록의 id (묶음 id 포함)
+    reported: set[str] = set()  # 보고에 이미 올린 카드 id (같은 id 묶음이 두 번 나와도 한 번만)
     for bundle in bundles:
         card_id = _printable_id(bundle.card_id)
         hits = (({bundle.card_id} | aliases.get(bundle.card_id, frozenset())) & set(blocked)
                 if isinstance(bundle.card_id, str) else set())
         if hits:
-            if bundle.card_id not in matched:
+            if bundle.card_id not in reported:
                 report["blocked"].append({"id": card_id, "reason": "수동 차단 목록"})
-            matched.update({bundle.card_id, *hits})
+                reported.add(bundle.card_id)
+            matched.update(hits)
             continue
         warnings: list[str] = []
         try:

@@ -13,7 +13,8 @@
     1  내보냈지만 뺀 카드(검증 표시가 맞지 않는 묶음 포함)나 확인할 일이 있음
     2  cards.json을 바꾸지 않음: 묶음 파일을 읽을 수 없음, generated_at 형식, 내보낼 카드가 0장(--allow-empty 없이),
        검증 표시가 맞는 묶음이 하나도 없음(--allow-empty여도),
-       수동 차단 목록(--blocked)을 읽을 수 없거나 형식이 틀림 (차단 없이 내보내면 내려야 할 카드가 공개되므로)
+       수동 차단 목록(--blocked)을 읽을 수 없거나 형식이 틀림 (차단 없이 내보내면 내려야 할 카드가 공개되므로),
+       같은 대회 묶음(--groups)을 읽을 수 없는데 차단 목록이 비어 있지 않음 (묶음 단위 차단을 할 수 없으므로)
     3  cards.json 쓰기 실패 (기존 파일은 그대로)
 
 수동 차단 목록(#65, `config/blocked_cards.toml`)의 카드는 빼고 내보낸다. 뺀 카드는 [차단]으로 찍고(이유는 찍지 않는다),
@@ -23,8 +24,9 @@
 사람이 없다). 보고를 쓰지 못하면 cards.json을 바꾸지 않고 2. site/ 안에는 쓰지 않는다.
 
 같은 대회 묶음(#16, `config/contest_groups.toml`, 사람이 확인한 묶음만)은 카드를 만든 뒤 한 장으로 합치고 [묶음]으로
-찍는다 (`exporter/contest_groups.py`). 묶음 설정을 읽지 못하면 합치지 않고 공개하며 [확인]으로 남긴다
-(합치지 않은 카드도 각자 검증을 거친 카드라 공개해도 틀린 값이 늘지 않는다).
+찍는다 (`exporter/contest_groups.py`). 묶음 설정을 읽지 못하거나 합치다 실패하면 합치지 않고 공개하며 [확인]으로
+남긴다 (합치지 않은 카드도 각자 검증을 거친 카드라 공개해도 틀린 값이 늘지 않는다). 다만 설정을 읽지 못했는데 차단
+목록이 비어 있지 않으면 2로 멈춘다.
 """
 
 import argparse
@@ -117,7 +119,11 @@ def build_and_merge(bundles, boards, generated_at, blocked, groups) -> tuple[dic
     """
     data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked),
                                     aliases=group_aliases(groups))
-    data["cards"], report["merged"] = merge_groups(data["cards"], groups, generated_at[:10])
+    try:
+        data["cards"], report["merged"] = merge_groups(data["cards"], groups)
+    except Exception as error:  # 합치기가 깨져도 각자 검증된 카드로 공개한다 (검수 적용 실패와 같은 방식)
+        report["merged"] = []
+        report["warnings"].append({"id": "(묶음 설정)", "reason": f"같은 대회 묶음을 합치지 못해 합치지 않고 공개: {type(error).__name__}"})
     return data, report
 
 
@@ -151,13 +157,18 @@ def main(argv=None) -> int:
         review_error = str(error)
     except Exception as error:  # 파일을 못 읽음·깊은 중첩(RecursionError) 등도 검수 없이 공개하는 쪽으로
         review_error = type(error).__name__
-    # 묶음 설정을 못 읽으면 합치지 않고 공개한다. 각 카드는 검증을 거친 카드라 값이 틀려지지 않는다
+    # 묶음 설정을 못 읽으면 합치지 않고 공개한다. 각 카드는 검증을 거친 카드라 값이 틀려지지 않는다.
+    # 단 차단 목록이 비어 있지 않으면 멈춘다: 묶음 id로 건 차단을 풀 수 없어 내려야 할 카드가 공개될 수 있다
     groups, group_error = [], None
     try:
         groups = load_groups(args.groups)
         group_aliases(groups)  # 카드 id를 만들 수 없는 구성 공지도 여기서 걸러 내보내기 전체가 멈추지 않게
     except Exception as error:
         groups, group_error = [], type(error).__name__
+        if blocked:
+            print(f"[오류] 같은 대회 묶음을 읽지 못해 묶음 단위 차단을 할 수 없어 cards.json을 바꾸지 않음: {group_error}",
+                  file=sys.stderr)
+            return 2
     try:
         bundles, generated_at, unverified = read_verified_bundles(args.bundles)
         if unverified and not bundles:
