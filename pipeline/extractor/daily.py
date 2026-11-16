@@ -164,7 +164,7 @@ def bundle_of(card_id: str, notice: dict, entry: dict, cross: dict | None = None
 def run_daily(args) -> int:
     if args.max_new < 1:
         raise ValueError("--max-new는 1 이상")
-    cross_model = getattr(args, "cross_model", None)
+    args.cross_model = cross_model = getattr(args, "cross_model", None)  # 이 함수를 직접 부르는 쪽(시험)은 안 줄 수 있다
     if cross_model is not None and cross_model == args.model:
         raise ValueError("--cross-model은 --model과 다른 모델이어야 한다 (같은 모델끼리는 교차 검증이 아니다)")
     boards = {source.id: source.name for source in load_sources(args.config)}
@@ -199,16 +199,21 @@ def run_daily(args) -> int:
     for card_id in given_up:
         print(f"[포기] {card_id}: 같은 판을 {MAX_FAILURES}번 실패해 부르지 않음 (공지·모델·프롬프트가 바뀌거나 --force면 다시)",
               file=sys.stderr)
-    meta = {"model": args.model, "cross_model": cross_model, "prompt_version": PROMPT_VERSION, "prompt_fingerprint": fingerprint, "started_at": now_text(),
-            "totals": new_totals(), "candidates": len(candidates), "to_extract": len(pending), "given_up": len(given_up),
-            "excluded": len(warnings), "cancellations": len(cancellations)}
+    meta = {"model": args.model, "cross_model": cross_model, "prompt_version": PROMPT_VERSION, "prompt_fingerprint": fingerprint,
+            "started_at": now_text(), "totals": new_totals(), "candidates": len(candidates), "to_extract": len(pending),
+            "given_up": len(given_up), "excluded": len(warnings), "cancellations": len(cancellations)}
+    cross_failures = _read_failures(_cross_dir(args)) if cross_model else {}
+    if cross_model:
+        meta["cross_totals"] = new_totals()  # 교차 호출의 토큰·비용·성공 수는 따로 센다 (월 비용 환산이 섞이지 않게)
     stopped, completed = None, False
     try:
-        if pending or (cross_model and _cross_pending(args, candidates, fingerprint)):
-            stopped = _call_pending(args, pending, candidates, boards, fingerprint, failures, meta)
+        if pending or (cross_model and _cross_pending(args, candidates, fingerprint, cross_failures)):
+            stopped = _call_pending(args, pending, candidates, boards, fingerprint, failures, cross_failures, meta)
         completed = True
     finally:
         _write_failures(args.cache, failures)
+        if cross_model:
+            _write_failures(_cross_dir(args), cross_failures)
         try:
             if completed and stopped is None:  # 멈추거나 예외로 끝나면 묶음을 덮어쓰지 않는다 (어제 묶음이 남는다)
                 entries = [(item, read_cache(args.cache, item["card_id"], item["notice"])) for item in candidates]
@@ -244,22 +249,27 @@ def _cross_dir(args) -> Path:
 def _current_cross(args, item: dict, entry: dict, fingerprint: str) -> dict | None:
     """그 카드의 주 결과와 같은 판·같은 입력·같은 프롬프트로 교차 검증 모델이 뽑은 결과. 없으면 None.
     주 결과가 옛 입력·옛 프롬프트면 교차 결과와 비교할 수 없으므로 쓰지 않는다."""
-    cross_model = getattr(args, "cross_model", None)
-    if not cross_model or not is_current(entry, item["notice"], args.model, fingerprint):
+    if not args.cross_model or not is_current(entry, item["notice"], args.model, fingerprint):
         return None
     cross = read_cache(_cross_dir(args), item["card_id"], item["notice"])
-    return cross if is_current(cross, item["notice"], cross_model, fingerprint) else None
+    return cross if is_current(cross, item["notice"], args.cross_model, fingerprint) else None
 
 
-def _cross_pending(args, candidates: list[dict], fingerprint: str) -> list[dict]:
-    """주 결과는 지금 것인데 교차 결과가 없거나 낡은 카드 (최신 공지부터)."""
-    items = [item for item in candidates
-             if is_current(read_cache(args.cache, item["card_id"], item["notice"]), item["notice"], args.model, fingerprint)
-             and _current_cross(args, item, read_cache(args.cache, item["card_id"], item["notice"]), fingerprint) is None]
+def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failures: dict) -> list[dict]:
+    """주 결과는 지금 것인데 교차 결과가 없거나 낡은 카드 (최신 공지부터). 같은 판을 교차 모델로 MAX_FAILURES번
+    실패한 카드는 뺀다 (계속 실패하는 카드가 매일 맨 앞에서 상한을 먹지 않게)."""
+    items = []
+    for item in candidates:
+        entry = read_cache(args.cache, item["card_id"], item["notice"])
+        if not is_current(entry, item["notice"], args.model, fingerprint) or _current_cross(args, item, entry, fingerprint):
+            continue
+        if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint) >= MAX_FAILURES:
+            continue
+        items.append(item)
     return sorted(items, key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
 
 
-def _call_pending(args, pending, candidates, boards, fingerprint, failures, meta) -> StopRun | None:
+def _call_pending(args, pending, candidates, boards, fingerprint, failures, cross_failures, meta) -> StopRun | None:
     """남은 공지를 부른다 (주 모델 먼저, 그다음 교차 검증 모델). 멈춰야 하면 StopRun을 돌려준다
     (예외로 올리지 않고 기록을 마저 쓰게)."""
     in_use = claude_cli.account_env_in_use()
@@ -268,12 +278,13 @@ def _call_pending(args, pending, candidates, boards, fingerprint, failures, meta
                          "지우고 다시 돌리거나, 본인 API 키가 맞으면 --use-env-account")
     claude = claude_cli.resolve_claude(args.claude)
     claude_cli.build_command(claude, args.model)
-    cross_model = getattr(args, "cross_model", None)
+    cross_model = args.cross_model
     if cross_model:
         claude_cli.build_command(claude, cross_model)
     ledger = CallLedger(args.ledger, args.max_calls)
     if ledger.remaining() <= 0:
-        print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 이미 닿아 {len(pending)}건은 다음 실행에서", file=sys.stderr)
+        waiting = f"{len(pending)}건" + (" (교차 검증 포함)" if cross_model else "")
+        print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 이미 닿아 {waiting}은 다음 실행에서", file=sys.stderr)
         return None
     try:
         if pending:
@@ -282,23 +293,30 @@ def _call_pending(args, pending, candidates, boards, fingerprint, failures, meta
             left = max(0, len(pending) - args.max_new)
             if left:
                 print(f"[남음] {left}건은 --max-new {args.max_new}를 넘어 다음 실행에서", file=sys.stderr)
-        # 교차 검증은 주 결과가 지금 것인 카드만 (방금 뽑은 것 포함). 주 모델 다음이라 상한에 걸리면 이쪽이 남는다
-        cross_items = _cross_pending(args, candidates, fingerprint) if cross_model else []
-        if cross_items and ledger.remaining() > 0:
-            meta["cross_to_extract"] = len(cross_items)
-            probe(claude, cross_model, args.timeout, args.use_env_account, ledger, meta)
-            _extract_pending(args, cross_items[:args.max_new], claude, ledger, meta, boards, fingerprint, None,
-                             model=cross_model, cache=_cross_dir(args))
-        elif cross_items:
-            print(f"[남음] 교차 검증 {len(cross_items)}건은 오늘 호출 상한에 닿아 다음 실행에서", file=sys.stderr)
+        # 교차 검증은 주 결과가 지금 것인 카드만 (방금 뽑은 것 포함). 주 모델 다음이라 상한에 걸리면 이쪽이 남는다.
+        # --max-new는 주 모델과 교차 모델에 따로 적용된다 (둘을 합친 호출은 하루 상한 --max-calls가 막는다)
     except StopRun as stop:
         return stop
+    cross_items = _cross_pending(args, candidates, fingerprint, cross_failures) if cross_model else []
+    if cross_items and ledger.remaining() > 0:
+        meta["cross_to_extract"] = len(cross_items)
+        cross_meta = {"totals": meta["cross_totals"]}  # 사용량을 교차 합계에 센다
+        try:
+            probe(claude, cross_model, args.timeout, args.use_env_account, ledger, cross_meta)
+            _extract_pending(args, cross_items[:args.max_new], claude, ledger, cross_meta, boards, fingerprint, cross_failures,
+                             model=cross_model, cache=_cross_dir(args))
+        except StopRun as stop:
+            # 교차 검증은 덧붙이는 단계다. 멈춰도 주 결과의 공개는 막지 않는다 (교차 결과가 없는 카드는 "AI 정리"로 남는다)
+            meta["cross_stopped"] = str(stop)
+            print(f"[교차 검증 멈춤] {stop} — 주 결과로 묶음은 만든다", file=sys.stderr)
+    elif cross_items:
+        print(f"[남음] 교차 검증 {len(cross_items)}건은 오늘 호출 상한에 닿아 다음 실행에서", file=sys.stderr)
     return None
 
 
 def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, failures, model=None, cache=None) -> None:
-    """공지마다 한 번씩 부른다. model·cache를 주면 교차 검증 호출이다: 실패 기록(failures=None)과 DB 보관을 하지 않는다
-    (같은 판을 계속 실패해도 주 결과는 그대로 공개되고, 다음 실행이 다시 시도한다. 하루 상한이 막는다)."""
+    """공지마다 한 번씩 부른다. model·cache를 주면 교차 검증 호출이다: 실패는 교차 쪽 기록(cross/_failures.json)에
+    남기고(같은 판을 MAX_FAILURES번 실패하면 더 부르지 않음), DB에는 보관하지 않는다 (공개 값은 주 결과다)."""
     model, cache = model or args.model, cache or args.cache
     is_cross = model != args.model
     last_errors = []

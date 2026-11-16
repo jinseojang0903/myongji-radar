@@ -197,6 +197,24 @@ class DailyExtractTests(unittest.TestCase):
         self.assertIn("교차 검증 2건은 오늘 호출 상한", log)
         self.assertIsNone(self.bundles()[0]["cross_extraction"])
 
+    def test_cross_failures_are_given_up_and_cross_stop_does_not_block_bundles(self):
+        failing = lambda: FakeRun(stream(), stream(), stream(), stream(), stream(output=None), stream(output=None))
+        for _ in range(3):
+            code, _ = self.run_cli(failing(), "--cross-model", "haiku")
+            self.assertEqual(code, 0, "교차 호출이 형식에 못 맞춰도 주 결과로 공개한다")
+        fake = FakeRun()
+        self.run_cli(fake, "--cross-model", "haiku")
+        self.assertEqual(fake.calls, [], "같은 판을 교차 모델로 3번 실패한 카드는 더 부르지 않는다 (매일 상한을 먹지 않게)")
+        # 교차 모델의 확인 호출이 멈춰도(격리 어긋남 등) 주 결과로 묶음은 만든다
+        self.notices[0]["version_id"] = 2
+        self.write_inputs()
+        open_tools = stream(init={**INIT, "tools": ["Bash"]})
+        code, log = self.run_cli(FakeRun(stream(), stream(), open_tools), "--cross-model", "opus")
+        self.assertEqual(code, 0)
+        self.assertIn("[교차 검증 멈춤]", log)
+        self.assertEqual(len(self.bundles()), 2)
+        self.assertTrue(all(bundle["cross_extraction"] is None for bundle in self.bundles()))
+
     def test_cross_model_must_differ_from_the_main_model(self):
         fake = FakeRun()
         code, log = self.run_cli(fake, "--cross-model", "sonnet")

@@ -410,14 +410,30 @@ def _human_problem(name: str, record: dict, raw: dict, check: FieldCheck) -> str
 CROSS_FIELDS = ("apply", "stages", "campus", "grades", "enrollment", "team")
 
 
-def _comparable(value):
-    """두 모델의 값 비교용: 목록 순서(캠퍼스·학년·학적 목록, 단계)만 다른 것은 같은 값으로 본다."""
-    if isinstance(value, dict):
-        return {key: _comparable(item) for key, item in value.items()}
-    if isinstance(value, list):
-        items = [_comparable(item) for item in value]
-        return sorted(items, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
-    return value
+def _moment(value):
+    """날짜 값({date, time, year_inferred})에서 날짜·시각만. 연도 추정 표시는 비교하지 않는다 (같은 날짜를 다르게 보지 않게)."""
+    return [value.get("date"), value.get("time")] if isinstance(value, dict) else value
+
+
+def _sorted_list(value):
+    return sorted(value, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True)) if isinstance(value, list) else value
+
+
+def _comparable(name: str, value) -> str:
+    """두 모델의 값 비교용 글. 항목별로 의미 있는 부분만, 순서가 뜻이 없는 목록(캠퍼스·학년·학적)만 정렬한다.
+    단계(stages)는 순서를 지킨다. 키가 없는 것과 null은 같게 보고, 글로 비교해 True와 1을 구분한다."""
+    if name == "apply" and isinstance(value, dict):
+        value = {"start": _moment(value.get("start")), "end": _moment(value.get("end"))}
+    elif name == "stages" and isinstance(value, list):
+        value = [[item.get("name"), _moment(item.get("start")), _moment(item.get("end"))] if isinstance(item, dict) else item
+                 for item in value]
+    elif name in ("campus", "grades"):
+        value = _sorted_list(value)
+    elif name == "enrollment" and isinstance(value, dict):
+        value = {"allowed": _sorted_list(value.get("allowed")), "excluded": _sorted_list(value.get("excluded"))}
+    elif name == "team" and isinstance(value, dict):
+        value = {"min": value.get("min"), "max": value.get("max"), "individual_ok": value.get("individual_ok")}
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
 def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: dict[str, FieldCheck], cross_model: str | None) -> dict:
@@ -426,6 +442,8 @@ def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: d
     올리는 조건: 이 도구나 사람이 이미 남긴 기록이 없고(merge_statuses 뒤 statuses에 없음), 근거를 모두 코드로 대조해
     통과했으며(대조 못 한 근거 없음), 두 모델 모두 found이고 값이 같고, 어느 쪽에도 지시문 의심(warnings)이 없을 때.
     값이 달라도 내리지 않는다: 내리면 사람 검수 대상(AI 정리)에서 빠지고, 다른 모델이 틀렸을 수도 있다.
+    전제: cross는 주 결과와 같은 판·같은 입력·같은 프롬프트로 뽑은 것이다 (매일 추출 _current_cross가 보장하고,
+    검증 표시가 묶음 전체를 묶어 그 뒤에 바뀌지 않는다).
     """
     if not isinstance(cross, dict) or not isinstance(cross.get("fields"), dict):
         return statuses
@@ -439,7 +457,7 @@ def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: d
             continue
         if not (isinstance(raw, dict) and isinstance(other, dict) and raw.get("flag") == "found" and other.get("flag") == "found"):
             continue
-        if raw.get("value") is None or _comparable(raw.get("value")) != _comparable(other.get("value")):
+        if raw.get("value") is None or _comparable(name, raw.get("value")) != _comparable(name, other.get("value")):
             continue
         result[name] = {"status": "auto_verified", "checked_value": raw.get("value"), "by": VERIFIER,
                         "note": f"다른 모델({cross_model or '교차 모델'})로 다시 뽑아도 같은 값"}

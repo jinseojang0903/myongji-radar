@@ -13,7 +13,7 @@ from verifier import __main__ as verifier_main
 from verifier.__main__ import main as cli_main
 from verifier.__main__ import read_originals, verify_bundles
 from verifier.stamp import has_valid_stamp
-from verifier.checks import (CROSS_FIELDS, NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote,
+from verifier.checks import (CROSS_FIELDS, _comparable, NEGATION_PREFIXES, TRAILING_NEGATIONS, check_extraction, contains_quote,
                              evidence_fingerprint, merge_statuses, normalize)
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -363,6 +363,21 @@ class PipelineTests(unittest.TestCase):
         # 다시 검증해도 같은 결과 (전에 쓴 auto_verified는 지우고 다시 판단)
         again, _ = verify_bundles(data, {URL: original()})
         self.assertEqual(again["bundles"][0]["statuses"], statuses)
+
+    def test_cross_comparison_is_per_field(self):
+        """같은 날짜를 연도 추정 표시만으로 다르게 보지 않고, 순서가 뜻이 있는 단계는 순서를 본다."""
+        day = lambda date, inferred: {"date": date, "time": None, "year_inferred": inferred}
+        self.assertEqual(_comparable("apply", {"start": day("2026-10-01", True), "end": day("2026-10-21", False)}),
+                         _comparable("apply", {"start": day("2026-10-01", False), "end": day("2026-10-21", True)}))
+        first, second = {"name": "예선", "end": day("2026-10-01", False)}, {"name": "본선", "end": day("2026-11-01", False)}
+        self.assertNotEqual(_comparable("stages", [first, second]), _comparable("stages", [second, first]))
+        self.assertEqual(_comparable("campus", ["자연", "인문"]), _comparable("campus", ["인문", "자연"]))
+        self.assertEqual(_comparable("enrollment", {"allowed": ["재학"], "excluded": ["휴학", "수료"]}),
+                         _comparable("enrollment", {"allowed": ["재학"], "excluded": ["수료", "휴학"]}))
+        self.assertEqual(_comparable("team", {"max": 3, "individual_ok": True}),
+                         _comparable("team", {"min": None, "max": 3, "individual_ok": True}), "빠진 키와 null은 같다")
+        self.assertNotEqual(_comparable("team", {"max": 1, "individual_ok": True}),
+                            _comparable("team", {"max": True, "individual_ok": 1}), "True와 1은 다르다")
 
     def test_cross_check_is_skipped_on_injection_warnings_or_failed_evidence(self):
         fields = fields_copy()
