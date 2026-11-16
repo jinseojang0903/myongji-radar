@@ -135,5 +135,12 @@ function renderTools(tools) {
     el('tbody', {}, ...tools.map((tool) => el('tr', {},
       el('th', { scope: 'row' }, tool.name),
       el('td', {}, tool.used_for),
-      el('td', {}, tool.status === '사용' ? '사용' : el('span', { class: 'badge s-before' }, `예정${tool.issue ? ` (${tool.issue})` : ''}`)))))));
+      el('td', {}, renderToolStatus(tool)))))));
+}
+
+// '교체'는 지금 쓰지 않는다는 것이 먼저 읽혀야 한다 (#122: '사용'만 보이면 지금도 쓰는 것으로 오해)
+function renderToolStatus(tool) {
+  if (tool.status === '사용') return '사용';
+  const label = tool.status === '교체' ? '사용 후 교체' : '예정';
+  return el('span', { class: 'badge s-before' }, `${label}${tool.issue ? ` (${tool.issue})` : ''}`);
 }

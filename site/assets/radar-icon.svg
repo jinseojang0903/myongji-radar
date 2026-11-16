@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 명지레이더 아이콘 (#122). 원·부채꼴·점만으로 코드에서 직접 그렸다. 이미지 생성 모델을 쓰지 않는다 (11/16 결선 공지). -->
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <path d="M32 32 L32 10 A22 22 0 0 1 51.05 21 Z" fill="#1f5fbf" fill-opacity=".3"/>
+  <g fill="none" stroke="#0b2a5b" stroke-width="3">
+    <circle cx="32" cy="32" r="22"/>
+    <circle cx="32" cy="32" r="12" stroke-opacity=".5"/>
+  </g>
+  <line x1="32" y1="32" x2="51.05" y2="21" stroke="#1f5fbf" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="3.5" fill="#0b2a5b"/>
+  <circle cx="40" cy="18.5" r="4" fill="#e8590c"/>
+</svg>

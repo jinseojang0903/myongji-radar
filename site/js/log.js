@@ -8,7 +8,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const STAGE_BY = new Set(['코드', '규칙', 'AI', '사람']);
 const STAGE_STATUS = new Set(['동작', '만드는 중']);
-const TOOL_STATUS = new Set(['사용', '예정']);
+const TOOL_STATUS = new Set(['사용', '예정', '교체']);
 const QUOTE_LOCATIONS = new Set(['본문', '이미지', '첨부']);
 const CIRCLED_NUMBERS = ['①', '②', '③', '④', '⑤'];
 
