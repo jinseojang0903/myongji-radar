@@ -12,7 +12,8 @@
 예약 등록·동시 실행 잠금은 매일 수집(#31, `scripts/`)이 맡는다: 수집 → 규칙 분석 → 이 명령을 **같은 잠금 안에서** 부른다
 (확인과 사용 사이에 다음 수집이 원문을 바꾸지 않게). cards.json을 main에 올리는 배포는 아래 `--push`.
 
-단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약. 공지 내용·오류 메시지 없음).
+단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약·내보내기 보고 건수.
+공지 내용·오류 메시지 없음). 내보내기가 뺀 카드·확인할 일의 카드 id와 사유는 같은 폴더의 `<시각>-export.json`.
 
 `--push`면 새로 쓴 cards.json 한 파일만 main에 커밋·푸시한다 (`publisher/push.py`. 시작 전에 main에서 원격에
 맞춘다). 사이트는 Vercel이 main을 배포한다.
@@ -110,11 +111,21 @@ def publish(args) -> int:
                             "--max-new", str(args.max_new), "--max-calls", str(args.max_calls), "--timeout", str(args.timeout)]
             if args.use_env_account:
                 extract_argv.append("--use-env-account")
+            if args.cross_model:
+                extract_argv += ["--cross-model", args.cross_model]
             run_stage("extract", extract_main, extract_argv, log)
             outcome["extract"] = _extract_summary(data / "extractions")
             check_analysis(notices, analysis)  # 추출하는 동안 다음 수집이 원문을 바꾸지 않았는지 (잠금 밖에서 불렸을 때 대비)
             run_stage("verify", verify_main, ["--bundles", str(bundles), "--notices", str(notices), "--out", str(verified)], log)
-            code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out)], log, ok_codes=(0, 1))
+            # 내보내기 보고: 어떤 카드가 왜 빠지거나 확인할 일이 생겼는지. 무인 실행에서는 여기만 남는다 (#109 보안 리뷰)
+            report = _new_report_path(data / "publish_logs", started_at)
+            try:
+                code = run_stage("export", export_main, ["--bundles", str(verified), "--out", str(args.out), "--report", str(report)],
+                                 log, ok_codes=(0, 1))
+            finally:  # 보고를 쓴 뒤 멈춘 경우(카드 0장 등)도 기록한다. 쓰지 못했으면 이름을 남기지 않는다
+                counts = _report_counts(report)
+                if counts is not None:
+                    outcome["export_report"] = {"file": report.name, **counts}
         except Stop as stop:
             outcome["stopped"] = str(stop)
             print(f"[멈춤] {stop} — cards.json은 그대로 둠", file=sys.stderr)
@@ -152,6 +163,26 @@ def _extract_summary(cache: Path) -> dict | None:
     return summary
 
 
+def _new_report_path(folder: Path, started_at: str) -> Path:
+    """내보내기 보고 파일 이름: 시작 시각(초). 같은 초에 이미 있으면 번호를 붙여 덮어쓰지 않는다."""
+    stem = started_at[:19].replace(":", "-")
+    path = folder / f"{stem}-export.json"
+    number = 2
+    while path.exists():
+        path = folder / f"{stem}-export-{number}.json"
+        number += 1
+    return path
+
+
+def _report_counts(path: Path) -> dict | None:
+    """내보내기 보고의 건수만 (단계 기록에는 사유를 옮기지 않는다. 사유는 보고 파일에서 본다)."""
+    try:
+        counts = json.loads(path.read_text(encoding="utf-8"))["counts"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return counts if isinstance(counts, dict) else None
+
+
 def _count(path: Path, key: str) -> int | None:
     try:
         return len(json.loads(path.read_text(encoding="utf-8"))[key])
@@ -173,6 +204,8 @@ def main(argv=None) -> int:
             stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="명지레이더 매일 공개 (추출 → 근거 대조 → cards.json)")
     parser.add_argument("--model", required=True, help="claude --model 값 (모델 비교 #9로 정한 모델)")
+    parser.add_argument("--cross-model", default=None,
+                        help="교차 검증 모델 (#15, 예: sonnet). 주 모델과 달라야 한다. 호출이 두 배가 되므로 하루 상한을 함께 본다")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data", help="수집 데이터 폴더 (site/ 밖)")
     parser.add_argument("--out", type=Path, default=SITE / "data" / "cards.json", help="사이트 카드 파일")
     parser.add_argument("--claude", default="claude", help="claude 실행 파일 (기본: PATH의 claude)")

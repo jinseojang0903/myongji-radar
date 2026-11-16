@@ -18,6 +18,9 @@
 
 수동 차단 목록(#65, `config/blocked_cards.toml`)의 카드는 빼고 내보낸다. 뺀 카드는 [차단]으로 찍고(이유는 찍지 않는다),
 목록에 있는데 이번 묶음에 없는 id는 [확인]으로 찍는다 (종료 코드 1).
+
+`--report <경로>`면 위 [뺌]·[건너뜀]·[확인]·[차단]을 카드 id·사유로 JSON에 남긴다 (매일 무인 공개는 stderr를 보는
+사람이 없다). 보고를 쓰지 못하면 cards.json을 바꾸지 않고 2. site/ 안에는 쓰지 않는다.
 """
 
 import argparse
@@ -28,6 +31,7 @@ from pathlib import Path
 from collector.config import load_sources
 from exporter.blocklist import BlocklistError, load_blocked
 from exporter.cards import CARD_ID_PATTERN, CardBundle, boards_from_sources, build_cards_json, write_cards_json
+from exporter.reviews import ReviewsError, apply_all, load_reviews
 from verifier.stamp import has_valid_stamp
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,6 +70,34 @@ def _read_items(path: Path) -> tuple[list[dict], str]:
     return raw["bundles"], raw.get("generated_at")
 
 
+def write_report(path: Path, generated_at, data: dict, report: dict, unverified: list[str]) -> None:
+    """내보내기 보고를 파일로 남긴다. 매일 무인 공개는 stderr를 보는 사람이 없어, 어떤 카드가 왜 빠지거나
+    확인할 일이 생겼는지(차단 목록 오타 포함) 여기 말고는 남지 않는다 (#109 보안 리뷰).
+    사유에는 AI 값이 짧게(80자) 들어갈 수 있어 공개 폴더 site/에는 쓰지 않는다.
+
+    Raises:
+        ValueError: path가 site/ 안일 때
+        OSError: 쓰기 실패
+    """
+    if path.resolve().is_relative_to((ROOT.parent / "site").resolve()):
+        raise ValueError("보고 파일을 공개 폴더 site/ 안에 쓰지 않는다")
+    # cards_to_write: 이 보고는 cards.json을 쓰기 전에 남긴다 (보고를 못 쓰면 cards.json도 바꾸지 않으려고).
+    # 실제로 썼는지는 내보내기 종료 코드(3이면 못 씀)로 본다
+    body = {"generated_at": generated_at, "cards_to_write": len(data["cards"]),
+            "counts": {"rejected": len(report["rejected"]) + len(unverified), "skipped": len(report["skipped"]),
+                       "warnings": len(report["warnings"]), "blocked": len(report["blocked"])},
+            "unverified": unverified, "blocked": [item["id"] for item in report["blocked"]],
+            **{key: [{"id": item["id"], "reason": item["reason"]} for item in report[key]]
+               for key in ("rejected", "skipped", "warnings")}}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    try:
+        temporary.write_text(json.dumps(body, ensure_ascii=False, indent=1), encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _to_bundle(item: dict) -> CardBundle:
     return CardBundle(**{key: default if item.get(key) is None else item[key] for key, default in BUNDLE_DEFAULTS})
 
@@ -81,12 +113,23 @@ def main(argv=None) -> int:
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
     parser.add_argument("--allow-empty", action="store_true", help="카드가 0장이어도 덮어쓴다 (기본은 상류 장애로 보고 멈춤)")
     parser.add_argument("--blocked", type=Path, default=ROOT / "config/blocked_cards.toml", help="수동 차단 목록 (#65)")
+    parser.add_argument("--reviews", type=Path, default=ROOT / "config/human_reviews.toml", help="사람 검수 기록 (#99)")
+    parser.add_argument("--report", type=Path, default=None,
+                        help="뺌·건너뜀·확인·차단을 카드 id·사유로 남길 JSON (site/ 밖. 매일 공개는 data/publish_logs/에)")
     args = parser.parse_args(argv)
     try:
         blocked = load_blocked(args.blocked)
     except (OSError, BlocklistError) as error:  # 차단 없이 내보내지 않는다
         print(f"[오류] 수동 차단 목록을 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
+    # 검수 기록을 못 읽으면 검수 없이(모두 "확인 전") 공개한다. 더 조심스러운 쪽이라 멈추지 않고 보고에 남긴다
+    reviews, review_error, review_warnings = {}, None, []
+    try:
+        reviews, review_warnings = load_reviews(args.reviews)
+    except ReviewsError as error:
+        review_error = str(error)
+    except Exception as error:  # 파일을 못 읽음·깊은 중첩(RecursionError) 등도 검수 없이 공개하는 쪽으로
+        review_error = type(error).__name__
     try:
         bundles, generated_at, unverified = read_verified_bundles(args.bundles)
         if unverified and not bundles:
@@ -99,7 +142,27 @@ def main(argv=None) -> int:
     except Exception as error:  # 예상 못 한 오류도 1(배포 가능)로 끝나지 않게 2로
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
+    promoted = 0
+    try:
+        promoted = apply_all(data, reviews, report)
+    except Exception as error:  # 검수 적용이 깨져도 검수 없는 카드로 공개한다. 일부만 올라간 카드가 남지 않게 다시 만든다
+        try:
+            data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
+        except Exception as again:  # 1(배포 가능)로 끝나지 않게
+            print(f"[오류] 카드를 다시 만들지 못해 cards.json을 바꾸지 않음: {type(again).__name__}", file=sys.stderr)
+            return 2
+        review_error = review_error or f"적용 중 오류 ({type(error).__name__})"
+    # 검수 경고는 적용 뒤에 붙인다 (적용이 실패해 보고를 다시 만들어도 남게)
+    report["warnings"] += [{"id": "(검수 기록)", "reason": message} for message in review_warnings]
+    if review_error:
+        report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 쓰지 못해 검수 없이 공개: {review_error}"})
 
+    if args.report is not None:
+        try:
+            write_report(args.report, generated_at, data, report, unverified)
+        except (OSError, ValueError) as error:  # 보고를 못 남기면 무인 공개에서 경고가 사라지므로 내보내지 않는다
+            print(f"[오류] 내보내기 보고를 쓰지 못해 cards.json을 바꾸지 않음: {type(error).__name__}", file=sys.stderr)
+            return 2
     for card_id in unverified:
         print(f"[뺌] {card_id}: 검증기를 거치지 않았거나 검증 뒤에 바뀐 묶음 (다시 검증)", file=sys.stderr)
     for item in report["blocked"]:
@@ -116,7 +179,7 @@ def main(argv=None) -> int:
         print(f"[오류] cards.json 쓰기 실패, 기존 파일 그대로: {type(error).__name__}: {error}", file=sys.stderr)
         return 3
     print(f"[내보냄] 카드 {len(data['cards'])}장 → {args.out} (뺌 {len(report['rejected']) + len(unverified)}, "
-          f"건너뜀 {len(report['skipped'])}, 확인 {len(report['warnings'])}, 차단 {len(report['blocked'])})",
+          f"건너뜀 {len(report['skipped'])}, 확인 {len(report['warnings'])}, 차단 {len(report['blocked'])}, 검수 완료 {promoted}항목)",
           file=sys.stderr)
     return 1 if report["rejected"] or report["warnings"] or unverified else 0
 

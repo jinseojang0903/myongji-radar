@@ -8,12 +8,12 @@
 
 근거 대조에 실패하면 needs_check + evidence_failed로 내린다. 내보내기는 그 항목의 근거를 공개하지 않는다
 (사람이 검수한 항목이어도: 사람이 본 것은 그때의 근거다). 상식 검사만 실패하면 사람이 검수한 값은 그대로 둔다.
-통과해도 auto_verified로 올리지 않는다: 계약상 auto_verified는 다른 모델과의 일치까지 봐야 하는데,
-교차 검증 모델이 아직 정해지지 않았다. 그때까지 통과 항목은 "ai"(확인 전)로 남는다.
-TODO(jinseojang0903/2026-11-05): 교차 검증 모델이 정해지면 근거·상식·모델 일치를 모두 통과하고
-extraction.warnings(주입 의심)가 없는 항목만 auto_verified로.
+3. 교차 검증(cross_verify): 묶음에 다른 모델로 뽑은 결과(cross_extraction)가 있으면, 근거·상식을 통과하고 값이 같은
+   핵심 항목(CROSS_FIELDS)만 auto_verified로 올린다. 어느 쪽에든 지시문 의심(warnings)이 있으면 올리지 않는다.
+   교차 결과가 없으면 통과 항목은 "ai"(확인 전)로 남는다.
 """
 import html
+import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from exporter.cards import DASH_CODES, DOT_CODES, EXTRA_INVISIBLE_CODES, REMOVED_CATEGORIES, SKIPPED_KINDS
 
 # 내보내기의 CARD_FIELDS에 카드 최상위 값(title·organizer·scope)과 kind를 더한 것.
-# 최상위 값은 근거를 공개하지 않지만, 지어낸 근거면 내보내기가 경고하도록 대조한다.
+# 최상위 값은 근거를 공개하지 않지만, 지어낸 근거면 내보내기가 그 값을 확정처럼 싣지 않도록 대조한다.
 FIELDS = ["title", "organizer", "scope", "kind", "apply", "stages", "campus", "grades", "enrollment", "team",
           "deliverables", "benefits", "mileage", "how_to_apply", "contact"]
 VERIFIER = "verifier"  # 이 도구가 쓴 statuses 표시 (다시 검증할 때 지우고 새로 쓴다)
@@ -403,6 +403,68 @@ def _human_problem(name: str, record: dict, raw: dict, check: FieldCheck) -> str
     if check.unverifiable or name == "contact":
         return "사람이 검수한 근거 기록이 없음"
     return None
+
+
+# 교차 검증(#15)으로 자동 검증 통과까지 올리는 항목: 판정에 쓰는 구조화 값. 자유 글(혜택·제출물 설명·신청 방법 등)은
+# 두 모델이 글자까지 같을 일이 드물어 비교하지 않는다. 문의처는 사람이 본 것만 공개하는 항목이라 제외한다
+CROSS_FIELDS = ("apply", "stages", "campus", "grades", "enrollment", "team")
+
+
+def _moment(value):
+    """날짜 값({date, time, year_inferred})에서 날짜·시각만. 연도 추정 표시는 비교하지 않는다 (같은 날짜를 다르게 보지 않게)."""
+    return [value.get("date"), value.get("time")] if isinstance(value, dict) else value
+
+
+def _sorted_list(value):
+    return sorted(value, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True)) if isinstance(value, list) else value
+
+
+def _comparable(name: str, value) -> str:
+    """두 모델의 값 비교용 글. 항목별로 의미 있는 부분만, 순서가 뜻이 없는 목록(캠퍼스·학년·학적)만 정렬한다.
+    단계(stages)는 순서를 지킨다. 키가 없는 것과 null은 같게 보고, 글로 비교해 True와 1을 구분한다."""
+    if name == "apply" and isinstance(value, dict):
+        value = {"start": _moment(value.get("start")), "end": _moment(value.get("end"))}
+    elif name == "stages" and isinstance(value, list):
+        # 단계 종류(name)와 날짜만 본다. label은 자유 글이라 두 모델이 다르게 적기 쉽다 (같은 name의 두 단계는 순서·날짜로 구분)
+        value = [[item.get("name"), _moment(item.get("start")), _moment(item.get("end"))] if isinstance(item, dict) else item
+                 for item in value]
+    elif name in ("campus", "grades") and isinstance(value, dict):
+        value = {"any": value.get("any"), "allowed": _sorted_list(value.get("allowed"))}  # AI 출력은 {any, allowed}
+    elif name in ("campus", "grades"):
+        value = _sorted_list(value)
+    elif name == "enrollment" and isinstance(value, dict):
+        value = {"allowed": _sorted_list(value.get("allowed")), "excluded": _sorted_list(value.get("excluded"))}
+    elif name == "team" and isinstance(value, dict):
+        value = {"min": value.get("min"), "max": value.get("max"), "individual_ok": value.get("individual_ok")}
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: dict[str, FieldCheck], cross_model: str | None) -> dict:
+    """교차 검증 모델의 값과 같은 핵심 항목을 auto_verified로 올린다 (계약 1절: 근거 문장 실재·모델 일치·형식·상식 통과).
+
+    올리는 조건: 이 도구나 사람이 이미 남긴 기록이 없고(merge_statuses 뒤 statuses에 없음), 근거를 모두 코드로 대조해
+    통과했으며(대조 못 한 근거 없음), 두 모델 모두 found이고 값이 같고, 어느 쪽에도 지시문 의심(warnings)이 없을 때.
+    값이 달라도 내리지 않는다: 내리면 사람 검수 대상(AI 정리)에서 빠지고, 다른 모델이 틀렸을 수도 있다.
+    전제: cross는 주 결과와 같은 판·같은 입력·같은 프롬프트로 뽑은 것이다 (매일 추출 _current_cross가 보장하고,
+    검증 표시가 묶음 전체를 묶어 그 뒤에 바뀌지 않는다).
+    """
+    if not isinstance(cross, dict) or not isinstance(cross.get("fields"), dict):
+        return statuses
+    if extraction.get("warnings") or cross.get("warnings"):
+        return statuses
+    fields = extraction.get("fields") if isinstance(extraction.get("fields"), dict) else {}
+    result = dict(statuses)
+    for name in CROSS_FIELDS:
+        check, raw, other = checks.get(name), fields.get(name), cross["fields"].get(name)
+        if name in result or check is None or check.result != "pass":
+            continue
+        if not (isinstance(raw, dict) and isinstance(other, dict) and raw.get("flag") == "found" and other.get("flag") == "found"):
+            continue
+        if raw.get("value") is None or _comparable(name, raw.get("value")) != _comparable(name, other.get("value")):
+            continue
+        result[name] = {"status": "auto_verified", "checked_value": raw.get("value"), "by": VERIFIER,
+                        "note": f"다른 모델({cross_model or '교차 모델'})로 다시 뽑아도 같은 값"}
+    return result
 
 
 def fail_all(extraction, existing, reason: str) -> dict:

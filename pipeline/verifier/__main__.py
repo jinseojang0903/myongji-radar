@@ -21,8 +21,9 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from collector.asset_text import attachment_texts
 from exporter.cards import CARD_ID_PATTERN
-from verifier.checks import check_extraction, fail_all, merge_statuses
+from verifier.checks import check_extraction, cross_verify, fail_all, merge_statuses
 from verifier.stamp import stamp_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,8 +40,13 @@ def read_originals(path: Path) -> dict[str, dict]:
     if not isinstance(raw, dict) or not isinstance(raw.get("notices"), list):
         raise ValueError("원문 파일 최상위에 notices 배열이 없음")
     counts = Counter(notice.get("url") for notice in raw["notices"] if isinstance(notice, dict))
-    return {notice["url"]: notice for notice in raw["notices"]
-            if isinstance(notice, dict) and isinstance(notice.get("url"), str) and counts[notice["url"]] == 1}
+    originals = {notice["url"]: notice for notice in raw["notices"]
+                 if isinstance(notice, dict) and isinstance(notice.get("url"), str) and counts[notice["url"]] == 1}
+    for notice in originals.values():
+        # 첨부 근거는 매일 추출이 AI에 넣은 것과 같은 이름·글자로 대조한다 (data/asset_text, 자르지 않은 전체).
+        # 수집 원문의 첨부 칸(url·sha256 등)을 대조용 [{name, text}]로 바꾼다. 이 원문을 쓰는 곳은 checks.py뿐이다
+        notice["attachments"] = [{"name": name, "text": text} for name, text in attachment_texts(notice, path.parent)]
+    return originals
 
 
 def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[dict]]:
@@ -63,6 +69,8 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
             notices = [notice if isinstance(notice, dict) else {} for notice in bundle.get("notices") or []]
             checks = check_extraction(extraction, notices, [originals.get(notice.get("url")) for notice in notices])
             statuses = merge_statuses(bundle.get("statuses"), extraction, checks)
+            meta = bundle.get("meta") if isinstance(bundle.get("meta"), dict) else {}
+            statuses = cross_verify(statuses, extraction, bundle.get("cross_extraction"), checks, meta.get("cross_model"))
         except Exception as error:  # 카드 하나의 이상한 값이 전체 검증을 멈추지 않게. 그 카드는 검증 없이 통과하지 않는다
             reason = f"검증 중 오류 ({type(error).__name__})"
             # 모든 항목을 내린 것도 검증을 거친 결과다 (내보내기가 근거를 공개하지 않는다)

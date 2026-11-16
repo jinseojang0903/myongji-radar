@@ -9,24 +9,16 @@ from pathlib import Path
 
 import requests
 
+from .asset_text import MAX_TEXT_BYTES, private_path
 from .fetcher import FetchPolicyError, MAX_FILE_BYTES, ResponseTooLarge, RunDeadlineExceeded
 
 MAX_NOTICE_BYTES = 20 * 1024 * 1024
 MAX_ASSETS = 20
 CONVERSION_SECONDS = 15
-MAX_TEXT_BYTES = 800_000
 MAX_RUN_REQUESTS = 1000
 MAX_RUN_BYTES = 200 * 1024 * 1024
 MAX_RUN_SECONDS = 20 * 60
 FILE_FIELDS = ("sha256", "local_path", "size_bytes", "text_path", "text_status", "text_reason")
-
-
-def private_path(data_dir: Path, relative: str) -> Path:
-    root = data_dir.resolve()
-    path = root / relative
-    if not path.resolve().is_relative_to(root):
-        raise ValueError("첨부 경로가 data 밖을 가리킵니다")
-    return path
 
 
 def atomic_bytes(path: Path, content: bytes):

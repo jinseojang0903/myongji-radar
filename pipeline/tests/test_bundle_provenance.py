@@ -49,7 +49,8 @@ class BundleProvenanceTests(unittest.TestCase):
 
     def test_public_card_contains_no_internal_provenance(self):
         result = bundle_of("fixture", notice(), entry())
-        card = build_card(CardBundle(**result))
+        # 내보내기처럼 CardBundle 키만 골라 만든다 (cross_extraction 같은 내부 키는 공개 카드로 가지 않는다)
+        card = build_card(CardBundle(**{key: result[key] for key in CardBundle.__dataclass_fields__}))
         for name in ("external_id", "version_id", "version_number", "input_hash", "merge_model", "merge_model_id", "merge_prompt_fingerprint"):
             self.assertNotIn(name, json.dumps(card, ensure_ascii=False))
 

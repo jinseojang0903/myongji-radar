@@ -15,6 +15,9 @@
   옛 판의 값(지워진 연락처, 바뀌기 전 마감)이 "확인 필요"를 달고 계속 공개될 수 있기 때문이다.
 - 같은 판·입력을 3번 실패한 공지는 더 부르지 않는다 (`_failures.json`. 매일 같은 공지가 호출을 먹지 않게). 판·입력이 바뀌면 다시.
 - 묶음 파일에는 뽑아 둔 결과가 있는 후보만 넣는다. 사람 검수 기록(statuses)은 아직 없어 비워 둔다.
+- AI 입력은 본문과 글자를 뽑아 둔 첨부다 (INPUTS). 입력 종류가 다른 옛 결과는 다시 뽑을 대상이다 (그동안은 옛 결과로 남긴다).
+  새로 뽑을 공지가 상한보다 많으면 **카드가 없는 공지 먼저, 그다음 최신 공지부터** 부른다 (접수 중일 가능성이 큰
+  공지가 먼저 갱신되고, 옛 결과로 공개 중인 카드가 상한을 먼저 쓰지 않게).
 - 호출 조건은 모델 비교(eval)와 같다: 확인 호출, 격리 실측, 계정 환경변수 차단, 하루 상한 (`extractor/claude.py`).
   스키마 강제를 거치지 않은 모델 글은 받지 않는다 (공개 경로라서).
 
@@ -26,17 +29,21 @@ import re
 import sys
 from pathlib import Path
 
+from collector.asset_text import attachment_texts
 from collector.config import load_sources
 from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
                               write_json)
-from extractor.prompt import PROMPT_VERSION, InputNotice, build_input, is_result_notice, prompt_fingerprint
+from extractor.prompt import PROMPT_VERSION, InputNotice, build_input, fit_attachments, is_result_notice, prompt_fingerprint
 
 CONTEST_TYPES = {"competition", "hackathon"}  # pipeline/config/rules.toml activity_types 중 대회
 SKIPPED_NOTICE_KINDS = {"results", "cancellation"}
 CARD_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # 내보내기 CARD_ID_PATTERN과 같다
 DEFAULT_MAX_NEW = 30
+# AI에 넣는 것. 바뀌면 옛 결과는 다시 뽑을 대상 (포스터 이미지는 아직). 넣는 방식(첨부 상한·이름·번호 가림)이
+# 바뀌는 것은 prompt_fingerprint가 prompt.py·asset_text.py·personal_numbers.py 내용으로 잡는다
+INPUTS = ["body", "attachments"]
 MAX_FAILURES = 3
 FAILURES_FILE = "_failures.json"
 RUNS_FILE = "_runs.jsonl"
@@ -125,11 +132,15 @@ def is_same_version(entry: dict | None, notice: dict) -> bool:
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str) -> bool:
     """같은 판을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
     return (is_same_version(entry, notice) and entry.get("model") == model
-            and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint)
+            and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint
+            and entry.get("inputs") == INPUTS)
 
 
-def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
-    """뽑은 결과 → 내보내기 묶음 하나 (exporter.cards.CardBundle 모양)."""
+def bundle_of(card_id: str, notice: dict, entry: dict, cross: dict | None = None) -> dict:
+    """뽑은 결과 → 내보내기 묶음 하나 (exporter.cards.CardBundle 모양).
+
+    cross: 같은 판·같은 입력을 교차 검증 모델로 뽑은 결과 (#15). 검증기가 값이 같은 핵심 항목을 자동 검증 통과로 올린다.
+    내보내기는 cross_extraction을 공개하지 않는다 (CardBundle 키가 아님)."""
     # 이전 호출부의 최소 공지 입력도 받되, 완전한 수집 원문의 해시 계산은 바꾸지 않는다.
     hash_input = {"title": "", "body_text": "", "images": [], "attachments": [], **notice}
     return {"card_id": card_id,
@@ -138,19 +149,24 @@ def bundle_of(card_id: str, notice: dict, entry: dict) -> dict:
                          "last_seen_at": notice.get("last_seen_at"),
                          "external_id": notice.get("external_id"), "version_id": notice.get("version_id"),
                          "input_hash": content_hash(hash_input), "version_number": notice.get("version_number"),
-                         "files": []}],  # 이미지·첨부를 AI에 넣지 않으므로(#12 전) 근거 파일 이름도 없다
+                         # AI에 넣은 첨부 이름. 내보내기가 근거의 file 이름을 이 목록으로 확인한다 (이미지는 아직 넣지 않음)
+                         "files": [name for name in entry.get("files") or [] if isinstance(name, str)]}],
             "extraction": entry["output"],
+            "cross_extraction": cross["output"] if cross else None,
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)
             "deadline_history": [],  # 같은 대회 공지 묶기(#16) 뒤에
             "meta": {"prompt_version": entry.get("prompt_version"), "extract_model": entry.get("model_id") or entry.get("model"),
                      "merge_model": entry.get("model"), "merge_model_id": entry.get("model_id"),
                      "merge_prompt_fingerprint": entry.get("prompt_fingerprint"),
-                     "cross_model": None, "checked_at": None}}
+                     "cross_model": (cross.get("model_id") or cross.get("model")) if cross else None, "checked_at": None}}
 
 
 def run_daily(args) -> int:
     if args.max_new < 1:
         raise ValueError("--max-new는 1 이상")
+    args.cross_model = cross_model = getattr(args, "cross_model", None)  # 이 함수를 직접 부르는 쪽(시험)은 안 줄 수 있다
+    if cross_model is not None and cross_model == args.model:
+        raise ValueError("--cross-model은 --model과 다른 모델이어야 한다 (같은 모델끼리는 교차 검증이 아니다)")
     boards = {source.id: source.name for source in load_sources(args.config)}
     originals = read_originals(args.notices)
     analysis = json.loads(args.analysis.read_text(encoding="utf-8"))
@@ -165,27 +181,39 @@ def run_daily(args) -> int:
     fingerprint = prompt_fingerprint()
     failures = _read_failures(args.cache)
     pending, given_up = [], []
+    has_card = {}
     for item in candidates:
         notice = item["notice"]
-        if not args.force and is_current(read_cache(args.cache, item["card_id"], notice), notice, args.model, fingerprint):
+        entry = read_cache(args.cache, item["card_id"], notice)
+        if not args.force and is_current(entry, notice, args.model, fingerprint):
             continue
         if not args.force and _failure_count(failures, item["card_id"], notice, args.model, fingerprint) >= MAX_FAILURES:
             given_up.append(item["card_id"])
             continue
+        has_card[item["card_id"]] = is_same_version(entry, notice)  # 옛 결과로라도 카드가 공개 중인지
         pending.append(item)
+    # 카드가 없는 공지(새 글·새 판을 기다려 내린 카드)를 먼저, 그다음 최신 공지부터 (같으면 원래 순서).
+    # 입력이 바뀌어 모두 다시 뽑을 때 옛 결과로 공개 중인 카드가 하루 상한을 먼저 쓰지 않게 한다
+    pending.sort(key=lambda item: (not has_card[item["card_id"]], posted_day(item["notice"].get("published_at"), "")),
+                 reverse=True)
     for card_id in given_up:
         print(f"[포기] {card_id}: 같은 판을 {MAX_FAILURES}번 실패해 부르지 않음 (공지·모델·프롬프트가 바뀌거나 --force면 다시)",
               file=sys.stderr)
-    meta = {"model": args.model, "prompt_version": PROMPT_VERSION, "prompt_fingerprint": fingerprint, "started_at": now_text(),
-            "totals": new_totals(), "candidates": len(candidates), "to_extract": len(pending), "given_up": len(given_up),
-            "excluded": len(warnings), "cancellations": len(cancellations)}
+    meta = {"model": args.model, "cross_model": cross_model, "prompt_version": PROMPT_VERSION, "prompt_fingerprint": fingerprint,
+            "started_at": now_text(), "totals": new_totals(), "candidates": len(candidates), "to_extract": len(pending),
+            "given_up": len(given_up), "excluded": len(warnings), "cancellations": len(cancellations)}
+    cross_failures = _read_failures(_cross_dir(args)) if cross_model else {}
+    if cross_model:
+        meta["cross_totals"] = new_totals()  # 교차 호출의 토큰·비용·성공 수는 따로 센다 (월 비용 환산이 섞이지 않게)
     stopped, completed = None, False
     try:
-        if pending:
-            stopped = _call_pending(args, pending, boards, fingerprint, failures, meta)
+        if pending or (cross_model and _cross_pending(args, candidates, fingerprint, cross_failures)):
+            stopped = _call_pending(args, pending, candidates, boards, fingerprint, failures, cross_failures, meta)
         completed = True
     finally:
         _write_failures(args.cache, failures)
+        if cross_model:
+            _write_failures(_cross_dir(args), cross_failures)
         try:
             if completed and stopped is None:  # 멈추거나 예외로 끝나면 묶음을 덮어쓰지 않는다 (어제 묶음이 남는다)
                 entries = [(item, read_cache(args.cache, item["card_id"], item["notice"])) for item in candidates]
@@ -195,8 +223,11 @@ def run_daily(args) -> int:
                 meta["bundles"] = len(kept)
                 meta["stale_bundles"] = sum(not is_current(entry, item["notice"], args.model, fingerprint) for item, entry in kept)
                 meta["waiting_new_version"] = sum(entry is not None and not is_same_version(entry, item["notice"]) for item, entry in entries)
-                write_json(args.out, {"generated_at": now_text(), "bundles": [bundle_of(item["card_id"], item["notice"], entry)
-                                                                             for item, entry in kept]})
+                crosses = [_current_cross(args, item, entry, fingerprint) for item, entry in kept]
+                meta["cross_bundles"] = sum(cross is not None for cross in crosses)
+                write_json(args.out, {"generated_at": now_text(),
+                                      "bundles": [bundle_of(item["card_id"], item["notice"], entry, cross)
+                                                  for (item, entry), cross in zip(kept, crosses)]})
         finally:
             _append_run_log(args.cache, {**meta, "stopped": str(stopped) if stopped else None})
     if stopped is not None:
@@ -211,30 +242,83 @@ def run_daily(args) -> int:
     return 0
 
 
-def _call_pending(args, pending, boards, fingerprint, failures, meta) -> StopRun | None:
-    """남은 공지를 부른다. 멈춰야 하면 StopRun을 돌려준다 (예외로 올리지 않고 기록을 마저 쓰게)."""
+def _cross_dir(args) -> Path:
+    return args.cache / "cross"
+
+
+def _current_cross(args, item: dict, entry: dict, fingerprint: str) -> dict | None:
+    """그 카드의 주 결과와 같은 판·같은 입력·같은 프롬프트로 교차 검증 모델이 뽑은 결과. 없으면 None.
+    주 결과가 옛 입력·옛 프롬프트면 교차 결과와 비교할 수 없으므로 쓰지 않는다."""
+    if not args.cross_model or not is_current(entry, item["notice"], args.model, fingerprint):
+        return None
+    cross = read_cache(_cross_dir(args), item["card_id"], item["notice"])
+    return cross if is_current(cross, item["notice"], args.cross_model, fingerprint) else None
+
+
+def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failures: dict) -> list[dict]:
+    """주 결과는 지금 것인데 교차 결과가 없거나 낡은 카드 (최신 공지부터). 같은 판을 교차 모델로 MAX_FAILURES번
+    실패한 카드는 뺀다 (계속 실패하는 카드가 매일 맨 앞에서 상한을 먹지 않게)."""
+    items = []
+    for item in candidates:
+        entry = read_cache(args.cache, item["card_id"], item["notice"])
+        if not is_current(entry, item["notice"], args.model, fingerprint) or _current_cross(args, item, entry, fingerprint):
+            continue
+        if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint) >= MAX_FAILURES:
+            continue
+        items.append(item)
+    return sorted(items, key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
+
+
+def _call_pending(args, pending, candidates, boards, fingerprint, failures, cross_failures, meta) -> StopRun | None:
+    """남은 공지를 부른다 (주 모델 먼저, 그다음 교차 검증 모델). 멈춰야 하면 StopRun을 돌려준다
+    (예외로 올리지 않고 기록을 마저 쓰게)."""
     in_use = claude_cli.account_env_in_use()
     if in_use and not args.use_env_account:
         raise ValueError(f"환경변수 {', '.join(in_use)}가 있어 구독 로그인 대신 그 계정으로 갈 수 있음. "
                          "지우고 다시 돌리거나, 본인 API 키가 맞으면 --use-env-account")
     claude = claude_cli.resolve_claude(args.claude)
     claude_cli.build_command(claude, args.model)
+    cross_model = args.cross_model
+    if cross_model:
+        claude_cli.build_command(claude, cross_model)
     ledger = CallLedger(args.ledger, args.max_calls)
     if ledger.remaining() <= 0:
-        print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 이미 닿아 {len(pending)}건은 다음 실행에서", file=sys.stderr)
+        waiting = f"{len(pending)}건" + (" (교차 검증 포함)" if cross_model else "")
+        print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 이미 닿아 {waiting}은 다음 실행에서", file=sys.stderr)
         return None
     try:
-        probe(claude, args.model, args.timeout, args.use_env_account, ledger, meta)
-        _extract_pending(args, pending[:args.max_new], claude, ledger, meta, boards, fingerprint, failures)
+        if pending:
+            probe(claude, args.model, args.timeout, args.use_env_account, ledger, meta)
+            _extract_pending(args, pending[:args.max_new], claude, ledger, meta, boards, fingerprint, failures)
+            left = max(0, len(pending) - args.max_new)
+            if left:
+                print(f"[남음] {left}건은 --max-new {args.max_new}를 넘어 다음 실행에서", file=sys.stderr)
     except StopRun as stop:
         return stop
-    left = max(0, len(pending) - args.max_new)
-    if left:
-        print(f"[남음] {left}건은 --max-new {args.max_new}를 넘어 다음 실행에서", file=sys.stderr)
+    # 교차 검증은 주 결과가 지금 것인 카드만 (방금 뽑은 것 포함). 주 모델 다음이라 상한에 걸리면 이쪽이 남는다.
+    # --max-new는 주 모델과 교차 모델에 따로 적용된다 (둘을 합친 호출은 하루 상한 --max-calls가 막는다)
+    cross_items = _cross_pending(args, candidates, fingerprint, cross_failures) if cross_model else []
+    if cross_items and ledger.remaining() > 0:
+        meta["cross_to_extract"] = len(cross_items)
+        cross_meta = {"totals": meta["cross_totals"]}  # 사용량을 교차 합계에 센다
+        try:
+            probe(claude, cross_model, args.timeout, args.use_env_account, ledger, cross_meta)
+            _extract_pending(args, cross_items[:args.max_new], claude, ledger, cross_meta, boards, fingerprint, cross_failures,
+                             model=cross_model, cache=_cross_dir(args))
+        except StopRun as stop:
+            # 교차 검증은 덧붙이는 단계다. 멈춰도 주 결과의 공개는 막지 않는다 (교차 결과가 없는 카드는 "AI 정리"로 남는다)
+            meta["cross_stopped"] = str(stop)
+            print(f"[교차 검증 멈춤] {stop} — 주 결과로 묶음은 만든다", file=sys.stderr)
+    elif cross_items:
+        print(f"[남음] 교차 검증 {len(cross_items)}건은 오늘 호출 상한에 닿아 다음 실행에서", file=sys.stderr)
     return None
 
 
-def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, failures) -> None:
+def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, failures, model=None, cache=None) -> None:
+    """공지마다 한 번씩 부른다. model·cache를 주면 교차 검증 호출이다: 실패는 교차 쪽 기록(cross/_failures.json)에
+    남기고(같은 판을 MAX_FAILURES번 실패하면 더 부르지 않음), DB에는 보관하지 않는다 (공개 값은 주 결과다)."""
+    model, cache = model or args.model, cache or args.cache
+    is_cross = model != args.model
     last_errors = []
     for item in pending:
         card_id, notice = item["card_id"], item["notice"]
@@ -242,34 +326,39 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             print(f"[남음] 오늘 호출 상한 {ledger.limit}번에 닿음 (다음 실행이 남은 공지를 부른다)", file=sys.stderr)
             return
         source_id = str(notice.get("source_id") or "")
+        attachments = attachment_texts(notice, args.notices.parent)  # 검증기도 같은 함수로 읽어 대조한다
         text, _ = build_input([InputNotice(board=boards.get(source_id, source_id),
                                            posted=posted_day(notice.get("published_at"), ""),
                                            url=str(notice.get("url") or ""), title=str(notice.get("title") or ""),
-                                           body=str(notice.get("body_text") or ""))])
+                                           body=str(notice.get("body_text") or ""), attachments=attachments)])
         ledger.add()
         try:
-            result = claude_cli.call(text, claude, args.model, args.timeout, args.use_env_account, allow_text_result=False)
+            result = claude_cli.call(text, claude, model, args.timeout, args.use_env_account, allow_text_result=False)
         except claude_cli.ClaudeError as error:
             add_usage(meta, error.usage, error.cost_usd, [], succeeded=False)
-            if error.kind == "model":
-                failures[card_id] = {"version_id": notice.get("version_id"), "model": args.model, "prompt_fingerprint": fingerprint,
+            if error.kind == "model" and failures is not None:
+                failures[card_id] = {"version_id": notice.get("version_id"), "model": model, "prompt_fingerprint": fingerprint,
                                      "input_hash": content_hash(notice),
-                                     "count": _failure_count(failures, card_id, notice, args.model, fingerprint) + 1,
+                                     "count": _failure_count(failures, card_id, notice, model, fingerprint) + 1,
                                      "last_error": str(error)[:120]}
-            print(f"[실패] {card_id}: {error}", file=sys.stderr)
+            print(f"[실패{' 교차' if is_cross else ''}] {card_id}: {error}", file=sys.stderr)
             last_errors = after_failure(error, last_errors)
             continue
         last_errors = []
-        failures.pop(card_id, None)
+        if failures is not None:
+            failures.pop(card_id, None)
         add_usage(meta, result.usage, result.cost_usd, result.models, succeeded=True)
         entry = {"source_id": notice.get("source_id"), "external_id": notice.get("external_id"),
-                    "version_id": notice.get("version_id"), "model": args.model,
+                    "version_id": notice.get("version_id"), "model": model,
                     "model_id": result.models[0] if result.models else None, "prompt_version": PROMPT_VERSION,
-                    "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice),
+                    "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice), "inputs": INPUTS,
+                    # 실제로 AI에 넣은 첨부 이름만 (명단 이름 첨부·합계 상한으로 빠진 것은 근거가 될 수 없다)
+                    "files": [name for name, _, _ in fit_attachments(attachments)],
                     "extracted_at": now_text(), "output": result.output}
-        _persist_entry(args.notices.parent, notice, entry)
-        write_json(args.cache / f"{card_id}.json", entry)
-        print(f"[뽑음] {card_id} ({result.seconds:.0f}초)", file=sys.stderr)
+        if not is_cross:
+            _persist_entry(args.notices.parent, notice, entry)
+        write_json(cache / f"{card_id}.json", entry)
+        print(f"[뽑음{' 교차' if is_cross else ''}] {card_id} ({result.seconds:.0f}초)", file=sys.stderr)
 
 
 def _persist_entry(data_dir: Path, notice: dict, entry: dict) -> None:
