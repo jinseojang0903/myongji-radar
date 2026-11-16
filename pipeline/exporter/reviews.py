@@ -123,7 +123,10 @@ def apply_reviews(card: dict, reviews: dict[tuple[str, str], dict], warnings: li
         if item.get("status") not in PROMOTABLE:
             # 원인이 값·근거 차이가 아니므로 다시 검수해도 풀리지 않는다고 알린다 (같은 대회 묶음에서 공지마다 값이 달라
             # 낮춘 항목 포함, #16·#121)
-            warnings.append(f"{name}이(가) '원문 확인 필요' 상태라 검수 기록으로 올리지 않음 (출처끼리 값이 다르거나 값을 고친 항목, #121)")
+            if item.get("status") == "needs_check":
+                warnings.append(f"{name}이(가) '원문 확인 필요' 상태라 검수 기록으로 올리지 않음 (출처끼리 값이 다르거나 값을 고친 항목, #121)")
+            else:
+                warnings.append(f"{name}이(가) 검수로 올릴 수 없는 상태({item.get('status')})라 검수 기록을 쓰지 않음")
             continue
         if (item.get("value") is None or not item.get("evidence")
                 or canonical_json(item["value"]) != canonical_json(review["value"])

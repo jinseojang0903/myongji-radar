@@ -118,18 +118,19 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
         if fallback is not None:
             merged["fields"][name] = copy.deepcopy(fallback)
             filled.append(name)
+    for name in JUDGED_FIELDS:
+        item = merged["fields"].get(name)
+        if item is not None and item.get("status") in LOWERABLE and (
+                _differs(newest_first, name) or _uncertain_elsewhere(newest_first, name)):
+            item["status"] = "needs_check"
+            item["note"] = _with_note(item.get("note"))
+            notes.append(f"{name} 다름")
     # 내보내기의 카드당 근거·note 합계 상한을 합친 뒤에도 지킨다 (공지 본문을 이어 붙여 싣지 못하게).
-    # 넘으면 나중에 채운 항목부터 원래(정보 없음)로 되돌린다. 최신 카드 자체는 build_card에서 상한을 지켰다
+    # 낮추며 붙인 note까지 센 뒤, 넘으면 나중에 채운 항목부터 원래(정보 없음)로 되돌린다
     while filled and not _within_limits(merged):
         name = filled.pop()
         merged["fields"][name] = copy.deepcopy(primary["fields"][name])
         notes.append(f"{name} 상한으로 채우지 않음")
-    for name in JUDGED_FIELDS:
-        item = merged["fields"].get(name)
-        if item is not None and item.get("status") in LOWERABLE and _differs(newest_first, name):
-            item["status"] = "needs_check"
-            item["note"] = _with_note(item.get("note"))
-            notes.append(f"{name} 다름")
     merged["deadline_history"] = _history(newest_first)
     return merged, notes
 
@@ -179,6 +180,11 @@ def _differs(cards: list[dict], name: str) -> bool:
     return any(not _equivalent(name, values[0], other) for other in values[1:])
 
 
+def _uncertain_elsewhere(cards: list[dict], name: str) -> bool:
+    """다른 공지에서 이 판정 항목이 "원문 확인 필요"인가 (값이 비어 있어도). 한 공지라도 불확실하면 확정처럼 싣지 않는다."""
+    return any(card["fields"].get(name, {}).get("status") == "needs_check" for card in cards[1:])
+
+
 def _equivalent(name: str, first, second) -> bool:
     if name == "apply" and isinstance(first, dict) and isinstance(second, dict):
         for key in ("start", "end"):
@@ -212,13 +218,16 @@ def _history(newest_first: list[dict]) -> list[dict]:
     공지 사이 차이의 checked_at은 새 마감이 적힌 공지의 게시일이다. 내보내기 날짜를 쓰면 같은 변경이 매일
     새 날짜로 바뀌어 보인다. 같은 변경(이전·새 마감과 새 출처가 같음)은 한 번만 남긴다.
     """
-    changes, seen = [], set()
+    changes = []
 
     def add(change):
-        key = (change["old"], change["new"], change.get("new_source"))
-        if key not in seen:
-            seen.add(key)
-            changes.append(change)
+        # 같은 이전·새 마감이면서 새 출처가 같거나 한쪽이 모르는(null) 이력은 같은 변경으로 본다
+        for kept in changes:
+            if (kept["old"], kept["new"]) == (change["old"], change["new"]) and (
+                    kept.get("new_source") is None or change.get("new_source") is None
+                    or kept.get("new_source") == change.get("new_source")):
+                return
+        changes.append(change)
 
     for card in reversed(newest_first):
         for change in card.get("deadline_history", []):

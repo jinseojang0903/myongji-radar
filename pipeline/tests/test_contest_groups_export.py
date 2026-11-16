@@ -115,8 +115,12 @@ class MergeGroupsTests(unittest.TestCase):
     def test_list_order_and_null_values_are_not_differences(self):
         cards, _ = merge_groups([old_card(campus=field(["자연", "인문"], source=OLD_URL)), new_card(campus=field(["인문", "자연"]))], [GROUP])
         self.assertEqual(cards[0]["fields"]["campus"]["status"], "ai")
-        cards, _ = merge_groups([old_card(campus=field(None, status="needs_check", source=OLD_URL)), new_card()], [GROUP])
-        self.assertEqual(cards[0]["fields"]["campus"]["status"], "ai", "값이 없는 확인 필요 항목은 비교에서 뺀다")
+        cards, _ = merge_groups([old_card(campus=field(None, status="missing")), new_card()], [GROUP])
+        self.assertEqual(cards[0]["fields"]["campus"]["status"], "ai", "정보 없음은 비교에서 뺀다")
+        # 다른 공지에서 확인 필요인 판정 항목은 값이 비어 있어도 확정처럼 싣지 않는다
+        cards, _ = merge_groups([old_card(campus=field(None, status="needs_check", source=OLD_URL)),
+                                 new_card(campus=field("any", status="auto_verified"))], [GROUP])
+        self.assertEqual(cards[0]["fields"]["campus"]["status"], "needs_check")
 
     def test_stages_are_not_filled_from_older_notice_when_deadlines_differ(self):
         old_stages = field([{"name": "신청", "end": "2026-09-30", "time_given": False}], source=OLD_URL)
@@ -155,6 +159,24 @@ class MergeGroupsTests(unittest.TestCase):
             group_aliases([GROUP, Group(OLD_ID, (("mju_general", "mjukr/141/998"), ("mju_general", "mjukr/141/997")))])
         with self.assertRaises(ValueError):
             merge_groups([old_card(), new_card()], [GROUP, twin])
+
+    def test_note_added_by_lowering_is_counted_in_card_note_limit(self):
+        long_note = "나" * 280
+        newest = new_card(**{name: field("값", note=long_note) for name in ("deliverables", "benefits", "mileage")},
+                          enrollment=field(None, status="missing"))
+        older = old_card(enrollment=field({"allowed": ["재학"], "excluded": []}, source=OLD_URL, note="학적 메모"),
+                         campus=field(["인문"], source=OLD_URL))
+        cards, _ = merge_groups([older, newest], [GROUP])
+        total = sum(len(item.get("note") or "") for item in cards[0]["fields"].values())
+        self.assertLessEqual(total, 1000)
+
+    def test_own_history_without_source_is_not_repeated(self):
+        own = {"field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": None,
+               "new_source": None, "checked_at": "2026-10-07"}
+        newest = new_card()
+        newest["deadline_history"] = [own]
+        cards, _ = merge_groups([old_card(), newest], [GROUP])
+        self.assertEqual(len(cards[0]["deadline_history"]), 1)
 
     def test_history_is_ordered_by_checked_at(self):
         own = {"field": "apply_end", "old": "2026-10-23", "new": "2026-10-30", "old_source": NEW_URL,
