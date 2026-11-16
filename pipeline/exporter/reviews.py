@@ -25,10 +25,10 @@ ENTRY_KEYS = {"card_id", "field", "value", "evidence_sha256", "since"}
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 MAX_VALUE_CHARS = 2000
 MAX_FILE_BYTES = 256 * 1024  # 카드 수십 장 × 항목 열 개도 이 안에 든다
-# "AI 정리"(근거 대조 통과, 내보내기가 값을 고치지 않음)만 올린다. "원문 확인 필요"는 이유가 여럿이다
+# "AI 정리"와 "자동 검증 통과"(근거 대조·다른 모델 일치)만 올린다. "원문 확인 필요"는 이유가 여럿이다
 # (내보내기가 값을 고침, 공지끼리 충돌, 지시문 의심 등). 공개 화면에는 그 구분이 없어 검수하는 사람이 한쪽만
 # 대조하고 "검수 완료"로 만들 수 있다 (충돌이면 출처별 근거 펼침도 사라짐). 그런 항목은 이슈로 남긴다.
-PROMOTABLE = {"ai"}
+PROMOTABLE = {"ai", "auto_verified"}
 
 
 class ReviewsError(ValueError):

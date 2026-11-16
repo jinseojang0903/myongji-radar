@@ -12,8 +12,8 @@ from pathlib import Path
 from unittest import mock
 
 from exporter.__main__ import main as cli_main
-from exporter.reviews import (REVIEWABLE_FIELDS, ReviewsError, apply_all, canonical_json, evidence_fingerprint,
-                              load_reviews)
+from exporter.reviews import (PROMOTABLE, REVIEWABLE_FIELDS, ReviewsError, apply_all, canonical_json,
+                              evidence_fingerprint, load_reviews)
 from verifier.stamp import stamp_bundle
 from test_exporter import GENERATED_AT, bundle
 
@@ -120,6 +120,18 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(apply_all({"cards": [self.card]}, reviews, report), 0)
         self.assertEqual(self.card["fields"]["apply"]["status"], "needs_check")
         self.assertTrue(report["warnings"])
+
+    def test_auto_verified_fields_can_be_promoted_by_a_person(self):
+        """교차 검증으로 자동 검증 통과한 항목도 사람이 원문과 대조하면 검수 완료 (판정에는 사람 검수가 필요하다)."""
+        self.card["fields"]["apply"]["status"] = "auto_verified"
+        reviews, _ = load_reviews(self.write(self.review_of("apply")))
+        self.assertEqual(apply_all({"cards": [self.card]}, reviews, {"warnings": []}), 1)
+        self.assertEqual(self.card["fields"]["apply"]["status"], "human_verified")
+
+    def test_promotable_statuses_match_the_node_helper(self):
+        helper = (Path(__file__).resolve().parents[2] / "scripts" / "review_card.mjs").read_text(encoding="utf-8")
+        listed = re.search(r"PROMOTABLE = new Set\(\[(.*?)\]\)", helper).group(1)
+        self.assertEqual(set(re.findall(r"'([a-z_]+)'", listed)), PROMOTABLE)
 
     def test_integral_float_matches_the_node_helper(self):
         """JS는 2.0과 2를 구분하지 않아 도우미가 만든 칸은 2가 된다."""
