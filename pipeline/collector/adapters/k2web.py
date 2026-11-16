@@ -3,15 +3,51 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin, urlsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 from ..models import Notice, NoticeRef, Source
 from ..text_safety import safe_terminal
 
+# 줄을 바꾸는 태그. 그 밖의 태그(span·b·font·a 등 글자 꾸밈)는 앞뒤 글자를 이어 붙인다.
+# 한글 문서에서 붙여 넣은 공지는 "2026. 11. 9.(<span>월</span>)"처럼 글자마다 span으로 쪼개져 있어,
+# 태그마다 줄을 바꾸면 한 줄이 여러 줄로 찢어지고 AI 인용 근거가 "2026. 11. 9.("처럼 잘린다.
+BLOCK_TAGS = {"address", "article", "aside", "blockquote", "caption", "center", "dd", "div", "dl", "dt", "figcaption",
+              "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "ol",
+              "p", "pre", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"}
+SKIPPED_TAGS = {"script", "style", "noscript", "template"}
+LINE_BREAK = "\x00"  # 내부 줄 표시 (원문 글자의 줄바꿈은 HTML 규칙대로 띄어쓰기로 본다)
+
 
 def normalized_text(node) -> str:
+    """HTML 노드 → 글자. 블록 태그와 <br>에서만 줄을 바꾸고, 줄마다 공백을 하나로 접는다.
+    트리를 반복으로 돈다 (깊게 중첩된 공지에서 재귀 한도에 걸리지 않게)."""
+    parts = []
+    stack = [iter(node.children)] if isinstance(node, Tag) else []
+    closing = []  # 스택 깊이마다 닫을 때 줄을 바꿀지
+    while stack:
+        child = next(stack[-1], None)
+        if child is None:
+            stack.pop()
+            if closing and closing.pop():
+                parts.append(LINE_BREAK)
+            continue
+        if isinstance(child, Comment):
+            continue
+        if isinstance(child, NavigableString):
+            parts.append(str(child).replace(LINE_BREAK, " "))
+            continue
+        if not isinstance(child, Tag) or child.name in SKIPPED_TAGS:
+            continue
+        if child.name == "br":
+            parts.append(LINE_BREAK)
+            continue
+        is_block = child.name in BLOCK_TAGS
+        if is_block:
+            parts.append(LINE_BREAK)
+        stack.append(iter(child.children))
+        closing.append(is_block)
     return "\n".join(
-        line for part in node.get_text("\n").splitlines()
+        line for part in "".join(parts).split(LINE_BREAK)
         if (line := safe_terminal(" ".join(part.split())))
     )
 

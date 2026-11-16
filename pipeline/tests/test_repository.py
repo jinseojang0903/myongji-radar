@@ -157,7 +157,7 @@ class RepositoryTests(unittest.TestCase):
                         ".title", ".body", ".file a[href]")
         ref = NoticeRef(self.notice.external_id, self.notice.url, "", None)
         adapter = K2WebAdapter()
-        old_html = b'<h1 class="title">Title</h1><div class="body">Body<span>Extra</span></div>'
+        old_html = b'<h1 class="title">Title</h1><div class="body">Body<p>Extra</p></div>'  # 블록 태그라 두 줄
         new_html = b'<h1 class="title">Title</h1><div class="body">Body</div>'
 
         def parse(raw, version):
