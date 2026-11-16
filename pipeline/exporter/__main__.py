@@ -21,6 +21,10 @@
 
 `--report <경로>`면 위 [뺌]·[건너뜀]·[확인]·[차단]을 카드 id·사유로 JSON에 남긴다 (매일 무인 공개는 stderr를 보는
 사람이 없다). 보고를 쓰지 못하면 cards.json을 바꾸지 않고 2. site/ 안에는 쓰지 않는다.
+
+같은 대회 묶음(#16, `config/contest_groups.toml`, 사람이 확인한 묶음만)은 카드를 만든 뒤 한 장으로 합치고 [묶음]으로
+찍는다 (`exporter/contest_groups.py`). 묶음 설정을 읽지 못하면 합치지 않고 공개하며 [확인]으로 남긴다
+(합치지 않은 카드도 각자 검증을 거친 카드라 공개해도 틀린 값이 늘지 않는다).
 """
 
 import argparse
@@ -31,7 +35,9 @@ from pathlib import Path
 from collector.config import load_sources
 from exporter.blocklist import BlocklistError, load_blocked
 from exporter.cards import CARD_ID_PATTERN, CardBundle, boards_from_sources, build_cards_json, write_cards_json
+from exporter.contest_groups import group_aliases, merge_groups
 from exporter.reviews import ReviewsError, apply_all, load_reviews
+from merger.groups import load_groups
 from verifier.stamp import has_valid_stamp
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,10 +91,11 @@ def write_report(path: Path, generated_at, data: dict, report: dict, unverified:
     # 실제로 썼는지는 내보내기 종료 코드(3이면 못 씀)로 본다
     body = {"generated_at": generated_at, "cards_to_write": len(data["cards"]),
             "counts": {"rejected": len(report["rejected"]) + len(unverified), "skipped": len(report["skipped"]),
-                       "warnings": len(report["warnings"]), "blocked": len(report["blocked"])},
+                       "warnings": len(report["warnings"]), "blocked": len(report["blocked"]),
+                       "merged": len(report.get("merged", []))},
             "unverified": unverified, "blocked": [item["id"] for item in report["blocked"]],
-            **{key: [{"id": item["id"], "reason": item["reason"]} for item in report[key]]
-               for key in ("rejected", "skipped", "warnings")}}
+            **{key: [{"id": item["id"], "reason": item["reason"]} for item in report.get(key, [])]
+               for key in ("rejected", "skipped", "warnings", "merged")}}
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
     try:
@@ -100,6 +107,18 @@ def write_report(path: Path, generated_at, data: dict, report: dict, unverified:
 
 def _to_bundle(item: dict) -> CardBundle:
     return CardBundle(**{key: default if item.get(key) is None else item[key] for key, default in BUNDLE_DEFAULTS})
+
+
+def build_and_merge(bundles, boards, generated_at, blocked, groups) -> tuple[dict, dict]:
+    """카드를 만들고(차단은 묶음 단위로) 같은 대회 묶음을 합친다. 보고에 "merged"를 더한다.
+
+    Raises:
+        build_cards_json·merge_groups의 예외 (호출하는 쪽이 cards.json을 바꾸지 않는다)
+    """
+    data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked),
+                                    aliases=group_aliases(groups))
+    data["cards"], report["merged"] = merge_groups(data["cards"], groups, generated_at[:10])
+    return data, report
 
 
 def main(argv=None) -> int:
@@ -114,6 +133,8 @@ def main(argv=None) -> int:
     parser.add_argument("--allow-empty", action="store_true", help="카드가 0장이어도 덮어쓴다 (기본은 상류 장애로 보고 멈춤)")
     parser.add_argument("--blocked", type=Path, default=ROOT / "config/blocked_cards.toml", help="수동 차단 목록 (#65)")
     parser.add_argument("--reviews", type=Path, default=ROOT / "config/human_reviews.toml", help="사람 검수 기록 (#99)")
+    parser.add_argument("--groups", type=Path, default=ROOT / "config/contest_groups.toml",
+                        help="같은 대회 묶음 (#16, 사람이 확인한 묶음만)")
     parser.add_argument("--report", type=Path, default=None,
                         help="뺌·건너뜀·확인·차단을 카드 id·사유로 남길 JSON (site/ 밖. 매일 공개는 data/publish_logs/에)")
     args = parser.parse_args(argv)
@@ -130,6 +151,13 @@ def main(argv=None) -> int:
         review_error = str(error)
     except Exception as error:  # 파일을 못 읽음·깊은 중첩(RecursionError) 등도 검수 없이 공개하는 쪽으로
         review_error = type(error).__name__
+    # 묶음 설정을 못 읽으면 합치지 않고 공개한다. 각 카드는 검증을 거친 카드라 값이 틀려지지 않는다
+    groups, group_error = [], None
+    try:
+        groups = load_groups(args.groups)
+        group_aliases(groups)  # 카드 id를 만들 수 없는 구성 공지도 여기서 걸러 내보내기 전체가 멈추지 않게
+    except Exception as error:
+        groups, group_error = [], type(error).__name__
     try:
         bundles, generated_at, unverified = read_verified_bundles(args.bundles)
         if unverified and not bundles:
@@ -138,7 +166,7 @@ def main(argv=None) -> int:
                   file=sys.stderr)
             return 2
         boards = boards_from_sources(load_sources(args.config))
-        data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
+        data, report = build_and_merge(bundles, boards, generated_at, blocked, groups)
     except Exception as error:  # 예상 못 한 오류도 1(배포 가능)로 끝나지 않게 2로
         print(f"[오류] {args.bundles}를 읽지 못해 cards.json을 바꾸지 않음: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
@@ -147,7 +175,7 @@ def main(argv=None) -> int:
         promoted = apply_all(data, reviews, report)
     except Exception as error:  # 검수 적용이 깨져도 검수 없는 카드로 공개한다. 일부만 올라간 카드가 남지 않게 다시 만든다
         try:
-            data, report = build_cards_json(bundles, boards, generated_at, blocked=frozenset(blocked))
+            data, report = build_and_merge(bundles, boards, generated_at, blocked, groups)
         except Exception as again:  # 1(배포 가능)로 끝나지 않게
             print(f"[오류] 카드를 다시 만들지 못해 cards.json을 바꾸지 않음: {type(again).__name__}", file=sys.stderr)
             return 2
@@ -156,6 +184,8 @@ def main(argv=None) -> int:
     report["warnings"] += [{"id": "(검수 기록)", "reason": message} for message in review_warnings]
     if review_error:
         report["warnings"].append({"id": "(검수 기록)", "reason": f"검수 기록을 쓰지 못해 검수 없이 공개: {review_error}"})
+    if group_error:
+        report["warnings"].append({"id": "(묶음 설정)", "reason": f"같은 대회 묶음을 읽지 못해 합치지 않고 공개: {group_error}"})
 
     if args.report is not None:
         try:
@@ -167,6 +197,8 @@ def main(argv=None) -> int:
         print(f"[뺌] {card_id}: 검증기를 거치지 않았거나 검증 뒤에 바뀐 묶음 (다시 검증)", file=sys.stderr)
     for item in report["blocked"]:
         print(f"[차단] {item['id']}", file=sys.stderr)
+    for item in report["merged"]:
+        print(f"[묶음] {item['id']}: {item['reason']}", file=sys.stderr)
     for label, key in (("[뺌]", "rejected"), ("[건너뜀]", "skipped"), ("[확인]", "warnings")):
         for item in report[key]:
             print(f"{label} {item['id']}: {item['reason']}", file=sys.stderr)

@@ -58,6 +58,14 @@
 
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
+**같은 대회 묶음 (#16):** 사람이 같은 회차라고 확인한 공지 묶음(`pipeline/config/contest_groups.toml`)만 카드 한 장으로 합친다. 제목이 비슷하다고 묶지 않는다. 공지마다 검증기·내보내기를 거친 카드를 만든 뒤 합친다(`pipeline/exporter/contest_groups.py`).
+- `id`는 묶음 id(예: `history-video-5`), `sources`는 구성 카드의 출처 전부(첫 번째가 최신).
+- 값·근거·`meta`는 가장 최근 공지 카드의 것을 쓴다. 그 카드에서 `missing`인 항목만 앞 공지 카드의 항목을 통째로 쓴다(근거의 `source`도 그 공지). `organizer`·`scope`가 `null`이면 앞 공지에서 확인한 값을 쓴다.
+- 공지마다 신청 마감이 다르면 `deadline_history`에 오래된 공지 → 최근 공지 순으로 남긴다. 한쪽에만 시각이 있는 같은 날짜는 변경으로 보지 않는다.
+- 판정 항목(`apply`·`campus`·`grades`·`enrollment`·`team`)의 값이 공지마다 다르면 `ai`·`auto_verified`를 `needs_check`로 낮추고 note에 이유를 단다. 상태를 올리지는 않는다. 사람 검수는 합친 카드 id로 한다.
+- 묶음 id나 구성 카드 하나가 수동 차단 목록에 있으면 묶음 전체를 내린다. 구성 카드가 1장뿐이면 합치지 않고 그 카드 id 그대로 둔다.
+- 화면은 출처 게시판이 2곳 이상이면 카드 상세에 "게시판 N곳에 올라왔습니다"를 보여 준다(`site/js/detail.js` `spreadText`).
+
 ### Field (모든 항목 공통 형태)
 
 ```json
