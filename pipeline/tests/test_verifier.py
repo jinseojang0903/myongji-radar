@@ -45,13 +45,15 @@ def fields_copy():
     return copy.deepcopy(EXAMPLE["fields"])
 
 
-# 예시 출력에서 근거가 이미지인 항목 (신청기간·단계). 검증기가 "확인 필요"로 내린다
+# 예시 출력에서 근거가 이미지인 항목 (신청기간·단계)과, 시험 원문에서 글자를 뽑지 않은 첨부가 근거인 항목 (제출물).
+# 대조할 글자가 없어 검증기가 "확인 필요"로 내린다
 IMAGE_FIELDS = {name for name, value in EXAMPLE["fields"].items()
                 if any(item.get("location") == "이미지" for item in value.get("evidence") or [])}
+UNCHECKED_FIELDS = IMAGE_FIELDS | {"deliverables"}
 
 
-def without_image_fields(statuses: dict) -> dict:
-    return {name: entry for name, entry in statuses.items() if name not in IMAGE_FIELDS}
+def without_unchecked_fields(statuses: dict) -> dict:
+    return {name: entry for name, entry in statuses.items() if name not in UNCHECKED_FIELDS}
 
 
 def failed(checks):
@@ -295,10 +297,28 @@ class MergeTests(unittest.TestCase):
         근거 문장은 사람이 포스터에서 찾도록 남긴다. 사람이 그 근거를 본 기록이 있으면 믿는다."""
         self.assertEqual(IMAGE_FIELDS, {"apply", "stages"}, "예시 출력의 이미지 근거 항목")
         statuses = self.merged(fields_copy(), {})
-        for name in IMAGE_FIELDS:
+        for name in UNCHECKED_FIELDS:
             self.assertEqual((statuses[name]["status"], statuses[name]["evidence_failed"]), ("needs_check", False), name)
+        for name in IMAGE_FIELDS:
             self.assertIn("원문 포스터에서 확인", statuses[name]["note"])
-        self.assertEqual(without_image_fields(statuses), {}, "글 근거를 대조한 항목은 그대로")
+        self.assertIn("글자를 뽑지 못한 파일", statuses["deliverables"]["note"], "글자를 뽑지 못한 첨부도 같은 이유")
+        self.assertEqual(without_unchecked_fields(statuses), {}, "글 근거를 대조한 항목은 그대로")
+
+    def test_image_name_quoted_as_an_attachment_is_still_needs_check(self):
+        """files에는 이미지 이름도 있어, 위치만 "첨부"로 적으면 글자 없는 첨부 길로 간다. 그 길도 확인 필요 (보안 재검토)."""
+        fields = fields_copy()
+        fields["apply"]["evidence"][0]["location"] = "첨부"
+        statuses = self.merged(fields, {})
+        self.assertEqual((statuses["apply"]["status"], statuses["apply"]["evidence_failed"]), ("needs_check", False))
+
+    def test_stale_human_record_does_not_hide_unchecked_sources(self):
+        """값이 바뀐 옛 사람 검수는 믿지 않는다: 포스터 속 주입으로 값을 바꿔도 "AI 정리"로 공개되지 않게 (보안 재검토)."""
+        fields = fields_copy()
+        stale = {"status": "human_verified", "checked_value": {"start": None, "end": None},
+                 "checked_evidence": evidence_fingerprint(fields["apply"]["evidence"])}
+        statuses = self.merged(fields, {"apply": stale})
+        self.assertEqual(statuses["apply"]["status"], "needs_check")
+        self.assertEqual(statuses["apply"]["previous"], stale, "다시 검증해 맞으면 되살릴 수 있게 남긴다")
 
     def test_rerun_restores_people_after_a_fix(self):
         fields = fields_copy()
@@ -308,7 +328,7 @@ class MergeTests(unittest.TestCase):
         broken["team"]["evidence"][0]["quote"] = "지어낸 문장입니다"
         first = self.merged(broken, {"team": seen})
         self.assertEqual(first["team"]["status"], "needs_check")
-        self.assertEqual(without_image_fields(self.merged(fields, first)), {"team": seen}, "출력을 다시 넣어도 사람 검수가 사라지지 않는다")
+        self.assertEqual(without_unchecked_fields(self.merged(fields, first)), {"team": seen}, "출력을 다시 넣어도 사람 검수가 사라지지 않는다")
 
     def test_failures_go_down_and_nothing_goes_up(self):
         fields = fields_copy()
@@ -325,7 +345,7 @@ class MergeTests(unittest.TestCase):
         broken["team"]["evidence"][0]["quote"] = "지어낸 문장입니다"
         first = self.merged(broken, {"campus": "needs_check"})
         self.assertEqual(first["team"]["by"], "verifier")
-        self.assertEqual(without_image_fields(self.merged(fields, first)), {"campus": "needs_check"},
+        self.assertEqual(without_unchecked_fields(self.merged(fields, first)), {"campus": "needs_check"},
                          "근거를 고치면 전에 내린 표시가 사라진다")
         self.assertEqual(self.merged(broken, first), first, "같은 입력이면 같은 결과")
 
@@ -448,7 +468,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(report[0], {"card_id": "ai-literacy-2026", "field": "*", "result": "fail", "reasons": ["검증 중 오류 (RuntimeError)"]})
         self.assertTrue(all(entry["evidence_failed"] for entry in verified["bundles"][0]["statuses"].values()), "검증 없이 통과하지 않는다")
         self.assertEqual(len(verified["bundles"][0]["statuses"]), len(EXAMPLE["fields"]))
-        self.assertEqual(without_image_fields(verified["bundles"][1]["statuses"]), {}, "다른 카드는 정상 검증")
+        self.assertEqual(without_unchecked_fields(verified["bundles"][1]["statuses"]), {}, "다른 카드는 정상 검증")
         self.assertTrue(all(has_valid_stamp(item, data.get("generated_at")) for item in verified["bundles"]),
                         "모두 내린 카드도 검증을 거친 결과다")
 
