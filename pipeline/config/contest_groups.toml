@@ -1,7 +1,10 @@
 ﻿# #16: 사람 검토를 거친 같은 회차의 공지만 등록한다. 제목 유사도 자동 병합은 하지 않는다.
-# 근거: eval/answer_key/sources.csv. 원문·연락처는 이 파일에 넣지 않는다.
-# standalone 미리보기 전용이다. publisher/exporter 기본 실행에는 연결하지 않는다.
-# 누락·충돌·결과/취소는 기존 개별 카드를 유지하고 검토 사유만 보고한다.
+# 근거: 처음 5개는 eval/answer_key/sources.csv, 그 뒤 5개는 11/16 공개 카드에서 같은 연도·회차를 팀장이 확인.
+# 원문·연락처는 이 파일에 넣지 않는다.
+# 쓰는 곳 두 가지:
+# - 공개 (exporter): 구성 카드가 2장 이상이면 카드 한 장으로 합친다 (exporter/contest_groups.py, 계약 1절 "같은 대회 묶음").
+# - 미리보기 (python -m merger): 추출값이 모두 같을 때만 합친 후보를 만든다 (docs/manual-merger.md).
+# 회차가 다른 대회(예: 창의적 SW 2025 4회 / 2026 5회)와 캠퍼스별 별도 대회(EVC)는 묶지 않는다.
 version = 1
 
 [[groups]]
@@ -38,4 +41,42 @@ id = "speakup-7"
 members = [
   {source_id = "mju_general", external_id = "mjukr/141/235076"},
   {source_id = "mju_innovation", external_id = "innovation/56/235960"},
+]
+
+# 11/16 추가 (같은 연도·회차, 팀장 확인)
+[[groups]]
+id = "ai-hackathon-2026"
+members = [
+  {source_id = "mju_abix", external_id = "aict/1394/236337"},
+  {source_id = "mju_general", external_id = "mjukr/141/236425"},
+  {source_id = "mju_innovation", external_id = "innovation/56/236471"},
+]
+
+[[groups]]
+id = "startup-pt-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/236454"},
+  {source_id = "mju_innovation", external_id = "innovation/56/236472"},
+  {source_id = "mju_general", external_id = "mjukr/141/236755"},
+]
+
+[[groups]]
+id = "startup-strategy-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/234916"},
+  {source_id = "mju_innovation", external_id = "innovation/56/235958"},
+]
+
+[[groups]]
+id = "pharma-idea-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/236667"},
+  {source_id = "mju_innovation", external_id = "innovation/56/236674"},
+]
+
+[[groups]]
+id = "energy-capstone-1"
+members = [
+  {source_id = "mju_energy", external_id = "energymaterials/1634/235013"},
+  {source_id = "mju_general", external_id = "mjukr/141/235215"},
 ]

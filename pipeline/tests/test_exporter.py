@@ -704,6 +704,10 @@ class ExporterCliTests(unittest.TestCase):
                 empty = Path(folder) / "blocked.toml"
                 empty.write_text("blocked = []\n", encoding="utf-8")
                 extra = [*extra, "--blocked", str(empty)]
+            if "--groups" not in extra:  # 같은 이유로 같은 대회 묶음도 빈 목록으로 (#16)
+                no_groups = Path(folder) / "groups.toml"
+                no_groups.write_text("version = 1\ngroups = []\n", encoding="utf-8")
+                extra = [*extra, "--groups", str(no_groups)]
             argv = ["exporter", "--bundles", str(bundles_path), "--out", str(out_path), *extra]
             stderr = io.StringIO()
             with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):

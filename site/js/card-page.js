@@ -6,7 +6,7 @@ import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
 import { judgeCard } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
-import { fieldRows, sourceLinks, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
+import { fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName } from './ics.js';
 
 const BADGE_CLASS = { human: 's-human', auto: 's-auto', before: 's-before', need: 's-need', missing: 's-missing' };
@@ -101,6 +101,7 @@ function renderFields(card, boards) {
     el('caption', { class: 'sr-only' }, '대회 카드 항목: 값, 확인 상태, 근거'),
     el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
   const sources = sourceLinks(card, boards);
+  const spread = spreadText(card, boards);
   const checkedAt = parseContractDate(card.meta?.checked_at);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-fields' },
     el('h2', { id: 'h-fields' }, '대회 카드'),
@@ -112,6 +113,7 @@ function renderFields(card, boards) {
       anchor.className = anchor.tagName === 'A' ? (index === 0 ? 'btn primary' : 'btn') : 'small';
       return anchor;
     })),
+    spread ? el('p', { class: 'small' }, spread) : null,
     el('p', { class: 'small' }, '카드는 AI 정리 → 근거 문장이 원문에 있는지 코드로 대조 → 팀의 원문 대조(신청기간·자격) 순서로 확인합니다. 다른 모델로 다시 뽑아 비교하는 단계는 만들어 두었고 아직 켜지 않았습니다. 항목마다 어디까지 확인했는지는 상태 배지로 보여 줍니다.',
       checkedAt ? ` 마지막 확인 ${checkedAt.date}.` : ''));
 }

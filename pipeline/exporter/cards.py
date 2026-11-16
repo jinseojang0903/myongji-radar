@@ -218,10 +218,13 @@ def build_card(bundle: CardBundle, warnings: list[str] | None = None) -> dict:
 
 
 def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at: str,
-                     blocked: frozenset[str] | set[str] = frozenset()) -> tuple[dict, dict]:
+                     blocked: frozenset[str] | set[str] = frozenset(),
+                     aliases: dict[str, frozenset[str]] | None = None) -> tuple[dict, dict]:
     """카드 묶음 → cards.json 전체.
 
     blocked: 수동 차단 목록의 카드 id (#65, `exporter/blocklist.py`). 이 카드는 만들지 않는다.
+    aliases: 카드 id → 같은 대회 묶음(#16)의 id 전체 (`exporter.contest_groups.group_aliases`). 묶음 id나
+        같은 묶음의 카드 하나가 차단되면 묶음의 카드를 모두 만들지 않는다 (한 장만 내려도 나머지가 남지 않게).
     Returns:
         (cards.json 데이터, 보고 {"rejected": 뺀 카드, "skipped": 대회 아님, "warnings": 내보냈지만 확인할 일,
         "blocked": 차단해 뺀 카드})
@@ -231,15 +234,20 @@ def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at
         ValueError: generated_at이 시간대가 있는 ISO 8601 시각이 아닐 때 (사이트가 전체를 못 읽게 되므로)
     """
     _check_generated_at(generated_at)
+    aliases = aliases or {}
     cards, seen = [], set()
     report = {"rejected": [], "skipped": [], "warnings": [], "blocked": []}
-    matched: set[str] = set()
+    matched: set[str] = set()   # 이번 묶음에서 찾은 차단 목록의 id (묶음 id 포함)
+    reported: set[str] = set()  # 보고에 이미 올린 카드 id (같은 id 묶음이 두 번 나와도 한 번만)
     for bundle in bundles:
         card_id = _printable_id(bundle.card_id)
-        if isinstance(bundle.card_id, str) and bundle.card_id in blocked:
-            if bundle.card_id not in matched:
+        hits = (({bundle.card_id} | aliases.get(bundle.card_id, frozenset())) & set(blocked)
+                if isinstance(bundle.card_id, str) else set())
+        if hits:
+            if bundle.card_id not in reported:
                 report["blocked"].append({"id": card_id, "reason": "수동 차단 목록"})
-            matched.add(bundle.card_id)
+                reported.add(bundle.card_id)
+            matched.update(hits)
             continue
         warnings: list[str] = []
         try:
