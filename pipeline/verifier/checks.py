@@ -174,10 +174,12 @@ class FieldCheck:
 
     evidence_failures: 근거 문제 (지어냄·틀린 번호·파일 이름·원문 없음). 있으면 근거를 공개하지 않는다.
     sanity_failures: 상식 검사 문제. unverifiable: 코드로 대조하지 못해 사람이 볼 근거 (이미지 등).
+    has_image_evidence: 이미지에서 읽었다는 근거가 있음. 글자 대조를 할 수 없어 "확인 필요"로 내린다 (merge_statuses).
     """
     evidence_failures: list[str] = field(default_factory=list)
     sanity_failures: list[str] = field(default_factory=list)
     unverifiable: list[str] = field(default_factory=list)
+    has_image_evidence: bool = False
 
     @property
     def failures(self) -> list[str]:
@@ -243,6 +245,7 @@ def _check_evidence(evidence, notices, originals, check: FieldCheck, cache: dict
                 continue
         if location == "이미지":
             check.unverifiable.append("이미지 근거 (사람 확인)")
+            check.has_image_evidence = True
             continue
         original = originals[number - 1]
         if original is None:
@@ -364,7 +367,9 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
       근거 기록이 없는 사람 검수는 근거를 모두 코드로 대조해 통과했고 문의처가 아닐 때만 믿는다
       (사람이 본 적 없는 이미지 근거·연락처 문장이 "검수 완료"로 공개되지 않게).
     - 상식 문제만: needs_check. 단 믿을 수 있는 사람 검수는 그대로 둔다.
-    - 통과·대조 불가: 기존 값을 그대로 둔다 (올리지 않는다).
+    - 이미지 근거: needs_check (근거는 남긴다: evidence_failed가 아니다). 대조할 글자가 없어 그대로 두면 "AI 정리"로
+      공개되는데, 포스터 속 주입·잘못 읽은 값이 글 근거보다 덜 의심받게 된다 (보안 리뷰). 믿을 수 있는 사람 검수는 그대로.
+    - 통과·그 밖의 대조 불가: 기존 값을 그대로 둔다 (올리지 않는다).
     """
     statuses = {}
     for name, entry in (existing.items() if isinstance(existing, dict) else []):
@@ -380,11 +385,13 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
         previous = statuses.get(name)
         is_human = isinstance(previous, dict) and previous.get("status") == "human_verified"
         human_problem = _human_problem(name, previous, raw, check) if is_human else None
-        if not check.failures and not human_problem:
+        image_unchecked = check.has_image_evidence and not (is_human and not human_problem)
+        if not check.failures and not human_problem and not image_unchecked:
             continue
         if is_human and not check.evidence_failures and not human_problem:
             continue  # 상식 검사만 걸렸고 사람이 지금 값·근거를 봤다
-        reasons = check.failures + ([human_problem] if human_problem else [])
+        reasons = (check.failures + ([human_problem] if human_problem else [])
+                   + (["이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인)"] if image_unchecked else []))
         entry = {"status": "needs_check", "checked_value": value, "note": "; ".join(dict.fromkeys(reasons)),
                  "evidence_failed": bool(check.evidence_failures or human_problem), "by": VERIFIER}
         if is_human:
