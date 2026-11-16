@@ -298,7 +298,7 @@ function renderItem({ card, judged, deadline, summary }) {
       announce(status, '자동 복사가 막혔습니다. 카드 보기에서 초안을 선택해 복사하세요.');
     }
   });
-  return el('div', { class: 'item' },
+  return el('div', { class: 'item', 'data-result': judged.result },
     el('div', { class: 'row' },
       el('span', { class: `badge ${view.cls}` }, view.text),
       el('span', { class: 'title' }, card.title),

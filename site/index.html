@@ -24,19 +24,21 @@
 <p class="demo" id="sample-banner" hidden></p>
 
 <main>
-  <section class="panel" aria-labelledby="h-summary">
-    <div class="row">
-      <div>
-        <h1 id="h-summary">교내 대회·공모전</h1>
-        <p class="lead" id="lead">교내 공개 게시판의 새 글을 매일 확인해, 생성형 AI가 공지를 읽고 대회 카드로 정리합니다.</p>
-      </div>
-      <a class="btn primary spacer" href="recommend.html">내 조건으로 찾기</a>
+  <section class="hero" aria-labelledby="h-summary">
+    <div class="radar" aria-hidden="true"></div>
+    <p class="eyebrow">명지대 공개 게시판을 매일 살펴봅니다</p>
+    <h1 id="h-summary">흩어진 교내 대회,<br><em>한 화면에서</em> 찾으세요</h1>
+    <p class="lead" id="lead">학교 게시판 곳곳의 대회·공모전 공지를 생성형 AI가 읽어 카드로 정리합니다. 마감과 지원 자격, 원문 근거를 바로 확인하세요.</p>
+    <div class="hero-actions">
+      <a class="btn primary" href="recommend.html">내 조건으로 찾기</a>
+      <a class="btn ghost" href="#h-list">전체 대회 보기</a>
     </div>
-    <div class="row small" id="summary-line">불러오는 중…</div>
-    <p class="small">AI가 정리한 결과입니다. <b>신청 전에 원문 공지를 꼭 확인하세요.</b> 신청기간과 자격은 팀이 원문과 대조하기 전까지 <span class="badge s-before">확인 전</span>으로 표시합니다.</p>
+    <dl class="stats" id="hero-stats"></dl>
+    <div class="hero-meta" id="summary-line">불러오는 중…</div>
+    <p class="hero-note">AI가 정리한 결과입니다. <b>신청 전에 원문 공지를 꼭 확인하세요.</b> 신청기간과 자격은 팀이 원문과 대조하기 전까지 <span class="badge s-before">확인 전</span>으로 표시합니다.</p>
   </section>
 
-  <section class="panel" aria-label="목록 필터">
+  <section class="panel filters" aria-label="목록 필터">
     <div class="row">
       <span class="small filter-label" id="f-sort">정렬</span>
       <div class="chips" role="group" aria-labelledby="f-sort">
@@ -66,12 +68,14 @@
   </section>
 
   <section aria-labelledby="h-list">
-    <h2 id="h-list" class="sr-only">대회 목록</h2>
-    <p class="small" id="list-status" role="status"></p>
+    <div class="list-head">
+      <h2 id="h-list">마감 전 대회</h2>
+      <p class="small" id="list-status" role="status"></p>
+    </div>
     <div class="list" id="card-list"></div>
   </section>
 
-  <section class="panel" id="boards" aria-labelledby="h-boards">
+  <section class="panel boards-panel" id="boards" aria-labelledby="h-boards">
     <h2 id="h-boards">확인하는 게시판</h2>
     <p class="small" id="board-list"></p>
     <p class="small">목록에 없는 학과·센터 게시판과 MYiCap+(로그인 필요)는 직접 확인해야 합니다. 공지 원문은 저장해 공개하지 않고, 요약·짧은 근거·원문 링크만 보여 줍니다.</p>

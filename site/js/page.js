@@ -45,10 +45,18 @@ export function badgeElements(card) {
   return cardBadges(card).map((badge) => el('span', { class: `badge ${BADGE_CLASS[badge.kind]}` }, badge.text));
 }
 
-/** D-day 요소. 7일 이내만 빨강 */
+/** D-day 요소. 7일 이내만 빨강, 마감일이 없거나 읽을 수 없으면 회색 (마감이 확실한 대회와 같은 색으로 보이지 않게) */
 export function ddayElement(deadline, extraClass = '') {
   const dday = ddayLabel(deadline);
-  return el('span', { class: ['dday', dday.isUrgent ? '' : 'far', extraClass].filter(Boolean).join(' ') }, dday.text);
+  const tone = deadline.state !== 'open' ? 'none' : dday.isUrgent ? '' : 'far';
+  return el('span', { class: ['dday', tone, extraClass].filter(Boolean).join(' ') }, dday.text);
+}
+
+/** 목록 카드 왼쪽 띠 색: 3일 이내·7일 이내·마감 전·마감일 없음 */
+export function deadlineTone(deadline) {
+  if (deadline.state !== 'open') return 'none';
+  if (deadline.daysLeft <= 3) return 'soon';
+  return deadline.daysLeft <= 7 ? 'week' : 'open';
 }
 
 /**

@@ -1,7 +1,7 @@
 // 홈 화면 (#21): 대회 목록, 필터, 기준일·게시판 목록.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage } from './cards.js';
-import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
+import { loadPage, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 
 const filters = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
@@ -18,11 +18,25 @@ async function main() {
   const { data, now, rejected, isSample } = page;
   renderTagChips();
   renderBoards(data.boards);
+  renderStats(data, now);
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
   const render = () => renderList(data, now, rejectedCardCount, isSample);
   bindFilters(render);
   render();
+}
+
+// 첫 화면 숫자: 필터와 상관없이 전체 기준 (마감 전 대회, 7일 안에 마감, 확인하는 게시판)
+function renderStats(data, now) {
+  const base = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
+  const openCount = listCards(data.cards, base, now).items.length;
+  const urgentCount = listCards(data.cards, { ...base, urgentOnly: true }, now).items.length;
+  const stat = (label, value, unit, extraClass = '') => el('div', { class: ['stat', extraClass].filter(Boolean).join(' ') },
+    el('dt', {}, label), el('dd', {}, String(value), el('small', {}, unit)));
+  document.getElementById('hero-stats').replaceChildren(
+    stat('마감 전 대회', openCount, '건'),
+    stat('7일 안에 마감', urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
+    stat('확인하는 게시판', data.boards.length, '곳'));
 }
 
 function renderTagChips() {
@@ -61,11 +75,9 @@ function bindFilters(onChange) {
 
 function renderList(data, now, rejectedCount, isSample) {
   const { items, closedCount } = listCards(data.cards, filters, now);
-  const openCount = data.cards.length - closedCount;
 
+  // 마감 전 대회 수는 첫 화면 숫자 칸(renderStats)에 있어 이 줄에는 기준일·확인 시각만 둔다
   document.getElementById('summary-line').replaceChildren(
-    el('span', {}, '신청 중인 대회 ', el('b', {}, `${openCount}건`)),
-    el('span', { 'aria-hidden': 'true' }, '·'),
     el('span', {}, `기준일 ${formatShortDate(kstDateString(now))}${isSample ? ' (예시 데이터 기준)' : ''}`),
     el('span', { 'aria-hidden': 'true' }, '·'),
     el('span', {}, `마지막 확인 ${formatKstDateTime(new Date(data.generated_at))}`),
@@ -111,7 +123,7 @@ function renderItem(card, deadline, boards, index) {
   const ddayId = `card-dday-${index}`;
   const dday = ddayElement(deadline, 'spacer');
   dday.id = ddayId;
-  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'aria-labelledby': `${titleId} ${ddayId}` },
+  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'data-deadline': deadlineTone(deadline), 'aria-labelledby': `${titleId} ${ddayId}` },
     el('div', { class: 'row' },
       el('h3', { class: 'title', id: titleId }, card.title),
       dday),
