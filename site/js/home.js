@@ -105,9 +105,11 @@ function renderList(data, now, rejectedCount, isSample) {
 function renderItem(card, deadline, boards) {
   const change = latestDeadlineChange(card);
   const summary = summaryLine(card, deadline);
-  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}` },
+  // 카드 전체가 링크라 이름이 제목·배지·요약까지 길게 읽혔다. 이름은 제목으로 하고, 제목을 h3로 두어 제목 단위로 건너뛸 수 있게 (#104)
+  const titleId = `card-title-${card.id}`;
+  return el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'aria-labelledby': titleId },
     el('div', { class: 'row' },
-      el('span', { class: 'title' }, card.title),
+      el('h3', { class: 'title', id: titleId }, card.title),
       ddayElement(deadline, 'spacer')),
     el('span', { class: 'org' }, [card.organizer, card.scope, boardNames(card, boards).join(', ')].filter(Boolean).join(' · ')),
     el('div', { class: 'row' },
