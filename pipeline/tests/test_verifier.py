@@ -79,8 +79,13 @@ class NormalizeTests(unittest.TestCase):
         self.assertFalse(contains_quote(normalize("평점평균 3.5 이상"), normalize("평점평균 3")), "소수점 뒤 숫자")
         self.assertFalse(contains_quote(normalize("상금 100,000원"), normalize("상금 100")), "자릿점 뒤 숫자")
         self.assertFalse(contains_quote(normalize("1.5명 기준"), normalize("5명 기준")), "소수점 앞 숫자")
-        self.assertFalse(contains_quote(normalize("상금 100, 200, 300"), normalize("상금 100")),
-                         "정규화가 쉼표 뒤 공백을 지워 자릿점과 구분하지 못한다: 실패 쪽으로 틀린다 (안전)")
+        # 쉼표 뒤 공백이 있으면 목록이라 앞 숫자만 인용해도 맞는다 (#49). 공백이 없으면 자릿점으로 본다
+        self.assertTrue(contains_quote(normalize("상금 100, 200, 300"), normalize("상금 100")), "목록의 첫 숫자")
+        self.assertTrue(contains_quote(normalize("상금 100, 200, 300"), normalize("100, 200")))
+        self.assertFalse(contains_quote(normalize("상금 100,200원"), normalize("상금 100")), "붙여 쓴 쉼표는 자릿점")
+        self.assertFalse(contains_quote(normalize("상금 100, 200"), normalize("100,200")), "목록을 자릿점으로 바꾼 인용")
+        self.assertTrue(contains_quote(normalize("모집 인원: 2, 3학년"), normalize("2, 3학년")))
+        self.assertTrue(contains_quote(normalize("상금 100,\n200"), normalize("상금 100")), "쉼표 뒤 줄바꿈도 목록")
 
     def test_quotes_do_not_start_inside_a_negated_word(self):
         self.assertFalse(contains_quote(normalize("개인 참가는 불가능합니다."), normalize("가능합니다.")))
