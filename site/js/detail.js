@@ -159,6 +159,17 @@ export function sourceLinks(card, boards) {
 }
 
 /**
+ * 같은 대회가 올라온 게시판이 2곳 이상이면 안내 문장 (#16: 사람이 확인한 묶음을 카드 한 장으로 합친 결과).
+ * 같은 게시판에 두 번 올라온 것(연장 공지 등)은 한 곳으로 센다.
+ * @returns {string|null}
+ */
+export function spreadText(card, boards) {
+  const names = [...new Set(card.sources.map((source) => boardName(source.board_id, boards)))];
+  if (names.length < 2) return null;
+  return `이 대회 공지는 게시판 ${names.length}곳(${names.join(', ')})에 올라왔습니다. 게시판마다 내용이 다를 수 있어 마감 변경 이력과 원문을 함께 보세요.`;
+}
+
+/**
  * 신청 링크와 호스트명. forms.gle·docs.google.com은 누구나 폼을 만들 수 있어 주소가 바뀌어도 막지 못하므로
  * 학생이 어디로 가는지 보이게 호스트명을 같이 보여 준다 (#21 보안 리뷰).
  * @returns {{url: string, host: string}|null}

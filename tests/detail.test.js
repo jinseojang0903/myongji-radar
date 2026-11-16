@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateCardData } from '../site/js/cards.js';
 import {
-  FIELD_LABELS, fieldStatusBadge, fieldValueText, fieldRows, sourceLinks, applyLink, deadlineHistory, inquiryDraft, withParticle,
+  FIELD_LABELS, fieldStatusBadge, fieldValueText, fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, inquiryDraft, withParticle,
 } from '../site/js/detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName, stageLabel } from '../site/js/ics.js';
 import {
@@ -74,6 +74,16 @@ test('근거·원문 링크: 허용되지 않는 주소는 링크로 만들지 �
   assert.equal(enrollment.evidence[0].boardName, null);
   assert.equal(sourceLinks(card, SAMPLE.boards)[0].url, null);
   assert.ok(sourceLinks(card, SAMPLE.boards)[1].url.startsWith('https://'));
+});
+
+test('같은 대회가 올라온 게시판이 2곳 이상이면 안내 문장 (#16), 같은 게시판은 한 곳으로 센다', () => {
+  const card = cardById('history-video-5');
+  const boardIds = new Set(card.sources.map((source) => source.board_id));
+  assert.ok(boardIds.size >= 2, '예시 카드는 서로 다른 게시판 두 곳');
+  assert.match(spreadText(card, SAMPLE.boards), new RegExp(`게시판 ${boardIds.size}곳`));
+  const sameBoard = { ...card, sources: card.sources.map((source) => ({ ...source, board_id: card.sources[0].board_id })) };
+  assert.equal(spreadText(sameBoard, SAMPLE.boards), null);
+  assert.equal(spreadText({ ...card, sources: [card.sources[0]] }, SAMPLE.boards), null);
 });
 
 test('신청 링크는 호스트명을 함께 준다 (#21 보안 리뷰: 폼 주소 바꿔치기 대비)', () => {
