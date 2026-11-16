@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from collector.analysis import analyze_file
+from exporter import __main__ as exporter_cli
 from extractor import claude as claude_cli
 from publisher import __main__ as publisher
 from test_extractor import INIT, FakeRun, stream
@@ -47,9 +48,11 @@ class PublisherTests(unittest.TestCase):
     def run_cli(self, fake, *extra):
         clean_env = {key: value for key, value in os.environ.items() if key not in claude_cli.ACCOUNT_ENV}
         stderr = io.StringIO()
+        # 저장소의 실제 차단 목록이 바뀌어도 시험이 흔들리지 않게 빈 목록으로 (test_exporter.run_cli와 같은 이유)
         with mock.patch.object(claude_cli.subprocess, "run", fake), \
                 mock.patch.object(claude_cli, "resolve_claude", return_value="claude.exe"), \
                 mock.patch.dict(os.environ, clean_env, clear=True), contextlib.redirect_stderr(stderr), \
+                mock.patch.object(exporter_cli, "load_blocked", return_value={}), \
                 contextlib.redirect_stdout(io.StringIO()):
             code = publisher.main(["--model", "sonnet", "--data-dir", str(self.data), "--out", str(self.cards), *extra])
         return code, stderr.getvalue()
