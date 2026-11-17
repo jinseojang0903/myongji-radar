@@ -19,6 +19,30 @@ MAX_RUN_REQUESTS = 1000
 MAX_RUN_BYTES = 200 * 1024 * 1024
 MAX_RUN_SECONDS = 20 * 60
 FILE_FIELDS = ("sha256", "local_path", "size_bytes", "text_path", "text_status", "text_reason")
+RUN_BUDGET_REASONS = {"run_requests", "run_bytes", "run_time", "run_deadline"}
+
+
+class AssetLimit(FetchPolicyError):
+    """외부 문구 없이 구분하는 첨부 예산 소진."""
+
+    def __init__(self, reason):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def source_order(sources, previous):
+    """직전 전체 실행에서 예산으로 밀린 출처부터. 시작 출처 자체가 소진하면 다음 출처에 차례를 준다."""
+    deferred = next((row["source"] for row in previous
+                     if any(event.get("reason") in RUN_BUDGET_REASONS
+                            or event.get("error") == "run_deadline_exceeded"
+                            for event in row.get("warnings", []) + row.get("errors", []))), None)
+    ids = [source.id for source in sources]
+    if deferred not in ids:
+        return sources
+    start = ids.index(deferred)
+    if previous and deferred == previous[0]["source"]:
+        start = (start + 1) % len(sources)
+    return sources[start:] + sources[:start]
 
 
 def atomic_bytes(path: Path, content: bytes):
@@ -91,60 +115,92 @@ class AssetCollector:
         if isinstance(deadline, (int, float)) and time.monotonic() >= deadline:
             raise RunDeadlineExceeded("수집 실행 전체 시간 예산 소진")
 
+    def needs_download(self, item):
+        if not item:
+            return True
+        if item.get("download_reason") in {"url_policy", "file_bytes", "http_permanent"}:
+            return False  # 매번 확인은 하되 재시도 가능한 첨부보다 먼저 예산을 쓰지 않는다.
+        relative = item.get("local_path")
+        if not isinstance(relative, str) or not re.fullmatch(r"assets/[0-9a-f]{64}\.bin", relative):
+            return True
+        try:
+            return not private_path(self.data_dir, relative).is_file()
+        except (OSError, ValueError):
+            return True
+
+    def has_pending(self, previous):
+        return any(self.needs_download(item) for kind in ("images", "attachments")
+                   for item in (previous or {}).get(kind, []))
+
     def enrich(self, notice, allowed_hosts: list[str], previous: dict | None = None) -> list[dict]:
         errors = []
         total, count = 0, 0
+        tasks = []
         for kind in ("images", "attachments"):
             old = {item["url"]: item for item in (previous or {}).get(kind, [])}
-            for item in getattr(notice, kind):
-                count += 1
-                url = item["url"]
-                try:
-                    self.check_deadline()
-                    if count > MAX_ASSETS:
-                        raise FetchPolicyError("공지당 첨부 수 상한")
+            tasks.extend((kind, item, old.get(item["url"], {})) for item in getattr(notice, kind))
+        # 원래 배열은 바꾸지 않아 첨부 이름·번호·해시 순서를 보존한다.
+        tasks.sort(key=lambda task: not self.needs_download(task[2]))
+        for kind, item, old in tasks:
+            count += 1
+            url = item["url"]
+            try:
+                self.check_deadline()
+                if count > MAX_ASSETS:
+                    raise AssetLimit("asset_count")
+                if time.monotonic() - self.started >= MAX_RUN_SECONDS:
+                    raise AssetLimit("run_time")
+                if total >= MAX_NOTICE_BYTES:
+                    raise AssetLimit("notice_bytes")
+                key = (url, tuple(sorted(allowed_hosts)))
+                if key not in self.cache:
+                    if self.requests >= MAX_RUN_REQUESTS:
+                        raise AssetLimit("run_requests")
+                    if self.bytes >= MAX_RUN_BYTES:
+                        raise AssetLimit("run_bytes")
                     if time.monotonic() - self.started >= MAX_RUN_SECONDS:
-                        raise FetchPolicyError("실행당 첨부 시간 상한")
-                    if total >= MAX_NOTICE_BYTES:
-                        raise FetchPolicyError("공지당 첨부 총 크기 상한")
-                    key = (url, tuple(sorted(allowed_hosts)))
-                    if key not in self.cache:
-                        if (self.requests >= MAX_RUN_REQUESTS or self.bytes >= MAX_RUN_BYTES
-                                or time.monotonic() - self.started >= MAX_RUN_SECONDS):
-                            raise FetchPolicyError("실행당 첨부 예산 상한")
-                        self.requests += 1
-                        content = self.fetcher.get(url, allowed_hosts)
-                        self.bytes += len(content)
-                        if len(content) > MAX_FILE_BYTES:
-                            raise ResponseTooLarge("파일 크기 상한")
-                        if self.bytes > MAX_RUN_BYTES:
-                            raise FetchPolicyError("실행당 첨부 바이트 상한")
-                    else:
-                        content = private_path(self.data_dir, self.cache[key]).read_bytes()
-                    total += len(content)
-                    if total > MAX_NOTICE_BYTES:
-                        raise FetchPolicyError("공지당 첨부 총 크기 상한")
-                    digest = hashlib.sha256(content).hexdigest()
-                    relative = f"assets/{digest}.bin"
-                    target = private_path(self.data_dir, relative)
-                    # 파일이 이미 있어도 바이트를 확인해 로컬 손상을 복구한다.
-                    if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest() != digest:
-                        atomic_bytes(target, content)
-                    self.cache[key] = relative
-                    item.update(sha256=digest, local_path=relative, size_bytes=len(content), download_status="downloaded")
-                    if kind == "images":
-                        item.update(text_status="needs_review", text_reason="image_requires_visual_check")
-                    else:
-                        self.convert(item, target, digest)
-                except Exception as exc:
-                    # 현재 요청 실패를 성공으로 위장하지 않고 이전의 검증된 파일만 보존한다.
-                    for field in FILE_FIELDS:
-                        if field in old.get(url, {}):
-                            item[field] = old[url][field]
-                    status = exc.response.status_code if isinstance(exc, requests.HTTPError) and exc.response is not None else None
-                    permanent = (isinstance(exc, FetchPolicyError)
-                                 or status is not None and 400 <= status < 500 and status not in (408, 425, 429))
-                    item.update(download_status="skipped" if permanent else "failed", download_error=type(exc).__name__)
-                    errors.append({"url": url, "error": "asset: " + type(exc).__name__,
-                                   "severity": "warning" if permanent else "error"})
+                        raise AssetLimit("run_time")
+                    self.requests += 1
+                    content = self.fetcher.get(url, allowed_hosts)
+                    self.bytes += len(content)
+                    if len(content) > MAX_FILE_BYTES:
+                        raise ResponseTooLarge("파일 크기 상한")
+                    if self.bytes > MAX_RUN_BYTES:
+                        raise AssetLimit("run_bytes")
+                else:
+                    content = private_path(self.data_dir, self.cache[key]).read_bytes()
+                total += len(content)
+                if total > MAX_NOTICE_BYTES:
+                    raise AssetLimit("notice_bytes")
+                digest = hashlib.sha256(content).hexdigest()
+                relative = f"assets/{digest}.bin"
+                target = private_path(self.data_dir, relative)
+                # 파일이 이미 있어도 바이트를 확인해 로컬 손상을 복구한다.
+                if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+                    atomic_bytes(target, content)
+                self.cache[key] = relative
+                item.update(sha256=digest, local_path=relative, size_bytes=len(content), download_status="downloaded")
+                item.pop("download_reason", None)
+                item.pop("download_error", None)
+                if kind == "images":
+                    item.update(text_status="needs_review", text_reason="image_requires_visual_check")
+                else:
+                    self.convert(item, target, digest)
+            except Exception as exc:
+                # 현재 요청 실패를 성공으로 위장하지 않고 이전의 검증된 파일만 보존한다.
+                for field in FILE_FIELDS:
+                    if field in old:
+                        item[field] = old[field]
+                status = exc.response.status_code if isinstance(exc, requests.HTTPError) and exc.response is not None else None
+                permanent = (isinstance(exc, FetchPolicyError)
+                             or status is not None and 400 <= status < 500 and status not in (408, 425, 429))
+                reason = (exc.reason if isinstance(exc, AssetLimit) else
+                          "file_bytes" if isinstance(exc, ResponseTooLarge) else
+                          "url_policy" if isinstance(exc, FetchPolicyError) else
+                          "run_deadline" if isinstance(exc, RunDeadlineExceeded) else
+                          "http_permanent" if permanent else "download_failed")
+                item.update(download_status="skipped" if permanent else "failed", download_error=type(exc).__name__,
+                            download_reason=reason)
+                errors.append({"url": url, "error": "asset: " + type(exc).__name__,
+                               "severity": "warning" if permanent else "error", "reason": reason})
         return errors

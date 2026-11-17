@@ -25,19 +25,21 @@
 종료 코드: 0 처리함 (모델 실패·상한으로 남은 공지는 경고. 다음 실행이 다시), 2 멈춤 (시작하지 못함·확인 호출 실패·
 격리 어긋남·같은 설정 문제 반복). 멈추면 묶음 파일을 덮어쓰지 않는다 (어제 묶음이 그대로 남는다).
 """
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
 
-from collector.asset_text import attachment_texts
+from collector.asset_text import attachment_names, attachment_texts
 from collector.config import load_sources
 from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
                               write_json)
 from extractor.images import INPUT_MARK as IMAGES_INPUT, image_refs, poster_images
-from extractor.prompt import PROMPT_VERSION, InputNotice, build_input, fit_attachments, is_result_notice, prompt_fingerprint
+from extractor.prompt import (PROMPT_VERSION, InputNotice, build_input, fit_attachments, is_result_notice,
+                              mask_student_ids, prompt_fingerprint)
 
 CONTEST_TYPES = {"competition", "hackathon"}  # pipeline/config/rules.toml activity_types 중 대회
 SKIPPED_NOTICE_KINDS = {"results", "cancellation"}
@@ -50,6 +52,7 @@ INPUTS = ["body", "attachments"]
 MAX_FAILURES = 3
 FAILURES_FILE = "_failures.json"
 RUNS_FILE = "_runs.jsonl"
+EMPTY_ATTACHMENT_HASH = hashlib.sha256(b"[]").hexdigest()
 
 
 def card_id_of(source_id: str, external_id: str) -> str | None:
@@ -145,11 +148,32 @@ def expected_inputs(notice: dict, use_images: bool) -> list[str]:
     return INPUTS
 
 
-def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str, use_images: bool = False) -> bool:
+def attachment_input_hash(notice: dict, data_dir: Path, attachments=None) -> str:
+    """원문 판과 별도로 실제 첨부 입력을 식별한다. 첨부 원문은 복제하지 않고 지문만 추가한다."""
+    attachments = attachment_texts(notice, data_dir) if attachments is None else attachments
+    fitted = [] if is_result_notice(str(notice.get("title") or "")) else fit_attachments(attachments)
+    values = [(name, mask_student_ids(text), clipped) for name, text, clipped in fitted]
+    encoded = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def same_attachment_input(entry: dict, notice: dict, digest: str) -> bool:
+    recorded = entry.get("attachment_input_hash")
+    if recorded is not None:
+        return recorded == digest
+    # 글자를 넣지 않았던 옛 캐시는 그대로 쓴다. 첨부를 넣었던 옛 결과는 한 번 재추출해 지문을 남긴다.
+    files = entry.get("files", [])
+    return (digest == EMPTY_ATTACHMENT_HASH and isinstance(files, list)
+            and not set(attachment_names(notice)).intersection(name for name in files if isinstance(name, str)))
+
+
+def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str, use_images: bool = False,
+               *, attachment_hash: str) -> bool:
     """같은 판·같은 입력(내용 해시)을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
     return (is_same_version(entry, notice) and entry.get("input_hash") == content_hash(notice) and entry.get("model") == model
             and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint
-            and entry.get("inputs") == expected_inputs(notice, use_images))
+            and entry.get("inputs") == expected_inputs(notice, use_images)
+            and same_attachment_input(entry, notice, attachment_hash))
 
 
 def bundle_of(card_id: str, notice: dict, entry: dict, cross: dict | None = None) -> dict:
@@ -201,11 +225,13 @@ def run_daily(args) -> int:
     has_card = {}
     for item in candidates:
         notice = item["notice"]
+        item["attachment_input_hash"] = attachment_input_hash(notice, args.notices.parent)
         entry = read_cache(args.cache, item["card_id"], notice)
-        if not args.force and is_current(entry, notice, args.model, fingerprint, args.images):
+        if not args.force and is_current(entry, notice, args.model, fingerprint, args.images,
+                                         attachment_hash=item["attachment_input_hash"]):
             continue
         if not args.force and _failure_count(failures, item["card_id"], notice, args.model, fingerprint,
-                                             expected_inputs(notice, args.images)) >= MAX_FAILURES:
+                                             expected_inputs(notice, args.images), item["attachment_input_hash"]) >= MAX_FAILURES:
             given_up.append(item["card_id"])
             continue
         has_card[item["card_id"]] = is_same_version(entry, notice)  # 옛 결과로라도 카드가 공개 중인지
@@ -241,7 +267,8 @@ def run_daily(args) -> int:
                 for item, entry in kept:
                     _persist_entry(args.notices.parent, item["notice"], entry)
                 meta["bundles"] = len(kept)
-                meta["stale_bundles"] = sum(not is_current(entry, item["notice"], args.model, fingerprint, args.images) for item, entry in kept)
+                meta["stale_bundles"] = sum(not is_current(entry, item["notice"], args.model, fingerprint, args.images,
+                                                           attachment_hash=item["attachment_input_hash"]) for item, entry in kept)
                 meta["waiting_new_version"] = sum(entry is not None and not is_same_version(entry, item["notice"]) for item, entry in entries)
                 crosses = [_current_cross(args, item, entry, fingerprint) for item, entry in kept]
                 meta["cross_bundles"] = sum(cross is not None for cross in crosses)
@@ -269,10 +296,12 @@ def _cross_dir(args) -> Path:
 def _current_cross(args, item: dict, entry: dict, fingerprint: str) -> dict | None:
     """그 카드의 주 결과와 같은 판·같은 입력·같은 프롬프트로 교차 검증 모델이 뽑은 결과. 없으면 None.
     주 결과가 옛 입력·옛 프롬프트면 교차 결과와 비교할 수 없으므로 쓰지 않는다."""
-    if not args.cross_model or not is_current(entry, item["notice"], args.model, fingerprint, args.images):
+    if not args.cross_model or not is_current(entry, item["notice"], args.model, fingerprint, args.images,
+                                             attachment_hash=item["attachment_input_hash"]):
         return None
     cross = read_cache(_cross_dir(args), item["card_id"], item["notice"])
-    return cross if is_current(cross, item["notice"], args.cross_model, fingerprint, args.images) else None
+    return cross if is_current(cross, item["notice"], args.cross_model, fingerprint, args.images,
+                               attachment_hash=item["attachment_input_hash"]) else None
 
 
 def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failures: dict) -> list[dict]:
@@ -281,10 +310,12 @@ def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failure
     items = []
     for item in candidates:
         entry = read_cache(args.cache, item["card_id"], item["notice"])
-        if not is_current(entry, item["notice"], args.model, fingerprint, args.images) or _current_cross(args, item, entry, fingerprint):
+        if (not is_current(entry, item["notice"], args.model, fingerprint, args.images,
+                           attachment_hash=item["attachment_input_hash"])
+                or _current_cross(args, item, entry, fingerprint)):
             continue
         if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint,
-                          expected_inputs(item["notice"], args.images)) >= MAX_FAILURES:
+                          expected_inputs(item["notice"], args.images), item["attachment_input_hash"]) >= MAX_FAILURES:
             continue
         items.append(item)
     return sorted(items, key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
@@ -348,6 +379,8 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             return
         source_id = str(notice.get("source_id") or "")
         attachments = attachment_texts(notice, args.notices.parent)  # 검증기도 같은 함수로 읽어 대조한다
+        attachment_hash = attachment_input_hash(notice, args.notices.parent, attachments)
+        item["attachment_input_hash"] = attachment_hash
         inputs = expected_inputs(notice, args.images)
         images = poster_images(notice, args.notices.parent) if IMAGES_INPUT in inputs else []
         if IMAGES_INPUT in inputs and not is_cross:
@@ -372,7 +405,9 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
             if error.kind == "model" and failures is not None:
                 failures[card_id] = {"version_id": notice.get("version_id"), "model": model, "prompt_fingerprint": fingerprint,
                                      "input_hash": content_hash(notice),
-                                     "inputs": inputs, "count": _failure_count(failures, card_id, notice, model, fingerprint, inputs) + 1,
+                                     "attachment_input_hash": attachment_hash,
+                                     "inputs": inputs, "count": _failure_count(failures, card_id, notice, model, fingerprint,
+                                                                                inputs, attachment_hash) + 1,
                                      "last_error": str(error)[:120]}
             print(f"[실패{' 교차' if is_cross else ''}] {card_id}: {error}", file=sys.stderr)
             last_errors = after_failure(error, last_errors)
@@ -386,6 +421,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
                     "model_id": result.models[0] if result.models else None, "prompt_version": PROMPT_VERSION,
                     # 입력 종류는 기대한 것으로 남긴다 (파일이 바뀌어 이미지를 못 넣었어도 매일 다시 부르지 않게. 넣은 것은 files)
                     "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice), "inputs": inputs,
+                    "attachment_input_hash": attachment_hash,
                     # 실제로 AI에 넣은 첨부·이미지 이름만 (명단 이름 첨부·합계 상한으로 빠진 것은 근거가 될 수 없다)
                     "files": [name for name, _, _ in fit_attachments(attachments)] + [image.name for image in images],
                     "extracted_at": now_text(), "output": result.output}
@@ -409,7 +445,8 @@ def _persist_entry(data_dir: Path, notice: dict, entry: dict) -> None:
         repo.close()
 
 
-def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str, inputs: list[str]) -> int:
+def _failure_count(failures: dict, card_id: str, notice: dict, model: str, fingerprint: str, inputs: list[str],
+                   attachment_hash: str) -> int:
     """같은 판·입력(내용·종류)·모델·프롬프트로 실패한 횟수 (어느 하나라도 바뀌면 0부터).
     입력 종류를 본다: 이미지를 넣어 3번 실패한 공지가 이미지를 끈 뒤에도 포기 상태로 남지 않게 (반대도)."""
     record = failures.get(card_id)
@@ -417,6 +454,9 @@ def _failure_count(failures: dict, card_id: str, notice: dict, model: str, finge
         return 0
     same = (record.get("version_id") == notice.get("version_id") and record.get("model") == model
             and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice)
+            and (record.get("attachment_input_hash") == attachment_hash
+                 or ("attachment_input_hash" not in record and not notice.get("attachments")
+                     and attachment_hash == EMPTY_ATTACHMENT_HASH))
             and record.get("inputs", INPUTS) == inputs)  # 입력 종류가 없는 옛 기록은 글만 넣던 때 것
     count = record.get("count")
     return count if same and isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
