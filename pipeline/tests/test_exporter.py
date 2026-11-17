@@ -23,7 +23,7 @@ from collector.models import Source
 from exporter.__main__ import main as cli_main
 from exporter.cards import (
     CARD_FIELDS, MAX_CARD_QUOTE_CHARS, MAX_EVIDENCE, MAX_QUOTE_CHARS, MAX_TEXT_CHARS, CardBundle, CardExportError,
-    CardSkipped, boards_from_sources, build_card, build_cards_json, write_cards_json,
+    CardSkipped, boards_from_sources, build_card, build_cards_json, drop_old_cards, write_cards_json,
 )
 from verifier.__main__ import verify_bundles
 from verifier.__main__ import write_json as verifier_write_json
@@ -784,6 +784,47 @@ class ExporterCliTests(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("보고를 쓰지 못해", errors)
             self.assertFalse(site_report.exists())
+            self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
+
+    def test_cli_skips_cards_posted_more_than_a_year_ago(self):
+        """게시 1년이 지난 공지는 공개하지 않고 [건너뜀]으로 남긴다. 종료 코드는 0 (#153)."""
+        with tempfile.TemporaryDirectory() as folder:
+            out, report_path = Path(folder) / "cards.json", Path(folder) / "export.json"
+            items = [bundle(card_id="old-card", notices=[dict(NOTICE, published_at="2025-11-04T10:00:00+09:00")]),
+                     bundle(card_id="year-ago", notices=[dict(NOTICE, published_at="2025-11-05T10:00:00+09:00")]),
+                     bundle()]
+            code, errors = self.run_cli(self.bundle_json(items), out, ["--report", str(report_path)])
+            self.assertEqual(code, 0, errors)
+            self.assertEqual([card["id"] for card in json.loads(out.read_text(encoding="utf-8"))["cards"]],
+                             ["year-ago", "ai-literacy-2026"])
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["skipped"], [{"id": "old-card", "reason": "게시 1년이 지난 공지 (최근 게시 2025-11-04)"}])
+            self.assertIn("[건너뜀] old-card", errors)
+
+    def test_old_card_with_a_recent_source_stays(self):
+        """같은 대회 묶음으로 합친 카드는 가장 최근 출처 공지로 본다 (옛 공지와 새 공지가 묶이면 남긴다)."""
+        card = {"id": "merged", "sources": [{"posted_at": "2026-10-01"}, {"posted_at": "2024-07-23"}]}
+        old = {"id": "old", "sources": [{"posted_at": "2024-07-23"}]}
+        kept, skipped = drop_old_cards([card, old], GENERATED_AT)
+        self.assertEqual(kept, [card])
+        self.assertEqual([item["id"] for item in skipped], ["old"])
+
+    def test_old_card_compares_korean_dates(self):
+        """generated_at이 UTC 표기여도 한국 날짜로 비교한다 (posted_at이 한국 날짜라서)."""
+        year_ago = {"id": "year-ago", "sources": [{"posted_at": "2025-11-05"}]}
+        # 한국 시각 2026-11-06 01:00 → 2025-11-05 게시는 366일 지남
+        self.assertEqual(drop_old_cards([year_ago], "2026-11-05T16:00:00Z")[0], [])
+        # 한국 시각 2026-11-05 23:00 → 365일, 남는다
+        self.assertEqual(drop_old_cards([year_ago], "2026-11-05T14:00:00Z")[0], [year_ago])
+
+    def test_cli_keeps_yesterday_file_when_every_card_is_old(self):
+        """모두 1년이 지나 0장이 되면 다른 0장과 같이 멈추고 어제 cards.json을 둔다."""
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder) / "cards.json"
+            out.write_text('{"keep": true}', encoding="utf-8")
+            old = bundle(notices=[dict(NOTICE, published_at="2024-07-23T10:00:00+09:00")])
+            code, errors = self.run_cli(self.bundle_json([old]), out)
+            self.assertEqual(code, 2, errors)
             self.assertEqual(out.read_text(encoding="utf-8"), '{"keep": true}')
 
     def test_cli_requires_verifier_stamp(self):
