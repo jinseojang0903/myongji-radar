@@ -61,6 +61,8 @@ EVIDENCE_LOCATIONS = {"제목", "본문", "이미지", "첨부"}
 # 신청 링크는 이 위치의 근거가 있을 때만 버튼으로 낸다 (#157). 포스터 글자는 원문과 대조하지 못하고, 구글 폼은
 # 누구나 만들 수 있어 포스터 속 지시문이 엉뚱한 폼으로 이어질 수 있다. 첨부도 글자를 뽑지 못한 것이 같은 위치로 와서 뺀다
 LINK_EVIDENCE_LOCATIONS = {"제목", "본문"}
+# 검증기가 글자로 대조하지 못하는 근거 위치 (verifier/checks.py unchecked_sources). 사람 검수로 올릴 수 있는 표시의 전제 (#121)
+UNCHECKED_LOCATIONS = {"이미지", "첨부"}
 SCOPES = {"교내", "외부"}
 STAGE_NAMES = {"신청", "출품", "예선", "본선", "발표", "시상", "기타"}
 # 마감 단계 (site/js/ics.js DEADLINE_STAGES와 같다). 나머지는 그날 열리는 일정이라 날짜가 하나면 그 날짜가 곧 end다
@@ -144,7 +146,8 @@ class CardBundle:
         사람이 값을 고쳤으면 고친 값을 extraction에 반영해서 넘긴다.
     statuses: 항목 이름 → 검증 결과. {"status": "auto_verified" | "human_verified" | "needs_check",
         "checked_value": 검증한 v0.2 값, "note": 이유, "evidence_failed": 근거를 원문에서 못 찾았으면 true,
-        "by": 쓴 도구 (검증기는 "verifier"), "checked_evidence": 사람이 검수한 근거 (verifier.checks.evidence_fingerprint)}.
+        "by": 쓴 도구 (검증기는 "verifier"), "checked_evidence": 사람이 검수한 근거 (verifier.checks.evidence_fingerprint),
+        "unchecked_only": 내린 이유가 대조할 글자가 없는 출처뿐이면 true (#121, 공개 항목의 reviewable)}.
         사람 검수 기록만 이 밖에서 넣는다 (AI 출력에서 채우지 않는다).
         검증 통과는 checked_value가 지금 extraction 값과 같을 때만 쓴다 (재추출로 값이 바뀌면 "ai"로 내림).
         "needs_check" 문자열만 줘도 된다. 항목이 없으면 "ai"(검증 전).
@@ -408,6 +411,8 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
         return _make_field(None, "missing", [], [], [], ai_note)
 
     status_hint, verification_note, evidence_failed = _verification(verification, raw_value)
+    unchecked_only = (status_hint == "needs_check" and isinstance(verification, dict)
+                      and verification.get("unchecked_only") is True and verification.get("checked_value") == raw_value)
     evidence, evidence_problems = _evidence(raw.get("evidence"), notices, context)
     problems += evidence_problems
     if evidence_failed:
@@ -445,10 +450,20 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
         # 학생도 mju.ac.kr을 써서 부서 메일인지 사람이 확인해야 공개한다. 근거가 없어 검수 완료가 풀린 경우도 비운다
         value = {**value, "email": ""}
         notes.append("문의 이메일은 사람이 검수하기 전이라 비움")
-    if name == "how_to_apply" and value.get("url") and not any(item["location"] in LINK_EVIDENCE_LOCATIONS for item in evidence):
+    link_dropped = name == "how_to_apply" and bool(value.get("url")) and not any(
+        item["location"] in LINK_EVIDENCE_LOCATIONS for item in evidence)
+    if link_dropped:
         value = {**value, "url": None}
         notes.append("신청 링크를 공지 제목·본문에서 확인하지 못해 비움 (출처 공지에서 확인)")
-    return _make_field(value, status, evidence, problems, notes, ai_note)
+    item = _make_field(value, status, evidence, problems, notes, ai_note)
+    # 사람이 포스터·첨부를 보고 검수로 올릴 수 있는 항목 (#121). 값을 고쳤거나(링크 비움 포함) 지시문이 의심되면 한쪽만
+    # 대조하고 올리게 되므로 막는다. 공개 근거에 포스터·첨부가 남아 있어야 한다: 상한으로 잘려 글 근거만 남으면 검수자가
+    # 낮춘 이유를 모른 채 글만 보고 올릴 수 있다. 연도 추정은 막지 않는다 (포스터와 대조하는 것이 검수의 목적)
+    if (unchecked_only and status == "needs_check" and flag == "found" and not problems and not evidence_failed
+            and not has_warnings and not link_dropped and name != "contact"
+            and any(entry["location"] in UNCHECKED_LOCATIONS for entry in evidence)):
+        item["reviewable"] = True
+    return item
 
 
 def _make_field(value, status: str, evidence: list[dict], problems: list[str], notes: list[str], ai_note: str) -> dict:

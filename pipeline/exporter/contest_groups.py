@@ -120,8 +120,13 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
             filled.append(name)
     for name in JUDGED_FIELDS:
         item = merged["fields"].get(name)
-        if item is not None and item.get("status") in LOWERABLE and (
-                _differs(newest_first, name) or _uncertain_elsewhere(newest_first, name)):
+        if item is None:
+            continue
+        disputed = _differs(newest_first, name) or _uncertain_elsewhere(newest_first, name)
+        if disputed:
+            # 검수자는 최신 공지 근거만 보고 대조하게 되므로 사람 검수로 올릴 수 있다는 표시를 지운다 (#121)
+            item.pop("reviewable", None)
+        if item.get("status") in LOWERABLE and disputed:
             item["status"] = "needs_check"
             item["note"] = _with_note(item.get("note"))
             notes.append(f"{name} 다름")

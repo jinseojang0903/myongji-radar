@@ -365,7 +365,7 @@ def evidence_fingerprint(evidence) -> list:
                   key=lambda entry: (entry[0], entry[1], entry[2] or "", entry[3]))
 
 
-def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) -> dict:
+def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck], cross_extraction=None) -> dict:
     """기존 statuses에 검증 결과를 더한다.
 
     - 이 도구가 전에 쓴 항목(by: verifier)은 지운다. 그때 덮어쓴 사람 검수 기록(previous)이 있으면 되살려 다시 판단한다.
@@ -376,9 +376,11 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
     - 상식 문제만: needs_check. 단 믿을 수 있는 사람 검수는 그대로 둔다.
     - 대조할 글자가 없는 출처(이미지·글자를 뽑지 못한 첨부)의 근거: needs_check (근거는 남긴다: evidence_failed가 아니다).
       그대로 두면 "AI 정리"로 공개되는데, 포스터 속 주입·잘못 읽은 값이 글 근거보다 덜 의심받게 된다 (보안 리뷰).
-      믿을 수 있는 사람 검수(지금 값이 검수한 값과 같고 근거 문제가 없음)는 그대로.
+      믿을 수 있는 사람 검수(지금 값이 검수한 값과 같고 근거 문제가 없음)는 그대로. 이유가 이것뿐이면 unchecked_only: true (#121).
+      단 주 모델이나 교차 모델(cross_extraction) 어느 쪽이든 지시문을 의심했으면 붙이지 않는다 (cross_verify와 같은 기준).
     - 통과·그 밖의 대조 불가: 기존 값을 그대로 둔다 (올리지 않는다).
     """
+    warned = any(isinstance(source, dict) and source.get("warnings") for source in (extraction, cross_extraction))
     statuses = {}
     for name, entry in (existing.items() if isinstance(existing, dict) else []):
         if isinstance(entry, dict) and entry.get("by") == VERIFIER:
@@ -404,6 +406,10 @@ def merge_statuses(existing, extraction: dict, checks: dict[str, FieldCheck]) ->
         reasons = check.failures + ([human_problem] if human_problem else []) + unchecked
         entry = {"status": "needs_check", "checked_value": value, "note": "; ".join(dict.fromkeys(reasons)),
                  "evidence_failed": bool(check.evidence_failures or human_problem), "by": VERIFIER}
+        if unchecked and not check.failures and not human_problem and not warned:
+            # 내린 이유가 대조할 글자가 없는 출처뿐: 사람이 그 출처를 보면 검수로 올릴 수 있다 (#121). 내보내기가 다른
+            # 이유(값 고침·지시문 의심·묶음 충돌)를 더 보고 공개 카드의 reviewable을 정한다
+            entry["unchecked_only"] = True
         if is_human:
             entry["previous"] = previous  # 다시 검증해 문제가 사라지면 되살린다
         statuses[name] = entry

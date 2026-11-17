@@ -28,7 +28,14 @@ MAX_FILE_BYTES = 256 * 1024  # 카드 수십 장 × 항목 열 개도 이 안에
 # "AI 정리"와 "자동 검증 통과"(근거 대조·다른 모델 일치)만 올린다. "원문 확인 필요"는 이유가 여럿이다
 # (내보내기가 값을 고침, 공지끼리 충돌, 지시문 의심 등). 공개 화면에는 그 구분이 없어 검수하는 사람이 한쪽만
 # 대조하고 "검수 완료"로 만들 수 있다 (충돌이면 출처별 근거 펼침도 사라짐). 그런 항목은 이슈로 남긴다.
+# 예외: 내보내기가 reviewable을 붙인 "원문 확인 필요"는 이유가 포스터·글자 없는 첨부뿐이라 사람이 그 출처를 보면
+# 올릴 수 있다 (#121, is_promotable).
 PROMOTABLE = {"ai", "auto_verified"}
+
+
+def is_promotable(item: dict) -> bool:
+    """검수 기록으로 "검수 완료"까지 올릴 수 있는 상태인가 (scripts/review_card.mjs의 isPromotable과 같다)."""
+    return item.get("status") in PROMOTABLE or (item.get("status") == "needs_check" and item.get("reviewable") is True)
 
 
 class ReviewsError(ValueError):
@@ -120,11 +127,11 @@ def apply_reviews(card: dict, reviews: dict[tuple[str, str], dict], warnings: li
         item = card["fields"].get(name)
         if not isinstance(item, dict) or item.get("status") == "human_verified":
             continue
-        if item.get("status") not in PROMOTABLE:
+        if not is_promotable(item):
             # 원인이 값·근거 차이가 아니므로 다시 검수해도 풀리지 않는다고 알린다 (같은 대회 묶음에서 공지마다 값이 달라
             # 낮춘 항목 포함, #16·#121)
             if item.get("status") == "needs_check":
-                warnings.append(f"{name}이(가) '원문 확인 필요' 상태라 검수 기록으로 올리지 않음 (출처끼리 값이 다르거나 값을 고친 항목, #121)")
+                warnings.append(f"{name}이(가) '원문 확인 필요' 상태라 검수 기록으로 올리지 않음 (값 고침·출처 충돌·근거 실패·지시문 의심 등, #121)")
             else:
                 warnings.append(f"{name}이(가) 검수로 올릴 수 없는 상태({item.get('status')})라 검수 기록을 쓰지 않음")
             continue
@@ -134,6 +141,7 @@ def apply_reviews(card: dict, reviews: dict[tuple[str, str], dict], warnings: li
             warnings.append(f"{name} 검수 기록이 지금 값·근거와 달라 쓰지 않음 (다시 검수)")
             continue
         item["status"] = "human_verified"
+        item.pop("reviewable", None)
         note = f"팀이 원문과 대조함 ({review['since']})"
         item["note"] = _clip(f"{note} / {item['note']}" if item.get("note") else note, MAX_TEXT_CHARS)
     return touched

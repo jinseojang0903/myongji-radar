@@ -41,6 +41,23 @@ test('원문 확인 필요 항목은 칸을 만들지 않고 이슈로 남기라
   assert.deepEqual(needsCheckItems(card), [{ name: 'apply', label: '신청기간', note: '내보내기 검사: 마감이 시작보다 빠름' }]);
 });
 
+test('포스터·첨부만 이유인 원문 확인 필요(reviewable)는 칸을 만든다 (#121)', async () => {
+  const card = structuredClone(EXPORTED.cards[0]);
+  for (const name of REVIEWABLE_FIELDS) card.fields[name].status = 'ai';
+  card.fields.apply.status = 'needs_check';
+  card.fields.apply.reviewable = true;
+  const apply = reviewItems(card, '2026-11-16').find((item) => item.name === 'apply');
+  assert.ok(apply, '칸을 만든다');
+  assert.equal(apply.status, 'needs_check');
+  assert.ok(!needsCheckItems(card).some((item) => item.name === 'apply'), '이슈로 남길 목록에는 넣지 않는다');
+  card.fields.apply.reviewable = 'true';
+  assert.ok(!reviewItems(card, '2026-11-16').some((item) => item.name === 'apply'), 'true가 아니면 올리지 않는다');
+  card.fields.apply.reviewable = true;
+  const lines = [];
+  await main([card.id, '--file', 'x'], { log: (line) => lines.push(line), load: async () => ({ cards: [card] }) });
+  assert.ok(lines.some((line) => line.includes('원문 확인 필요 (포스터·첨부를 직접 보고 대조)')));
+});
+
 test('터미널을 조작하는 제어 문자는 출력하지 않는다', async () => {
   const data = structuredClone(EXPORTED);
   data.cards[0].title = '대회\u001b[31m빨강‮';
