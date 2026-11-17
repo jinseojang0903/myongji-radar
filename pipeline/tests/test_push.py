@@ -11,6 +11,7 @@ from unittest import mock
 
 from publisher import __main__ as publisher
 from publisher import push
+import runtime
 from publisher.push import CARDS, PushError, prepare, push_cards
 
 # 개발자 PC의 전역 설정(서명·훅 경로)에 시험이 흔들리지 않게
@@ -203,10 +204,10 @@ def _failing_push(real):
 
 
 class PublisherPushTests(unittest.TestCase):
-    def run_cli(self, *extra):
+    def run_cli(self, *extra, synchronized=False):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
-            code = publisher.main(["--model", "sonnet", *extra])
+            code = publisher.main(["--model", "sonnet", *extra], synchronized=synchronized)
         return code, stderr.getvalue()
 
     def test_push_guards(self):
@@ -214,22 +215,22 @@ class PublisherPushTests(unittest.TestCase):
             code, log = self.run_cli("--push", "--out", str(Path(folder) / "cards.json"), "--data-dir", folder)
             self.assertEqual(code, 2, "저장소의 site/data/cards.json이 아니면 올리지 않는다")
             self.assertIn("--out을 바꾸지 않기", log)
-            with mock.patch.object(publisher, "prepare", side_effect=PushError("main 브랜치에서만 올린다")):
+            with mock.patch.object(runtime, "prepare", side_effect=PushError("main 브랜치에서만 올린다")):
                 code, log = self.run_cli("--push", "--data-dir", folder)
             self.assertEqual(code, 2, "준비가 안 되면 아무 단계도 돌리지 않는다")
-            entry = json.loads((Path(folder) / "publish_logs").glob("*.jsonl").__next__().read_text(encoding="utf-8").splitlines()[-1])
-            self.assertEqual((entry["stages"], entry["stopped"]), ([], "올리기 준비 실패: main 브랜치에서만 올린다"),
+            entry = json.loads((Path(folder) / "logs").glob("runtime-*.jsonl").__next__().read_text(encoding="utf-8").splitlines()[-1])
+            self.assertEqual((entry["phase"], entry["exit_code"], entry["error_type"]), ("prepare", 2, "PushError"),
                              "준비 실패도 기록에 남긴다")
-            with mock.patch.object(publisher, "prepare"), mock.patch.object(publisher, "check_analysis"), \
+            with mock.patch.object(publisher, "check_analysis"), \
                     mock.patch.object(publisher, "run_stage", return_value=0), \
                     mock.patch.object(publisher, "push_cards", side_effect=PushError("git push 실패 (종료 코드 1)")):
-                code, log = self.run_cli("--push", "--data-dir", folder)
+                code, log = self.run_cli("--push", "--data-dir", folder, synchronized=True)
             self.assertEqual(code, 3, "카드는 썼지만 올리지 못하면 3")
             self.assertIn("[올리기 실패]", log)
-            with mock.patch.object(publisher, "prepare"), mock.patch.object(publisher, "check_analysis"), \
+            with mock.patch.object(publisher, "check_analysis"), \
                     mock.patch.object(publisher, "run_stage", return_value=1), \
                     mock.patch.object(publisher, "push_cards", return_value="pushed"):
-                code, log = self.run_cli("--push", "--data-dir", folder)
+                code, log = self.run_cli("--push", "--data-dir", folder, synchronized=True)
             self.assertEqual(code, 1, "올렸어도 내보내기 경고(1)는 그대로 알린다")
             self.assertIn("[올림] cards.json을 main에 올림", log)
 

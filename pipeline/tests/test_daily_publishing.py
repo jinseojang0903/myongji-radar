@@ -274,7 +274,9 @@ class DailyPublishingTests(unittest.TestCase):
                 load_publishing(self.settings)
 
     def test_call_publisher_discards_external_output_and_returns_exit_code(self):
-        def publisher(argv):
+        def publisher(argv, *, lock_held, synchronized):
+            self.assertTrue(lock_held)
+            self.assertTrue(synchronized)
             print("PRIVATE_PUBLISH_SECRET")
             raise SystemExit(3)
         output = io.StringIO()

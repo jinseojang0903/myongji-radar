@@ -9,8 +9,9 @@
 
 **한 단계라도 실패하면 거기서 멈춘다** (앞 단계가 0이 아니면 다음을 돌리지 않는다. 옛 묶음을 오늘 원문으로 내보내면
 바뀐 공지의 옛 값이 공개될 수 있다). 그래서 멈추면 cards.json은 어제 그대로다.
-예약 등록·동시 실행 잠금은 매일 수집(#31, `scripts/`)이 맡는다: 수집 → 규칙 분석 → 이 명령을 **같은 잠금 안에서** 부른다
-(확인과 사용 사이에 다음 수집이 원문을 바꾸지 않게). cards.json을 main에 올리는 배포는 아래 `--push`.
+수동 실행도 CollectorLock을 얻는다. 일일 실행의 내부 호출만 이미 보유한 잠금을 재사용한다.
+--push는 잠금 안에서 코드를 갱신한 뒤 새 Python에서 단계를 실행한다 (#149).
+cards.json을 main에 올리는 배포는 아래 `--push`.
 
 단계별 기록: `data/publish_logs/<날짜>.jsonl` (단계·종료 코드·걸린 시간·건수·추출 요약·내보내기 보고 건수.
 공지 내용·오류 메시지 없음). 내보내기가 뺀 카드·확인할 일의 카드 id와 사유는 같은 폴더의 `<시각>-export.json`.
@@ -25,16 +26,18 @@
     3  --push: cards.json은 새로 썼지만 올리지 못함 (실패로 알린다. 로컬 커밋은 남고 다음 실행이 정리해 올린다)
 """
 import argparse
+import contextlib
 import hashlib
 import json
 import sys
 import time
 from pathlib import Path
 
+from collector.locking import AlreadyRunning, CollectorLock
 from exporter.__main__ import main as export_main
 from extractor.__main__ import main as extract_main
 from extractor.common import now_text
-from publisher.push import CARDS, PushError, prepare, push_cards
+from publisher.push import CARDS, PushError, push_cards
 from verifier.__main__ import main as verify_main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,26 +79,23 @@ def run_stage(name: str, entry, argv: list[str], log: list[dict], ok_codes=(0,))
     return code
 
 
-def publish(args) -> int:
+def valid_paths(args) -> bool:
     data = args.data_dir
     if data.resolve().is_relative_to(SITE.resolve()):
         # 추출 묶음·캐시에는 정리 전 인용문·연락처가 있다. 검증기의 site 검사보다 먼저 막는다
         print("[멈춤] --data-dir이 공개 폴더 site/ 안이라 시작하지 않음", file=sys.stderr)
-        return 2
+        return False
     repo = ROOT.parent
     if args.push:
         if args.out.resolve() != (repo / CARDS).resolve():
             print(f"[멈춤] --push는 저장소의 {CARDS.as_posix()}만 올린다 (--out을 바꾸지 않기)", file=sys.stderr)
-            return 2
-        try:
-            prepare(repo)  # 돌리기 전에: main에서 원격에 맞춘다 (안 되면 아무 단계도 돌리지 않는다)
-        except PushError as error:
-            print(f"[멈춤] 올리기 준비 실패: {error}", file=sys.stderr)
-            try:
-                _write_log(data, now_text(), [], {"stopped": f"올리기 준비 실패: {error}"})  # 며칠째 실패해도 기록에 보이게
-            except OSError as log_error:  # 기록을 못 써도 결과(2)는 그대로 알린다
-                print(f"[주의] 단계 기록을 쓰지 못함 ({type(log_error).__name__})", file=sys.stderr)
-            return 2
+            return False
+    return True
+
+
+def publish(args) -> int:
+    data = args.data_dir
+    repo = ROOT.parent
     notices, analysis = data / "notices.json", data / "analysis.json"
     bundles, verified = data / "card_bundles.json", data / "card_bundles.verified.json"
     log: list[dict] = []
@@ -200,10 +200,7 @@ def _write_log(data: Path, started_at: str, stages: list[dict], outcome: dict) -
         file.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def main(argv=None) -> int:
-    for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8")
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="명지레이더 매일 공개 (추출 → 근거 대조 → cards.json)")
     parser.add_argument("--model", required=True, help="claude --model 값 (모델 비교 #9로 정한 모델)")
     parser.add_argument("--cross-model", default=None,
@@ -218,13 +215,53 @@ def main(argv=None) -> int:
     parser.add_argument("--timeout", type=int, default=300, help="호출 하나의 제한 시간(초)")
     parser.add_argument("--use-env-account", action="store_true", help="ANTHROPIC_API_KEY 등 환경변수 계정으로 (본인 키일 때만)")
     parser.add_argument("--push", action="store_true", help="새로 쓴 cards.json 한 파일만 main에 커밋·푸시 (사이트 배포)")
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def cli_main(argv=None, *, args=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    args = args if args is not None else parse_args(argv)
+    if not valid_paths(args):
+        return 2
+    if not args.push:
+        return main(argv)
+    from runtime import launch
     try:
-        return publish(args)
+        # 자식의 작업 폴더가 달라도 호출자가 지정한 상대 경로의 뜻을 유지한다.
+        paths = ["--out", str(args.out.resolve())]
+        if "/" in args.claude or "\\" in args.claude:
+            paths += ["--claude", str(Path(args.claude).resolve())]
+        return launch("publisher", [*argv, *paths], args.data_dir)
+    except AlreadyRunning:
+        print("[멈춤] 같은 데이터로 다른 작업이 실행 중임", file=sys.stderr)
+        return 2
+    except PushError as error:
+        print(f"[멈춤] 올리기 준비 실패: {error}", file=sys.stderr)
+        return 2
+    except OSError as error:
+        print(f"[오류] 실행하지 못함 ({type(error).__name__})", file=sys.stderr)
+        return 2
+
+
+def main(argv=None, *, lock_held=False, synchronized=False) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+    args = parse_args(argv)
+    if not valid_paths(args):
+        return 2
+    if args.push and not synchronized:
+        return cli_main(argv, args=args)
+    try:
+        with contextlib.nullcontext() if lock_held else CollectorLock(args.data_dir):
+            return publish(args)
+    except AlreadyRunning:
+        print("[멈춤] 같은 데이터로 다른 작업이 실행 중임", file=sys.stderr)
+        return 2
     except OSError as error:
         print(f"[오류] 실행하지 못함 ({type(error).__name__})", file=sys.stderr)
         return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli_main())

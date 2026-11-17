@@ -230,7 +230,7 @@ except AlreadyRunning:
         backup, = (self.data / "state_backups").glob("*.bin")
         self.assertEqual(backup.read_bytes(), original)
         self.assertEqual(self.state()["reason"], "manual_state_recovery_skip_today")
-        self.assertEqual(self.run_daily(), 0)
+        self.assertEqual(self.run_daily(), 1)  # 복구로 차단한 날도 성공으로 바꾸지 않는다.
         self.fetcher.get.assert_not_called()
         self.today = self.today.replace(day=5)
         self.assertEqual(self.run_daily(), 0)
