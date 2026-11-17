@@ -2,7 +2,7 @@
 // 마감 계산·필터·정렬은 cards.js(listCards)를 그대로 쓰고, 이 파일은 묶어서 그리기만 한다.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage, ddayLabel } from './cards.js';
-import { loadPage, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
@@ -33,16 +33,19 @@ async function main() {
     document.getElementById('summary-line').replaceChildren('대회 정보를 불러오지 못했습니다.');
     return;
   }
-  const { data, now, rejected, isSample } = page;
+  const { data, rejected, isSample } = page;
   renderTagChips();
   renderBoards(data.boards);
-  renderStats(data, now);
   document.getElementById('scope-date').textContent = `명지대 공개 게시판 ${data.boards.length}곳을 매일 살펴봅니다`;
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
-  const render = () => renderList(data, now, rejectedCardCount, isSample);
+  const render = (now = page.getNow()) => {
+    renderStats(data, now);
+    renderList(data, now, rejectedCardCount, isSample);
+  };
   bindFilters(render);
   render();
+  watchPageTime(page, render);
 }
 
 // 첫 화면 숫자: 필터와 상관없이 전체 기준. "마감 전 대회" 하나로 세면 마감일을 모르는 대회까지 신청 중처럼 보여 나눈다

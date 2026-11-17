@@ -2,7 +2,7 @@
 // 계산은 recommend.js·parser.js·rules.js(Node 테스트), 여기서는 그리기와 버튼만. 글자는 모두 el()/textContent로 넣는다.
 // 입력 문장과 "이해하지 못한 표현"은 저장하지도 보내지도 않는다 (이름·학번이 들어 있을 수 있음, 계약 5절).
 import { el } from './html.js';
-import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { latestDeadlineChange, deliverableTags, emptyListMessage } from './cards.js';
 import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
@@ -50,7 +50,7 @@ async function main() {
     document.getElementById('result-heading').textContent = '대회 정보를 불러오지 못했습니다';
     return;
   }
-  const { data, now, rejected } = page;
+  const { data, rejected } = page;
   // 게시판은 형식 검사에서 빠져도 카드 건수와 상관없다 (홈과 같은 기준)
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
   const saveStatus = document.getElementById('save-status');
@@ -58,7 +58,7 @@ async function main() {
   const render = () => {
     renderChips();
     renderParsed();
-    renderResults(data.cards, now, rejectedCardCount);
+    renderResults(data.cards, page.getNow(), rejectedCardCount);
     showConditionSummary(state.conditions);
   };
   // shouldSave=false: 화면에만 반영 (주소로 받은 문장은 학생이 칩·버튼을 누르기 전까지 저장하지 않는다)
@@ -76,7 +76,7 @@ async function main() {
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
   const readTitleQuery = () => {
     state.titleQuery = clipTitleQuery(titleInput.value);
-    renderResults(data.cards, now, rejectedCardCount);
+    renderResults(data.cards, page.getNow(), rejectedCardCount);
   };
   // 버튼으로 바꿀 때만 입력칸에 쓴다
   const setTitleQuery = (text) => {
@@ -127,6 +127,7 @@ async function main() {
   // 주소로 받은 문장이 공백뿐이거나 해석에 실패하면 interpret가 그리지 않아 결과가 "불러오는 중…"으로 남는다
   if (!hasRenderedResults) render();
   isReadyToAnnounce = true;
+  watchPageTime(page, (now) => renderResults(data.cards, now, rejectedCardCount));
 }
 
 // 주소의 #q= (또는 예전 ?q=)를 읽고 주소에서 지운다. 200자로 자른다
@@ -298,7 +299,7 @@ function renderItem({ card, judged, deadline, summary }) {
       announce(status, '자동 복사가 막혔습니다. 카드 보기에서 초안을 선택해 복사하세요.');
     }
   });
-  return el('div', { class: 'item', 'data-result': judged.result },
+  return el('div', { class: 'item', 'data-result': judged.result, 'data-card-id': card.id },
     el('div', { class: 'row' },
       el('span', { class: `badge ${view.cls}` }, view.text),
       el('span', { class: 'title' }, card.title),
