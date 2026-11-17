@@ -2,7 +2,7 @@
 
 ## 실행 경로
 
-`scripts/run_daily_collect.ps1` → `collector.daily --publish-config config/publishing.toml` → 수집 → 규칙 분석 → publisher(추출·검증·내보내기·카드 한 파일 main 푸시) 순서다. CollectorLock은 전체 구간에 유지한다. publisher 자체는 별도 잠금을 잡지 않으며 일일 실행기가 잠금을 보유한 상태로 호출한다.
+`scripts/run_daily_collect.ps1` → `collector.daily --publish-config config/publishing.toml` → 잠금 → 코드 동기화 → 새 Python 작업자에서 수집 → 규칙 분석 → publisher(추출·검증·내보내기·카드 한 파일 main 푸시) 순서다. 부모는 전체 구간에 CollectorLock을 유지하고 내부 publisher 호출은 이를 재사용한다. 수동 publisher도 같은 잠금을 얻으며 `--push`가 있으면 같은 코드 갱신·새 작업자 경계를 사용한다. 선택 근거와 경로별 동작은 [운영 실행 계약](runtime-safety.md)을 따른다.
 
 기존 예약 작업은 같은 스크립트를 호출하므로 병합 후 최신 main을 운영 PC에 받으면 새 흐름을 사용한다. 기본 설정은 `enabled=false`이므로 운영자가 켜기 전에는 수집·규칙 분석까지만 수행한다. 이 PR 작업에서 작업 스케줄러를 새로 등록/변경하거나 실제 운영 수집·AI 호출·공개를 실행하지 않는다.
 
@@ -54,6 +54,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_daily_collect.ps
 기록은 `data/daily_status.json`, `data/logs/<날짜>.jsonl`, `data/publish_logs/<날짜>.jsonl`이다. 원문·제목·근거 문장·외부 예외 메시지는 일일 로그에 남기지 않는다. 공개 상태·단계·종료 코드·고정 진단과 건수만 기록한다. 일일 JSONL의 `publish_finished.reason`은 `published`·`published_with_warnings`·`publish_stopped`·`push_failed` 중 하나이며 원본 stderr는 복사하지 않는다. 예외·잘못된 반환값은 `failed` 이벤트의 예외 종류와 `phase=publish`로 구분한다.
 
 ## 실패와 재시도
+
+#149부터 수집·분석 실패도 같은 날 재실행하면 1을 유지한다. `collecting`으로 남은 중단 상태와 복구로 오늘을 차단한 상태도 1이다. 코드 준비 실패는 `data/logs/runtime-YYYY-MM-DD.jsonl`을 확인하며, 수집 시작 전이므로 원인을 고친 뒤 당일 다시 실행할 수 있다. `--publish-config`가 있으면 `enabled=false`·`push=false`여도 코드 동기화를 수행하므로 Git 네트워크 연결이 필요하다. 설정 확인만 하는 `--dry-run`은 동기화하지 않는다.
 
 같은 날의 두 번째 일일 실행은 다시 수집하거나 AI를 부르거나 공개하지 않는다. 상태 파일을 지워 이 제한을 우회하지 않는다. 단, 직전 공개가 2·3이면 같은 날 재실행도 같은 실패 코드를 반환하며, 공개 중 예외·Ctrl+C·강제 종료이면 1을 반환한다. 상태 파일과 마지막 공개 결과를 유지해 예약 실행 결과가 성공으로 덮이지 않게 한다. 공개 직전에 진행 상태를 디스크에 저장하므로 강제 종료도 다음 실행이 실패로 감지한다. 공개만 자동 재시도하는 경로는 추가하지 않는다. 일시적 오류 재시도에도 AI 호출·Git 상태를 다시 판단해야 하므로 이번 변경은 리뷰에서 제안한 최소 대안인 실패 코드 유지를 택한다. 공개2·3이나 비정상 종료는 운영자가 로그를 확인한다. 푸시3의 카드/로컬 커밋은 기존 publisher 규칙에 따라 다음 정상 실행에서 정리해 올릴 수 있다. 당일 수동 publisher 재시도는 운영자가 계정·호출 상한·원문/분석 최신성·Git 상태를 확인한 뒤 판단한다.
 

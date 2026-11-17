@@ -107,12 +107,13 @@ def call_publisher(argv):
     from publisher.__main__ import main as publisher_main
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         try:
-            return publisher_main(argv)
+            return publisher_main(argv, lock_held=True, synchronized=True)
         except SystemExit as exc:
             return exc.code if type(exc.code) is int else 2
 
 
-def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TIMEOUT, publish_config=None):
+def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TIMEOUT, publish_config=None,
+              lock_held=False):
     if not math.isfinite(run_timeout) or run_timeout <= 0:
         raise ValueError("수집 시간 예산은 유한한 양수여야 합니다")
     data_dir, config, rules = Path(data_dir), Path(config), Path(rules)
@@ -130,7 +131,7 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
             log.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     try:
-        with CollectorLock(data_dir):
+        with contextlib.nullcontext() if lock_held else CollectorLock(data_dir):
             # 손상된 상태를 '처음 실행'으로 간주하면 같은 날 다시 요청할 수 있다.
             if state_path.exists():
                 try:
@@ -141,9 +142,12 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                          error_type=type(exc).__name__, recovery="collector.daily --recover-state", exit_code=1)
                     return 1
                 if previous_date == started.date() and previous["collection_attempted"]:
-                    # 재실행으로 공개 실패를 성공으로 덮지 않는다. 수집·AI는 반복하지 않는다.
-                    code = 0
-                    if previous.get("failure_phase") == "publish":
+                    # 수집·분석·공개 실패와 중단 상태를 재실행으로 성공으로 덮지 않는다.
+                    saved = previous.get("exit_code")
+                    code = saved if type(saved) is int and saved in (1, 2, 3) else 1
+                    if previous["status"] == "success" and (saved is None or type(saved) is int and saved == 0):
+                        code = 0
+                    elif saved is None and previous.get("failure_phase") == "publish":
                         published = previous.get("publish_exit_code")
                         code = published if type(published) is int and published in (2, 3) else 1
                     emit("skipped", reason="already_attempted_today", exit_code=code)
@@ -255,9 +259,7 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
         return 0
 
 
-def main():
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="하루 한 번 수집·규칙 분석과 비공개 운영 로그")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("--config", type=Path, default=ROOT / "config/sources.toml")
@@ -267,9 +269,37 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="설정만 확인. 수집·DB·날짜 상태 변경 없음")
     mode.add_argument("--recover-state", action="store_true", help="손상 상태 백업·복구. 오늘 수집은 차단하고 다음 날 재개")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
         parser.error("--run-timeout은 유한한 양수여야 합니다")
+    return parser, args
+
+
+def cli_main(argv=None, *, args=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    args = args if args is not None else parse_args(argv)[1]
+    if args.dry_run or args.recover_state or args.publish_config is None:
+        return main(argv)
+    from runtime import launch
+    from publisher.push import PushError
+    try:
+        paths = ["--config", str(args.config.resolve()), "--rules", str(args.rules.resolve()),
+                 "--publish-config", str(args.publish_config.resolve())]
+        return launch("daily", [*argv, *paths], args.data_dir)
+    except AlreadyRunning:
+        print("[건너뜀] 같은 데이터로 다른 작업이 실행 중임")
+        return 0
+    except (PushError, OSError) as error:
+        print(f"[멈춤] 일일 작업 준비 실패 ({type(error).__name__})", file=sys.stderr)
+        return 1
+
+
+def main(argv=None, *, lock_held=False, synchronized=False):
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser, args = parse_args(argv)
+    if args.publish_config is not None and not synchronized and not (args.dry_run or args.recover_state):
+        return cli_main(argv, args=args)
     if args.recover_state:
         code = recover_state(args.data_dir)
         print(f"상태 복구 종료 코드: {code}. 정상 상태는 유지하며, 손상 상태 복구 시 오늘 재수집은 차단됩니다.")
@@ -287,10 +317,10 @@ def main():
         print(f"설정 확인 완료: 출처 {len(sources)}곳, 데이터 경로 {args.data_dir}")
         return 0
     code = run_daily(args.data_dir, args.config, args.rules, run_timeout=args.run_timeout,
-                     publish_config=args.publish_config)
+                     publish_config=args.publish_config, lock_held=lock_held)
     print(f"일일 작업 종료 코드: {code}. 상태: {args.data_dir / 'daily_status.json'}")
     return code
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli_main())
