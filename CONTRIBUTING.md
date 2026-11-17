@@ -49,3 +49,7 @@
 
 - 팀장의 Claude 계정은 팀장만 쓴다. 팀원은 AI를 쓸 때 본인 계정을 쓴다.
 - AI로 만든 결과는 PR의 AI 사용 내역에 남긴다. 발표에 쓸 오류 사례는 PR에 `발표` 라벨을 붙여 둔다.
+- 화면 디자인 규칙(`STYLESEED.md`, `.styleseed/`)은 StyleSeed 스킬로 만들었다.
+  - 스킬 파일은 저장소에 올리지 않고 출처·해시만 `skills-lock.json`에 둔다. 다시 설치: `npx -y skills add bitjaru/styleseed -a codex claude-code -y --copy`. 설치한 판이 `.styleseed/manifest.json`의 `engineVersion`(5.0.0)과 같은지 확인한다.
+  - 화면을 고칠 때는 `/styleseed`로 실행한다. `.styleseed/` 파일은 생성물이라 손으로 고치지 않고, `STYLESEED.md`의 선택값을 바꿔 다시 만든다.
+  - 이미지 생성 기능은 쓰지 않는다(결선 공지의 이미지 생성 AI 제한, #122).
