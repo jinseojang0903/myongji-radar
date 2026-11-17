@@ -6,8 +6,8 @@
 - 후보: 규칙 분석이 활동 후보(candidate)로 보고 유형에 대회·해커톤이 있는 공지. 결과·취소 공지는 뺀다 (결과 공지는
   명단이 AI로 가지 않게 #14 완료 기준. 내보내기도 결과·취소 공지로는 카드를 만들지 않는다). 취소 공지는 사람이 원래
   모집 카드를 확인하도록 목록으로 알린다. 분석과 원문의 판이 다르거나 게시일이 없는 공지는 부르기 전에 뺀다.
-- **공지 하나 = 카드 하나:** 같은 대회의 여러 공지를 묶는 일(#16) 전까지의 임시 방식 (#29의 대안).
-  카드 id는 출처 id + 게시판 글 번호라 날마다 같다. 연장 공지는 원래 모집 카드와 별도 카드가 된다 (#16에서 묶는다).
+- **공지 하나 = 추출 결과 하나:** 카드 id는 출처 id + 게시판 글 번호라 날마다 같다. 같은 대회의 여러 공지(연장 공지 등)는
+  여기서는 따로 뽑고, 내보내기가 `config/contest_groups.toml`의 묶음대로 카드 한 장으로 합친다 (#16, #125).
 - 같은 공지 판(version_id)을 같은 모델·프롬프트(지문)로 이미 뽑았으면 다시 부르지 않는다 (`data/extractions/<카드 id>.json`).
   새 글·바뀐 글만 부르고, 한 번에 `--max-new`(기본 30)개까지.
 - **모델·프롬프트만 바꿨을 때는 다시 뽑는 동안 옛 결과로 카드를 남긴다** (원문이 같으므로).
@@ -170,7 +170,7 @@ def bundle_of(card_id: str, notice: dict, entry: dict, cross: dict | None = None
             "extraction": entry["output"],
             "cross_extraction": cross["output"] if cross else None,
             "statuses": {},  # 사람 검수 기록만 넣는다 (AI 출력에서 채우지 않는다)
-            "deadline_history": [],  # 같은 대회 공지 묶기(#16) 뒤에
+            "deadline_history": [],  # 같은 대회 묶음이면 내보내기가 채운다 (#125)
             "meta": {"prompt_version": entry.get("prompt_version"), "extract_model": entry.get("model_id") or entry.get("model"),
                      "merge_model": entry.get("model"), "merge_model_id": entry.get("model_id"),
                      "merge_prompt_fingerprint": entry.get("prompt_fingerprint"),
@@ -193,7 +193,7 @@ def run_daily(args) -> int:
     for warning in warnings:
         print(f"[뺌] {warning}", file=sys.stderr)
     for cancelled in cancellations:
-        # 공지 하나 = 카드 하나라 취소가 원래 모집 카드에 반영되지 않는다 (#16 전). 사람이 확인한다
+        # 취소 공지는 카드를 만들지 않고 원래 모집 카드에도 반영되지 않는다. 사람이 확인한다
         print(f"[취소 공지] {cancelled}: 같은 대회의 모집 카드를 사람이 확인", file=sys.stderr)
     fingerprint = prompt_fingerprint()
     failures = _read_failures(args.cache)
