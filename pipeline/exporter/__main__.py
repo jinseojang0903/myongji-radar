@@ -9,7 +9,9 @@
 (verifier/stamp.py). 표시가 없거나 지금 내용과 맞지 않는 묶음은 [뺌]으로 찍고 공개하지 않는다 (#19·#49).
 
 종료 코드 (#19는 0과 1일 때만 배포한다. 1이면 로그를 사람이 확인한다):
-    0  모두 내보냄 (대회가 아닌 추출 결과를 건너뛴 것은 문제가 아님)
+    0  모두 내보냄 (대회가 아닌 추출 결과·게시 1년이 지난 카드(#153)를 건너뛴 것은 문제가 아님. 다만 그렇게 빼서
+       0장이 되면 아래 2와 같이 멈춘다: 상류 장애와 구별하지 않고 어제 cards.json을 둔다. 사람이 검수한 카드가
+       1년 지나 빠지면 검수 기록이 남아 [확인]이 나오므로(종료 코드 1) human_reviews.toml에서 그 칸을 지운다)
     1  내보냈지만 뺀 카드(검증 표시가 맞지 않는 묶음 포함)나 확인할 일이 있음
     2  cards.json을 바꾸지 않음: 묶음 파일을 읽을 수 없음, generated_at 형식, 내보낼 카드가 0장(--allow-empty 없이),
        검증 표시가 맞는 묶음이 하나도 없음(--allow-empty여도),
@@ -36,7 +38,8 @@ from pathlib import Path
 
 from collector.config import load_sources
 from exporter.blocklist import BlocklistError, load_blocked
-from exporter.cards import CARD_ID_PATTERN, CardBundle, boards_from_sources, build_cards_json, write_cards_json
+from exporter.cards import (CARD_ID_PATTERN, CardBundle, boards_from_sources, build_cards_json, drop_old_cards,
+                            write_cards_json)
 from exporter.contest_groups import group_aliases, merge_groups
 from exporter.reviews import ReviewsError, apply_all, load_reviews
 from merger.groups import load_groups
@@ -112,7 +115,8 @@ def _to_bundle(item: dict) -> CardBundle:
 
 
 def build_and_merge(bundles, boards, generated_at, blocked, groups) -> tuple[dict, dict]:
-    """카드를 만들고(차단은 묶음 단위로) 같은 대회 묶음을 합친다. 보고에 "merged"를 더한다.
+    """카드를 만들고(차단은 묶음 단위로) 같은 대회 묶음을 합친 뒤, 게시 1년이 지난 카드를 뺀다(보고 skipped).
+    보고에 "merged"를 더한다.
 
     Raises:
         build_cards_json·merge_groups의 예외 (호출하는 쪽이 cards.json을 바꾸지 않는다)
@@ -124,6 +128,9 @@ def build_and_merge(bundles, boards, generated_at, blocked, groups) -> tuple[dic
     except Exception as error:  # 합치기가 깨져도 각자 검증된 카드로 공개한다 (검수 적용 실패와 같은 방식)
         report["merged"] = []
         report["warnings"].append({"id": "(묶음 설정)", "reason": f"같은 대회 묶음을 합치지 못해 합치지 않고 공개: {type(error).__name__}"})
+    # 합친 뒤에 거른다: 옛 공지와 새 공지가 묶인 대회는 새 공지 기준으로 남는다 (#153)
+    data["cards"], old = drop_old_cards(data["cards"], generated_at)
+    report["skipped"] += old
     return data, report
 
 
