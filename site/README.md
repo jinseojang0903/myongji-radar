@@ -8,7 +8,7 @@
 - 설정: Root Directory `site`, Framework Preset Other, 빌드 명령 없음. `site/` 밖의 파일(pipeline·eval·docs)은 공개되지 않는다 (2026-11-06 확인: `pipeline/README.md`·`docs/api-contract.md` 등 404).
 - `main`에 커밋이 들어오면 자동 배포된다. 작성자가 누구든 배포된다: 저장소를 공개로 바꾼 뒤(#64) 팀원 커밋도 배포되는 것을 확인했다 (2026-11-14 운영 PC의 카드 갱신 커밋 `c1e1b40`, 작성자 김경민, Vercel "Deployment has completed").
   - 공개 전에는 Vercel 무료(Hobby) 팀 + 비공개 저장소라, Vercel 팀 멤버가 아닌 사람의 커밋은 배포가 "Blocked"됐다.
-- `data/cards.json`이 아직 없어(404) 예시 데이터를 보여 주고 상단에 예시 안내가 뜬다.
+- 2026-11-14부터 운영 PC가 공개한 실제 카드(`data/cards.json`)를 보여 준다. 파일이 없으면(404) 예시 데이터로 돌아가고 상단에 예시 안내가 뜬다. 생성 시각이 36시간을 넘으면 "오래된 정보" 경고가 뜬다.
 
 ## 로컬에서 보기
 
@@ -43,7 +43,7 @@ python -m http.server 8000
 | `js/detail.js` | 카드 상세 계산: 항목 값 글·상태 배지, 근거, 신청 링크 호스트명, 마감 변경 이력, 문의 초안 (DOM 없음, Node 테스트) | #25 |
 | `js/ics.js` | 캘린더 파일(RFC 5545): 단계별 일정, D-3·D-1 알림, 시각 없는 마감은 하루 종일 (Node 테스트) | #25 |
 | `js/conditions.js` | 내 조건 브라우저 저장(`localStorage`, 계약 5절). 해석된 값만 저장 | #25, #24 |
-| `data/cards.json` | 파이프라인 출력 (`pipeline/exporter`, 매일 실행 #19에서 만듦. 아직 없음) | #17 |
+| `data/cards.json` | 파이프라인 출력 (`pipeline/exporter`. 운영 PC의 매일 공개가 만든다, #19·#129. 손으로 고치지 않는다) | #17 |
 | `data/cards.sample.json` | 계약 형식 예시 4건. 화면 개발용이며 상단에 "예시 데이터"로 표시된다 | #21 |
 
 ## 지키는 것
