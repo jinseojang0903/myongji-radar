@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "generated_at": "2026-11-17T09:20:56+09:00",
+  "generated_at": "2026-11-18T08:13:30+09:00",
   "boards": [
     {
       "id": "mju-startup",
@@ -60,991 +60,6 @@
   ],
   "cards": [
     {
-      "id": "mju-abix-aict-1394-220321",
-      "title": "2025학년도 한국통신학회 학부생 아이디어 경진대회",
-      "organizer": "AI·Bigdata·ICT융합교육사업단(ABI-X 사업단)",
-      "scope": null,
-      "sources": [
-        {
-          "board_id": "mju-abix",
-          "url": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do",
-          "title": "2025학년도 한국통신학회 학부생 아이디어 경진대회 및 취업박람회 참여 - 사전신청 안내",
-          "posted_at": "2025-04-18",
-          "last_seen_at": "2026-11-16T23:48:30.795659+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": {
-            "start": "2025-04-22 10:00",
-            "end": "2025-05-02 17:00",
-            "time_given": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3) 제출 기간: 4월 22일 오전 10시 ~ 5월 2일 오후 5시",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            }
-          ],
-          "note": "연도가 공지에 없어 게시일의 연도로 추정함 / 사전신청 서류 제출 기간. 정식 신청은 5월에 개별 확답으로 진행(날짜 미기재)"
-        },
-        "stages": {
-          "value": [
-            {
-              "name": "신청",
-              "end": "2025-05-02 17:00",
-              "time_given": true
-            }
-          ],
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3) 제출 기간: 4월 22일 오전 10시 ~ 5월 2일 오후 5시",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            }
-          ],
-          "note": "연도가 공지에 없어 게시일의 연도로 추정함 / 대회 본선·시상 일정은 공지에 없음"
-        },
-        "campus": {
-          "value": "any",
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "명지대학교 재학생임에 동의한다.",
-              "location": "첨부",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do",
-              "file": "[ABI-X사업단] 2025학년도 한국통신학회 학부생 아이디어경진대회 참가_참가 신청서 및 제출서류 양식.pdf"
-            }
-          ],
-          "note": "대상 문장에 캠퍼스 구분 없음. 다만 사업단 소속(융합전공) 학생으로 한정되는지 불명확"
-        },
-        "grades": {
-          "value": "any",
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "명지대학교 재학생임에 동의한다.",
-              "location": "첨부",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do",
-              "file": "[ABI-X사업단] 2025학년도 한국통신학회 학부생 아이디어경진대회 참가_참가 신청서 및 제출서류 양식.pdf"
-            }
-          ],
-          "note": "대상 문장에 학년 구분 없음. 사업단 소속 학생 한정 여부 불명확"
-        },
-        "enrollment": {
-          "value": {
-            "allowed": [
-              "재학"
-            ],
-            "excluded": []
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "명지대학교 재학생임에 동의한다.",
-              "location": "첨부",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do",
-              "file": "[ABI-X사업단] 2025학년도 한국통신학회 학부생 아이디어경진대회 참가_참가 신청서 및 제출서류 양식.pdf"
-            },
-            {
-              "quote": "(2) 첨부된 양식 및 재학증명서을",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            }
-          ],
-          "note": "재학증명서 제출 필요"
-        },
-        "team": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "deliverables": {
-          "value": {
-            "tags": [
-              "기타"
-            ],
-            "text": "사전신청: 온라인 설문 작성 + 참가 신청서·참가서약서·개인정보 동의서(자필 서명)와 재학증명서를 이메일로 제출"
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "신청 방법은 (1) 아래 링크에서 설문을 작성하고 (2) 첨부된 양식 및 재학증명서을",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            },
-            {
-              "quote": "*서명은 반드시 자필로 작성, 제출되야 하며, 타이핑된 서명은 인정하지 않습니다. (서명 이미지는 활용할 수 있습니다.)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            }
-          ],
-          "note": "신청 서류만 명시됨. 대회 출품물(아이디어 형식 등)은 공지에 없음"
-        },
-        "benefits": {
-          "value": null,
-          "status": "needs_check",
-          "evidence": [],
-          "note": "올해 시상 내용 없음. 전년도 대상 수상자에게 에릭슨LG 인턴십 기회가 주어졌다는 언급과 첨부에 '장학금 지급' 문구가 있으나 올해 혜택으로 확정 불가"
-        },
-        "mileage": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "구글폼 설문 작성 후, 첨부 양식(신청서·서약서·동의서)과 재학증명서를 담당자 이메일로 제출. 메일 제목·파일명: [학번-이름] 아이디어경진대회 참가 서류제출",
-            "url": "https://forms.gle/XdpvkMYNojGwk1KU8"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "1) 신청 링크: https://forms.gle/XdpvkMYNojGwk1KU8",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            },
-            {
-              "quote": "2) 서류 제출처: (학교 이메일 생략) (담당자)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            },
-            {
-              "quote": "*메일 제목 및 제출서류명: [학번-이름] 아이디어경진대회 참가 서류제출",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/220321/artclView.do"
-            }
-          ]
-        },
-        "contact": {
-          "value": {
-            "dept": "AI·Bigdata·ICT융합교육사업단(ABI-X 사업단)",
-            "email": "",
-            "phone": ""
-          },
-          "status": "ai",
-          "evidence": [],
-          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 이메일은 서류 제출처로 표기된 담당자 메일"
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
-      "id": "mju-abix-aict-1394-221067",
-      "title": "2025학년도 한국통신학회 학부생 아이디어경진대회",
-      "organizer": "ABI-X사업단(AI·Bigdata·ICT융합교육사업단)",
-      "scope": null,
-      "sources": [
-        {
-          "board_id": "mju-abix",
-          "url": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do",
-          "title": "2025학년도 한국통신학회 학부생 아이디어경진대회 및 취업박람회 참여 - 정규 신청 안내",
-          "posted_at": "2025-05-17",
-          "last_seen_at": "2026-11-16T23:48:24.875447+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": {
-            "start": null,
-            "end": "2025-05-19 12:00",
-            "time_given": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "5. 신청 기한 : 2025.05.19.(월) 12:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "시작일 미기재(원 공지 게시일 2025-05-16)"
-        },
-        "stages": {
-          "value": [
-            {
-              "name": "신청",
-              "end": "2025-05-19 12:00",
-              "time_given": true
-            },
-            {
-              "name": "기타",
-              "end": "2025-06-20",
-              "time_given": false
-            }
-          ],
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "5. 신청 기한 : 2025.05.19.(월) 12:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "6월 18일",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "6월 20일",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "아이디어 발표 및 시상식",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "* 세부일정은 사업단 사정에 따라 변경될 수 있음",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "연도가 공지에 없어 게시일의 연도로 추정함 / 단계 원문 표현: 학술발표회 참관·아이디어경진대회(팀구성·아이디어 발표… / 일정표가 깨져 아이디어 발표·시상식 날짜를 특정할 수 없어 행사 전체 기간만 기재. 6월 일정 연도는 게시일 기준 추정. 세부일정 변경 가능"
-        },
-        "campus": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "다. 명지대 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 캠퍼스 구분 없음"
-        },
-        "grades": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "다. 명지대 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 학년 구분 없음"
-        },
-        "enrollment": {
-          "value": {
-            "allowed": [
-              "재학"
-            ],
-            "excluded": [
-              "사전신청 기간 신청자"
-            ]
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "다. 명지대 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "* 사전신청 기간에 신청한 학생을 제외한 타 학생을 대상으로 한 공지입니다.",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "다. 신청학생은 신청서, 서약서, 개인정보활용 동의서, 재학증명서 제출 필수",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "총 20명 선발, ABI-X사업단 주관 연계전공 이수 재학생 우선 선발, 그다음 참여학과 소속 재학생"
-        },
-        "team": {
-          "value": {
-            "min": null,
-            "max": null,
-            "individual_ok": null
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "ABI-X사업단 주관 연계전공생 및 팀 단위 신청자 우선 선발",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "오리엔테이션 및 팀구성 아이디어 도출",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "팀 단위 신청자 우선 선발 및 현장 팀구성 언급만 있고, 팀 인원과 개인 신청 가능 여부는 명시되지 않음"
-        },
-        "deliverables": {
-          "value": {
-            "tags": [
-              "발표",
-              "현장 참가",
-              "기타"
-            ],
-            "text": "행사(6/18~6/20) 현장 참가, 조별 아이디어 도출·PPT 준비 후 아이디어 발표. 신청 시 신청서·서약서·개인정보활용 동의서·재학증명서 제출"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "조별 활동 PPT 준비",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "아이디어 발표 및 시상식",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "다. 신청학생은 신청서, 서약서, 개인정보활용 동의서, 재학증명서 제출 필수",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ],
-          "note": "경진대회 주제: 디지털공간, 로보틱스, AI의 융합을 통한 사회 문제 해결"
-        },
-        "benefits": {
-          "value": "참가비 무료(ABI-X사업단 전액 지원), ICT 인재 취업 박람회·학술발표회 무료 참관, 특성화 교육 훈련 장학금 선정 시 상점 반영(실무역량-수상실적). 상금·상장 내역은 미기재",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "6. 참 가 비 : 무료 (ABI-X사업단 전액 지원)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "[특전] - ICT 인재 취업 박람회 무료 참관",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "- 학술발표회 무료 참관 (해외석학 특별강연, 창업특별세션, 인더스트리 특별강연 등)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            },
-            {
-              "quote": "7. 학생 혜택 : 특성화 교육 훈련 장학금 선정 시 상점에 반영",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ]
-        },
-        "mileage": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "참가신청서를 이메일((학교 이메일 생략))로 제출. 서약서·개인정보활용 동의서·재학증명서도 함께 제출 필수(첨부 양식 참조)",
-            "url": null
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "4. 신청 방법 : 참가신청서 이메일 제출((학교 이메일 생략))",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/221067/artclView.do"
-            }
-          ]
-        },
-        "contact": {
-          "value": {
-            "dept": "ABI-X사업단",
-            "email": "",
-            "phone": "031-324-1128"
-          },
-          "status": "ai",
-          "evidence": [],
-          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 이메일은 문의처가 아닌 신청서 제출 주소로 적혀 있음"
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
-      "id": "mju-abix-aict-1394-222469",
-      "title": "2025 제4회 명지 창의적 SW프로그램 경진대회",
-      "organizer": "AI·Bigdata·ICT융합교육사업단(ABI-X사업단)",
-      "scope": "교내",
-      "sources": [
-        {
-          "board_id": "mju-abix",
-          "url": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do",
-          "title": "2025년도 제4회 창의적SW프로그램 경진대회 참가자 모집 안내",
-          "posted_at": "2025-07-09",
-          "last_seen_at": "2026-11-16T23:47:52.459449+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": {
-            "start": null,
-            "end": "2025-07-25 17:00",
-            "time_given": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "가. 접수기간 : 2025.07.25(금) 17:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "시작일 없이 마감만 적힘"
-        },
-        "stages": {
-          "value": [
-            {
-              "name": "신청",
-              "end": "2025-07-25 17:00",
-              "time_given": true
-            },
-            {
-              "name": "출품",
-              "end": "2025-08-20 17:00",
-              "time_given": true
-            },
-            {
-              "name": "예선",
-              "end": "2025-08-26",
-              "time_given": false
-            },
-            {
-              "name": "본선",
-              "end": "2025-08-29",
-              "time_given": false
-            }
-          ],
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "가. 접수기간 : 2025.07.25(금) 17:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "가. 제출기간 : 2025.08.20(수) 17:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "○ 일 시 : 8월 21일 ~ 26일",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "○ 일 시 : 8월 29일(금)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "연도가 공지에 없어 게시일의 연도로 추정함 / 입상작 발표·시상식은 '미정(9~10월 예정)'이라 제외. 일정은 변경될 수 있다고 명시됨. 발표심사 장소 미정"
-        },
-        "campus": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 캠퍼스 구분 없음"
-        },
-        "grades": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 학년 구분 없음"
-        },
-        "enrollment": {
-          "value": {
-            "allowed": [
-              "재학"
-            ],
-            "excluded": []
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "○ 재학증명서...참가자 각 1부 *2025학년도 6월 이후 발급본",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "'소속 재학생'에 대학원생이 포함되는지, 휴학생 가능 여부가 명시되지 않음"
-        },
-        "team": {
-          "value": {
-            "min": null,
-            "max": 4,
-            "individual_ok": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "□ 개인 □ 팀(최대4인)",
-              "location": "첨부",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do",
-              "file": "붙임2. 2025학년도 제4회 명지대학교 창의적SW프로그램 경진대회 참가신청서 및 개인정보 동의서.hwp"
-            },
-            {
-              "quote": "○ 대표자 선임계...1부(팀으로 참가할 경우)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "부문 동시 참여 불가, 신청자(팀)당 1건만 제출 가능"
-        },
-        "deliverables": {
-          "value": {
-            "tags": [
-              "기획서·제안서",
-              "영상",
-              "코드·개발",
-              "발표",
-              "기타"
-            ],
-            "text": "부문별 PPT 형식 명세서/계획서, 소스파일·실행파일(데이터셋) 일체, PPT 결과 보고서, 시연·발표 동영상(mp4, 5분 내외)을 USB에 담고 인쇄한 보고서 1부와 함께 방문 제출. 1차 통과 시 발표심사, 입상 시 A1 판넬 제출"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "- 관련 프로그램 소스파일 일체 … 1부",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "- 창작품 시연이나 발표 동영상(mp4형식으로 5분 내외) … 1부",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "- SW명세서(PPT형식) … 1부",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "나. 2차 발표심사(1차 서류심사 통과팀 대상)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "※ 입상작 선정 시, 작품을 요약 설명하는 판넬(A1 size 기준) 1부 제출예정",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ]
-        },
-        "benefits": {
-          "value": "부문별(SW개발·빅데이터분석·AI응용) 대상 100만원, 최우수상 70만원, 우수상 50만원, 장려상 30만원, 창작상 20만원과 상장(총장명), 총 15점. 팀은 상금 1/n 지급. 입상작 수·금액은 변동될 수 있음",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "창의적 SW프로그램 경진대회 상장 및 상금",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "총 15 점",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "※ 팀으로 참가한 경우 상금(장학금)은 1/n을 원칙으로 지급함",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "※ 참가팀 수와 심사 결과에 따라 장학금액 및 입상작 수는 다소 변동될 수 있음",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "상금표가 줄 단위로 풀려 있으나 상장명-상금-부문별 1팀 대응은 명확함. 상장 수여 명의는 변동 가능"
-        },
-        "mileage": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "2025.07.25 17:00까지 참가신청서·재학증명서·개인정보 활용동의서(팀은 대표자 선임계)를 ABI-X사업단 지정 양식으로 작성해 사업단 사무실(자연 제5공학관 Y5246호) 방문 또는 메일 접수. 우편 접수 불가",
-            "url": null
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "○ 방문 접수: 대학혁신-ABI-X사업단사무실 (자연) 제5공학관 2층, Y5246호",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "○ 메일 접수: (ABI-X사업단 담당자: 권윤아) (학교 이메일 생략)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            },
-            {
-              "quote": "나. 신청접수 및 출품작 제출은 우편접수 불가",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/222469/artclView.do"
-            }
-          ],
-          "note": "별도 신청 링크 없음"
-        },
-        "contact": {
-          "value": {
-            "dept": "ABI-X사업단",
-            "email": "",
-            "phone": "031-324-1128"
-          },
-          "status": "ai",
-          "evidence": [],
-          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 이메일은 메일 접수처로 적힌 주소"
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
-      "id": "mju-abix-aict-1394-226798",
-      "title": "2025 에듀테크 창의적 아이디어 해커톤 경진대회",
-      "organizer": "AI·Bigdata·ICT융합교육사업단(ABI-X사업단)",
-      "scope": "교내",
-      "sources": [
-        {
-          "board_id": "mju-abix",
-          "url": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do",
-          "title": "2025학년도 에듀테크 창의적 아이디어 해커톤 경진대회 모집 공고",
-          "posted_at": "2025-10-29",
-          "last_seen_at": "2026-11-16T23:47:36.933181+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": {
-            "start": null,
-            "end": "2025-11-12 17:00",
-            "time_given": true
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "가. 접수기간 : 2025.11.14(금) 17:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "2025.11.12.(수)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "참가 신청서 접수 마감",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "본문 4절 접수기간은 11.14(금) 17:00, 7절 일정표는 11.12(수) 17:00 마감으로 서로 다름. 안전하게 더 이른 날짜를 대표값으로 둠"
-        },
-        "stages": {
-          "value": [
-            {
-              "name": "신청",
-              "end": "2025-11-12 17:00",
-              "time_given": true
-            },
-            {
-              "name": "기타",
-              "end": "2025-11-20 18:00",
-              "time_given": true
-            },
-            {
-              "name": "본선",
-              "end": "2025-11-20 22:00",
-              "time_given": true
-            },
-            {
-              "name": "출품",
-              "end": "2025-11-21 10:00",
-              "time_given": true
-            },
-            {
-              "name": "본선",
-              "end": "2025-11-21 12:00",
-              "time_given": true
-            },
-            {
-              "name": "발표",
-              "end": "2025-11-21",
-              "time_given": false
-            },
-            {
-              "name": "시상",
-              "end": "2025-11-21 14:00",
-              "time_given": true
-            }
-          ],
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "가. 접수기간 : 2025.11.14(금) 17:00까지",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "참가 신청서 접수 마감",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "2025.11.20.(목)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "*해커톤경진대회 참가 학생들은 에듀테크페어 필참해야함",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "19:30~22:00",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "단계 원문 표현: 에듀테크페어 등록·특강(해커톤 참가자 필참), 해커톤 참가팀 등록·개회식·팀별 프로젝트 기획 및 개발, 해커톤 발표 및 심사 진행 / 신청 마감이 본문 4절(11.14)과 일정표(11.12)에서 다름. 일정표는 '(안)'이며 변동될 수 있다고 명시"
-        },
-        "campus": {
-          "value": [
-            "인문"
-          ],
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 인문캠퍼스 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ]
-        },
-        "grades": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 인문캠퍼스 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 학년 구분 없음"
-        },
-        "enrollment": {
-          "value": {
-            "allowed": [
-              "재학"
-            ],
-            "excluded": []
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "3. 참가자격: 명지대학교 소속 인문캠퍼스 재학생",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "○ 재학증명서...참가자 각 1부 *2025학년도 10월 이후 발급본",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "참가자 전원 재학증명서(2025학년도 10월 이후 발급본) 제출 필요"
-        },
-        "team": {
-          "value": {
-            "min": null,
-            "max": 6,
-            "individual_ok": null
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "가. 참가 방식 : 팀당 6인 이하로 구성",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "나. 팀원 구성 : 융합소프트웨어학부생 1명 이상, 디지털콘텐츠디자인학과생 1명 이상,",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "* SW 개발, UI 구성 및 디자인 역량을 해낼 수 있는 팀원이 구성될 시 해당 학부,학과생 1명만 필수로 포함하여 신청 무관",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "최소 인원 숫자 없음. 구성 조건(융합SW 1명+디콘 1명+타 단과대 1명 이상, 예외 있음)으로 보아 팀 참가가 전제지만 개인 참가 가능 여부는 명시되지 않음"
-        },
-        "deliverables": {
-          "value": {
-            "tags": [
-              "코드·개발",
-              "발표",
-              "현장 참가"
-            ],
-            "text": "교육문제 해결을 위한 생성형 AI 기반 웹/애플리케이션을 현장(11.20~21)에서 기획·개발해 제출하고, 7분 이내 발표심사. 에듀테크페어 필참. 신청 시 참가신청서·재학증명서·대표자 선임계·개인정보 활용동의서 제출"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "다. 대회주제 : 교육문제 해결을 위한 생성형 AI 기반 웹/애플리케이션 개발",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "프로젝트 제출 및 마감",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "발표시간 7분 이내",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "*해커톤경진대회 참가 학생들은 에듀테크페어 필참해야함",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ]
-        },
-        "benefits": {
-          "value": "상장 및 상금(장학금): 대상 500,000원(1), 최우수상 300,000원(1), 우수상 200,000원(4), 장려상 100,000원(4), 총 10점. 팀 상금은 1/n 지급, 참가팀 수·심사 결과에 따라 금액·입상작 수 변동 가능",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "에듀테크 창의적 아이디어 해커톤 상장 및 상금",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "총 10점",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "※ 팀으로 참가한 경우 상금(장학금)은 1/n을 원칙으로 지급함",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "※ 참가팀 수와 심사 결과에 따라 장학금액 및 입상작 수는 다소 변동될 수 있음",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "상금표가 변환 과정에서 깨져 있음(수여명 '총장명' 위치 등). 첨부 평가기준에 따르면 평점 70점 이상, 신청팀 최대 2/3까지 수상"
-        },
-        "mileage": {
-          "value": {
-            "text": "참가팀 전원 만족도 조사 실시 시 비교과프로그램 마일리지 10점 부여",
-            "area": null,
-            "points": 10
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "※ 참가팀 전원 만족도 조사 실시 비교과프로그램 마일리지 10점 부여 특전 지급",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "마일리지 영역은 적혀 있지 않음"
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "ABI-X사업단 홈페이지 지정 양식으로 참가신청서·재학증명서·대표자 선임계·개인정보 활용동의서(수기 체크)를 작성해 방문 접수(인문 학생회관 9층 S2901호) 또는 메일 접수((학교 이메일 생략))",
-            "url": null
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "○ 방문 접수: 대학혁신-ABI-X사업단사무실 (인문) 학생회관 9층, S2901호",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "다. 제출서류 : (ABI-X사업단 홈페이지 지정 양식으로 작성)",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            },
-            {
-              "quote": "* 개인정보 활용 동의서는 반드시 수기로 브이 체크표시 하셔야 되는 점 참고 부탁드립니다.",
-              "location": "본문",
-              "source": "https://aict.mju.ac.kr/bbs/aict/1394/226798/artclView.do"
-            }
-          ],
-          "note": "신청 링크 없음"
-        },
-        "contact": {
-          "value": {
-            "dept": "명지대학교 ABI-X사업단",
-            "email": "",
-            "phone": "02-300-1671"
-          },
-          "status": "ai",
-          "evidence": [],
-          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 이메일은 메일 접수처로 적힌 담당자 주소"
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
       "id": "mju-abix-aict-1394-230819",
       "title": "2026학년도 한국통신학회 아이디어경진대회",
       "organizer": null,
@@ -1055,7 +70,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/230819/artclView.do",
           "title": "2026학년도 한국통신학회 하계종합학술발표회 참여 및 학부생 아이디어 경진대회 참가 사전신청 안내(~04/17)",
           "posted_at": "2026-04-02",
-          "last_seen_at": "2026-11-16T23:47:12.709582+00:00"
+          "last_seen_at": "2026-11-17T23:02:36.942300+00:00"
         }
       ],
       "fields": {
@@ -1240,7 +255,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/232980/artclView.do",
           "title": "2026학년도 제5회 창의적SW프로그램 경진대회 참가자 모집 안내",
           "posted_at": "2026-06-22",
-          "last_seen_at": "2026-11-16T23:46:50.616017+00:00"
+          "last_seen_at": "2026-11-17T23:02:08.196155+00:00"
         }
       ],
       "fields": {
@@ -1491,7 +506,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/236337/artclView.do",
           "title": "2026학년도 AI 창의적 아이디어 해커톤 경진대회 참가자 모집 안내",
           "posted_at": "2026-10-15",
-          "last_seen_at": "2026-11-16T23:46:29.217989+00:00"
+          "last_seen_at": "2026-11-17T23:01:45.845248+00:00"
         }
       ],
       "fields": {
@@ -1739,7 +754,7 @@
           "url": "https://ctl.mju.ac.kr/bbs/ctl/792/235921/artclView.do",
           "title": "[What-SSUP] 2026학년도 2학기 학습법 적용 우수 사례 공모전 안내(★기간연장★)",
           "posted_at": "2026-10-01",
-          "last_seen_at": "2026-11-16T23:56:11.377494+00:00"
+          "last_seen_at": "2026-11-17T23:11:28.756564+00:00"
         }
       ],
       "fields": {
@@ -1843,7 +858,7 @@
           "url": "https://www.mju.ac.kr/bbs/eng/1736/234605/artclView.do",
           "title": "2026 공과대학생 전공영어 발표 경진대회 신청자 모집 안내",
           "posted_at": "2026-08-21",
-          "last_seen_at": "2026-11-16T23:49:14.234746+00:00"
+          "last_seen_at": "2026-11-17T23:04:43.135005+00:00"
         }
       ],
       "fields": {
@@ -2079,7 +1094,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
           "title": "[혁신사업-에너지소재사업단]2026학년도 명지대학교 에너지 소재단 명지 R&D 랩 (LAB) 경진대회 신청안내",
           "posted_at": "2026-04-01",
-          "last_seen_at": "2026-11-16T23:55:10.913435+00:00"
+          "last_seen_at": "2026-11-17T23:10:27.135419+00:00"
         }
       ],
       "fields": {
@@ -2314,7 +1329,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do",
           "title": "[혁신사업 - 에너지 소재 사업단] 명지대학교 에너지 소재 사업단 R&D 아이디어 경진대회 공고",
           "posted_at": "2026-04-20",
-          "last_seen_at": "2026-11-16T23:55:09.895379+00:00"
+          "last_seen_at": "2026-11-17T23:10:26.178800+00:00"
         }
       ],
       "fields": {
@@ -2541,7 +1556,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do",
           "title": "[혁신사업-에너지소재사업단] 제2회 2026년도 명지대학교 에너지 소재 사업단 에너지 소재 아이디어 경진대회 공고",
           "posted_at": "2026-05-11",
-          "last_seen_at": "2026-11-16T23:55:06.849502+00:00"
+          "last_seen_at": "2026-11-17T23:10:23.199323+00:00"
         }
       ],
       "fields": {
@@ -2773,7 +1788,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do",
           "title": "[에너지 소재 사업단] 제1회 2026년도 에너지 소재 사업단 캡스톤 디자인 경진대회 참가신청 안내",
           "posted_at": "2026-09-03",
-          "last_seen_at": "2026-11-16T23:55:04.824928+00:00"
+          "last_seen_at": "2026-11-17T23:10:21.193169+00:00"
         }
       ],
       "fields": {
@@ -2996,7 +2011,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236667/artclView.do",
           "title": "[제약바이오융합 특성화사업단] 2026학년도 신규 의약품·건강기능식품 개발 아이디어 경진대회 안내",
           "posted_at": "2026-10-28",
-          "last_seen_at": "2026-11-16T23:55:47.909572+00:00"
+          "last_seen_at": "2026-11-17T23:11:07.236446+00:00"
         }
       ],
       "fields": {
@@ -3256,7 +2271,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 모집 연장 안내",
           "posted_at": "2026-11-02",
-          "last_seen_at": "2026-11-16T23:55:42.867801+00:00"
+          "last_seen_at": "2026-11-17T23:11:02.178609+00:00"
         }
       ],
       "fields": {
@@ -3515,7 +2530,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236861/artclView.do",
           "title": "[경기앵커사업단] 전통시장 AI 홍보영상 콘텐츠 공모전 안내(기간 연장)",
           "posted_at": "2026-11-04",
-          "last_seen_at": "2026-11-16T23:55:34.859175+00:00"
+          "last_seen_at": "2026-11-17T23:10:54.094518+00:00"
         }
       ],
       "fields": {
@@ -3638,7 +2653,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
           "title": "[대학혁신지원사업 총괄협의회] 2026 대학혁신지원사업 참여학생 사례영상 경진대회 개최 안내",
           "posted_at": "2026-11-05",
-          "last_seen_at": "2026-11-16T23:55:30.990670+00:00"
+          "last_seen_at": "2026-11-17T23:10:50.166439+00:00"
         }
       ],
       "fields": {
@@ -3852,6 +2867,219 @@
       }
     },
     {
+      "id": "mju-general-mjukr-141-237247",
+      "title": "2026 대학혁신지원사업 학생참여 수기공모전",
+      "organizer": "한국연구재단",
+      "scope": "외부",
+      "sources": [
+        {
+          "board_id": "mju-general",
+          "url": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do",
+          "title": "[한국연구재단] 2026 대학혁신지원사업 학생참여 수기공모전 개최 안내",
+          "posted_at": "2026-11-17",
+          "last_seen_at": "2026-11-17T23:10:34.188318+00:00"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-11-16",
+            "end": "2026-12-06",
+            "time_given": false
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ]
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-12-06",
+              "time_given": false
+            }
+          ],
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "발표 시기: 2026년 12월 중 예정",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "결과발표는 '2026년 12월 중 예정'으로 날짜가 정해지지 않아 단계에 넣지 않음"
+        },
+        "campus": {
+          "value": "any",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 캠퍼스 구분 없음"
+        },
+        "grades": {
+          "value": "any",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": []
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "재학증명서 1부( 2026년 10월 이후 발행본)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "학부 재학생 대상이며 재학증명서(2026년 10월 이후 발행본) 제출 필요"
+        },
+        "team": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "팀·개인 참가에 대한 언급 없음"
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "에세이·수기"
+            ],
+            "text": "대학혁신지원사업 참여 경험 수기(A4 3페이지 이내, 총 3,000자 이내, 맑은 고딕 12pt, 줄간격 160%) + 신청서·개인정보 수집활용 동의서(자필 서명 후 스캔/촬영) 각 1부, 재학증명서 1부(2026년 10월 이후 발행)"
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "작성분량: A4용지 기준 3페이지 이내(총 3,000자 이내)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "작성형식: 글자 크기 12포인트, 줄간격 160%, 맑은 고딕",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "신청서 및 개인정보 수집활용 동의서 각 1부",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "재학증명서 1부( 2026년 10월 이후 발행본)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "대상 1명 100만원+한국연구재단 이사장상, 최우수상 2명 50만원+대학혁신지원사업 총괄협의회장상, 우수상 8명 30만원+총괄협의회장상, 장려상 15명 10만원 (제세공과금 수상자 부담)",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "대상: 1명 / 100만원 및 한국연구재단 이사장상",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "최우수상: 2명 / 50만원 및 대학혁신지원사업 총괄협의회장상",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "우수상: 8명 / 30만원 및 대학혁신지원사업 총괄협의회장상",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "장려상: 15명 / 10만원",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "※ 상금에 대한 제세공과금은 수상자 부담",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "수상자는 사업 관련 행사에서 발표를 요청받을 수 있으며, 참석이 어려우면 수상이 취소될 수 있음"
+        },
+        "mileage": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "비교과 마일리지 언급 없음"
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "이메일((이메일 생략))로 접수. 메일명과 파일명은 '[수기공모전]제목_제출자명' 형식",
+            "url": null
+          },
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "이메일 접수: (이메일 생략)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "메일명 및 파일명: [수기공모전]제목_제출자명",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            }
+          ],
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림"
+        },
+        "contact": {
+          "value": {
+            "dept": "",
+            "email": "",
+            "phone": "070-5138-0377"
+          },
+          "status": "needs_check",
+          "evidence": [],
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 문의 이메일이 학교 주소가 아니라 뺌 / 문의처 부서 이름이 명시되지 않음"
+        }
+      },
+      "deadline_history": [],
+      "meta": {
+        "prompt_version": "v0.2",
+        "extract_model": "claude-opus-5-5",
+        "cross_model": null,
+        "checked_at": null
+      }
+    },
+    {
       "id": "mju-ince-ince-679-230668",
       "title": "My Dream, Myongji Dream 전공선택 유튜브 경진대회",
       "organizer": null,
@@ -3862,7 +3090,7 @@
           "url": "https://ince.mju.ac.kr/bbs/ince/679/230668/artclView.do",
           "title": "My Dream, Myongji Dream 전공선택 유튜브 경진대회",
           "posted_at": "2026-03-27",
-          "last_seen_at": "2026-11-16T23:54:50.313834+00:00"
+          "last_seen_at": "2026-11-17T23:10:06.584314+00:00"
         }
       ],
       "fields": {
@@ -3953,7 +3181,7 @@
           "url": "https://innov.mju.ac.kr/bbs/innovation/56/236818/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 모집 연장 안내",
           "posted_at": "2026-11-03",
-          "last_seen_at": "2026-11-16T23:49:01.129987+00:00"
+          "last_seen_at": "2026-11-17T23:04:31.325399+00:00"
         }
       ],
       "fields": {
@@ -4216,7 +3444,7 @@
           "url": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do",
           "title": "[대학혁신지원사업 총괄협의회] 2026 대학혁신지원사업 참여학생 사례영상 경진대회 개최 안내",
           "posted_at": "2026-11-05",
-          "last_seen_at": "2026-11-16T23:48:59.344603+00:00"
+          "last_seen_at": "2026-11-17T23:04:29.777981+00:00"
         }
       ],
       "fields": {
@@ -4472,6 +3700,220 @@
       }
     },
     {
+      "id": "mju-innovation-innovation-56-237238",
+      "title": "2026 대학혁신지원사업 학생참여 수기공모전",
+      "organizer": "한국연구재단",
+      "scope": "외부",
+      "sources": [
+        {
+          "board_id": "mju-innovation",
+          "url": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do",
+          "title": "[한국연구재단] 2026 대학혁신지원사업 학생참여 수기공모전 개최 안내",
+          "posted_at": "2026-11-17",
+          "last_seen_at": "2026-11-17T23:04:13.844852+00:00"
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-11-16",
+            "end": "2026-12-06",
+            "time_given": false
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "- 접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "ㅇ 접수 기간 : 2026년 11월 16일(월) ~ 2026년 12월 6일(일)",
+              "location": "첨부",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do",
+              "file": "[붙임2] 수기공모전 관련 유의사항.pdf"
+            }
+          ],
+          "note": "마감 시각은 적혀 있지 않음"
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-12-06",
+              "time_given": false
+            }
+          ],
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "- 접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ],
+          "note": "결과 발표는 '2026년 12월 중 예정'으로 날짜가 없어 넣지 않음"
+        },
+        "campus": {
+          "value": "any",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 캠퍼스 구분 없음"
+        },
+        "grades": {
+          "value": "any",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": []
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 재학증명서 1부( 2026년 10월 이후 발행본)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ],
+          "note": "붙임2에는 '학부생'이라고만 적혀 있으나, 본문과 붙임1에 '학부 재학생'으로 되어 있고 재학증명서도 내야 하므로 재학으로 봄"
+        },
+        "team": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "팀 인원이나 개인 참가에 대한 문구가 없음"
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "에세이·수기"
+            ],
+            "text": "참여 경험 수기: A4 3페이지 이내(총 3,000자 이내), 글자 크기 12포인트, 줄간격 160%, 맑은 고딕. 신청서 및 개인정보 수집활용 동의서(자필 서명 후 스캔·촬영), 재학증명서(2026년 10월 이후 발행) 함께 제출"
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "- 작성분량: A4용지 기준 3페이지 이내(총 3,000자 이내)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 작성형식: 글자 크기 12포인트, 줄간격 160%, 맑은 고딕",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 신청서 및 개인정보 수집활용 동의서 각 1부",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 재학증명서 1부( 2026년 10월 이후 발행본)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "대상 1명 100만원·한국연구재단 이사장상 / 최우수상 2명 50만원·대학혁신지원사업 총괄협의회장상 / 우수상 8명 30만원·총괄협의회장상 / 장려상 15명 10만원 (제세공과금은 수상자 부담)",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "- 대상: 1명 / 100만원 및 한국연구재단 이사장상",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 최우수상: 2명 / 50만원 및 대학혁신지원사업 총괄협의회장상",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 우수상: 8명 / 30만원 및 대학혁신지원사업 총괄협의회장상",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 장려상: 15명 / 10만원",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "※ 상금에 대한 제세공과금은 수상자 부담",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ]
+        },
+        "mileage": {
+          "value": null,
+          "status": "missing",
+          "evidence": [],
+          "note": "비교과 마일리지 언급 없음"
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "이메일((이메일 생략))로 서류 제출. 메일 제목과 파일 이름은 '[수기공모전]제목_제출자명' 형식",
+            "url": null
+          },
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "- 이메일 접수: (이메일 생략)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            },
+            {
+              "quote": "- 메일명 및 파일명: [수기공모전]제목_제출자명",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do"
+            }
+          ],
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림 / 신청 링크는 없고 이메일로 접수"
+        },
+        "contact": {
+          "value": {
+            "dept": "",
+            "email": "",
+            "phone": "070-5138-0377"
+          },
+          "status": "needs_check",
+          "evidence": [],
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 문의 이메일이 학교 주소가 아니라 뺌 / 문의 항목에 부서 이름은 없음"
+        }
+      },
+      "deadline_history": [],
+      "meta": {
+        "prompt_version": "v0.2",
+        "extract_model": "claude-opus-5-5",
+        "cross_model": null,
+        "checked_at": null
+      }
+    },
+    {
       "id": "mju-scict-scict-1491-232042",
       "title": "제7회 2026학년도 명지대학교 광고 공모전",
       "organizer": null,
@@ -4482,7 +3924,7 @@
           "url": "https://www.mju.ac.kr/bbs/scict/1491/232042/artclView.do",
           "title": "2026학년도 명지대학교 광고 공모전 안내",
           "posted_at": "2026-05-20",
-          "last_seen_at": "2026-11-16T23:51:31.452225+00:00"
+          "last_seen_at": "2026-11-17T23:06:59.790843+00:00"
         }
       ],
       "fields": {
@@ -4716,394 +4158,6 @@
       }
     },
     {
-      "id": "mju-startup-startup-565-213667",
-      "title": "2024 서울 우먼테크 해커톤",
-      "organizer": null,
-      "scope": null,
-      "sources": [
-        {
-          "board_id": "mju-startup",
-          "url": "https://startup.mju.ac.kr/bbs/startup/565/213667/artclView.do",
-          "title": "2024 서울 우먼테크 해커톤 참여자 모집 공고",
-          "posted_at": "2024-07-23",
-          "last_seen_at": "2026-11-16T23:46:01.632811+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "stages": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "campus": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "grades": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "enrollment": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "team": {
-          "value": {
-            "min": null,
-            "max": null,
-            "individual_ok": null
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "개인접수 구글 폼 링크: https://forms.gle/gHnb5hSppT76nCzEA",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/213667/artclView.do"
-            },
-            {
-              "quote": "팀접수 구글 폼 링크: https://forms.gle/LcRExXfQ7bmCbsnc8",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/213667/artclView.do"
-            }
-          ],
-          "note": "개인접수·팀접수 폼이 따로 있으나, 개인 참가 허용인지 개인 접수 후 팀 매칭인지 불명확. 인원 정보 없음"
-        },
-        "deliverables": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "benefits": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "mileage": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "구글 폼으로 접수 (개인접수: https://forms.gle/gHnb5hSppT76nCzEA, 팀접수: https://forms.gle/LcRExXfQ7bmCbsnc8)",
-            "url": "https://forms.gle/gHnb5hSppT76nCzEA"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "개인접수 구글 폼 링크: https://forms.gle/gHnb5hSppT76nCzEA",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/213667/artclView.do"
-            },
-            {
-              "quote": "팀접수 구글 폼 링크: https://forms.gle/LcRExXfQ7bmCbsnc8",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/213667/artclView.do"
-            }
-          ],
-          "note": "url에는 개인접수 링크를 넣고, 팀접수 링크는 text에 적음"
-        },
-        "contact": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
-      "id": "mju-startup-startup-565-224399",
-      "title": "2025학년도 불확실성 시대 새로운 기회 포착을 위한 창업 아이디어 경진대회",
-      "organizer": "창업교육센터",
-      "scope": "교내",
-      "sources": [
-        {
-          "board_id": "mju-startup",
-          "url": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do",
-          "title": "[창업교육센터] 2025학년도 교내 창업 아이디어 경진대회 공고",
-          "posted_at": "2025-08-26",
-          "last_seen_at": "2026-11-16T23:45:32.527606+00:00"
-        }
-      ],
-      "fields": {
-        "apply": {
-          "value": {
-            "start": "2025-08-25",
-            "end": "2025-09-07 23:00",
-            "time_given": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "공고 및 접수 : 2025.08.25.(월) ~ 2025.09.07.(일) 23:00시까지",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "참가신청 접수 : 2025.09.07.(일) 23:00시까지 신청 서류 작성 및 이메일 제출",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ]
-        },
-        "stages": {
-          "value": [
-            {
-              "name": "신청",
-              "end": "2025-09-07 23:00",
-              "time_given": true
-            },
-            {
-              "name": "예선",
-              "end": "2025-09-10",
-              "time_given": false
-            },
-            {
-              "name": "발표",
-              "end": "2025-09-11",
-              "time_given": false
-            },
-            {
-              "name": "기타",
-              "end": "2025-09-17",
-              "time_given": false
-            },
-            {
-              "name": "기타",
-              "end": "2025-09-19",
-              "time_given": false
-            },
-            {
-              "name": "본선",
-              "end": "2025-09-26",
-              "time_given": false
-            }
-          ],
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "공고 및 접수 : 2025.08.25.(월) ~ 2025.09.07.(일) 23:00시까지",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "예선 심사 및 본선 참가자 선정 : 2025.09.08.(월) ~ 2025.09.10.(수)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "본선 참가자 발표 : 2025.09.11.(목)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "본선 멘토링 : 2025.09.15.(월) ~ 2025.09.17.(수) (팀당 1시간 1:1 멘토링)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "프레젠테이션 발표 특강 : 2025.09.18.(목) ~ 2025.09.19.(금)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "단계 원문 표현: 본선 멘토링, 프레젠테이션 발표 특강 / 본선은 9/26 13:00 시작으로만 적혀 있고 끝나는 시각은 없음"
-        },
-        "campus": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "우리대학교 학생 개인 및 팀",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 캠퍼스 구분 없음 (캠퍼스별 이메일은 제출처 구분일 뿐임)"
-        },
-        "grades": {
-          "value": "any",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "우리대학교 학생 개인 및 팀",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "대상 문장에 학년 구분 없음"
-        },
-        "enrollment": {
-          "value": {
-            "allowed": [
-              "재학"
-            ],
-            "excluded": []
-          },
-          "status": "needs_check",
-          "evidence": [
-            {
-              "quote": "개인 및 팀 대표자의 경우 재학생에 한함",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "우리대학교 학생 개인 및 팀",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "재학생 제한은 개인 참가자와 팀 대표자에게만 적용됨. 대표자가 아닌 팀원의 학적(휴학 등) 허용 여부는 공지에 없음"
-        },
-        "team": {
-          "value": {
-            "min": null,
-            "max": null,
-            "individual_ok": true
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "우리대학교 학생 개인 및 팀",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "개인 참가 가능. 팀 인원 수 제한 문구는 공지에 없음"
-        },
-        "deliverables": {
-          "value": {
-            "tags": [
-              "기획서·제안서",
-              "발표"
-            ],
-            "text": "신청 시 사업계획서(목차 제외 15페이지 이내, 지정 양식, 개인정보 마스킹)와 개인정보수집동의서를 제출. 본선에서는 사업계획서(PPT)를 발표함"
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "신청 서류 : 사업계획서, 개인정보수집동의서",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "※ 사업계획서는 목차(1페이지)를 제외하고 15페이지 이내로 작성(증빙서류는 제한 없음)",
-              "location": "첨부",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do",
-              "file": "2025학년도 교내 창업 아이디어 경진대회 사업계획서 및 개인정보 동의서.hwp"
-            },
-            {
-              "quote": "사업계획서(PPT) 발표 및 평가(본선) : 2025.09.26.(금) 13:00 ~",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ]
-        },
-        "benefits": {
-          "value": "우수팀에 상장과 장학금 지급(총 5,000,000원): 대상 1,000,000원(1팀), 최우수상 800,000원(1팀), 우수상 700,000원(2팀), 장려상 300,000원(6팀)",
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "참가 특전 : 우수팀 선발하여 상장 및 장학금 지급",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "장학금 : 총 5,000,000원",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "대상 : 1,000,000원(1팀)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "최우수상 : 800,000원(1팀)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "우수상 : 700,000원(2팀)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ]
-        },
-        "mileage": {
-          "value": null,
-          "status": "missing",
-          "evidence": []
-        },
-        "how_to_apply": {
-          "value": {
-            "text": "교내 홈페이지나 창업교육센터 홈페이지에서 신청 서류(사업계획서, 개인정보수집동의서)를 내려받아 작성한 뒤, 팀 대표가 소속된 캠퍼스 이메일로 제출(인문 (학교 이메일 생략), 자연 (학교 이메일 생략))",
-            "url": null
-          },
-          "status": "ai",
-          "evidence": [
-            {
-              "quote": "참가신청 접수 : 2025.09.07.(일) 23:00시까지 신청 서류 작성 및 이메일 제출",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "(교내 홈페이지 및 창업교육센터 홈페이지 다운로드)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "E-mail : 팀 대표 소속 캠퍼스로 제출",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "인문캠퍼스 : (학교 이메일 생략)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            },
-            {
-              "quote": "자연캠퍼스 : (학교 이메일 생략)",
-              "location": "본문",
-              "source": "https://startup.mju.ac.kr/bbs/startup/565/224399/artclView.do"
-            }
-          ],
-          "note": "신청 링크는 공지에 없음"
-        },
-        "contact": {
-          "value": {
-            "dept": "창업교육센터",
-            "email": "",
-            "phone": "인문캠퍼스 02-300-1538 / 자연캠퍼스 031-330-6144"
-          },
-          "status": "needs_check",
-          "evidence": [],
-          "note": "내보내기 검사: 문의 이메일이 학교 주소가 아니라 뺌 / 이메일은 문의처 항목이 아니라 신청서 제출처로 적혀 있음. 문의처 항목에는 전화번호만 있음"
-        }
-      },
-      "deadline_history": [],
-      "meta": {
-        "prompt_version": "v0.2",
-        "extract_model": "claude-opus-5-5",
-        "cross_model": null,
-        "checked_at": null
-      }
-    },
-    {
       "id": "mju-startup-startup-565-227525",
       "title": "2025학년도 창업스토리 PT 경진대회",
       "organizer": "창업교육센터",
@@ -5114,7 +4168,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/227525/artclView.do",
           "title": "[창업교육센터] 2025학년도 교내 창업스토리 PT 경진대회 공고",
           "posted_at": "2025-11-20",
-          "last_seen_at": "2026-11-16T23:45:28.399287+00:00"
+          "last_seen_at": "2026-11-17T23:00:40.676644+00:00"
         }
       ],
       "fields": {
@@ -5383,7 +4437,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/234894/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업 아이디어 경진대회 참가 안내",
           "posted_at": "2026-09-01",
-          "last_seen_at": "2026-11-16T23:45:08.388123+00:00"
+          "last_seen_at": "2026-11-17T23:00:20.704109+00:00"
         }
       ],
       "fields": {
@@ -5651,7 +4705,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/236432/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 안내",
           "posted_at": "2026-10-19",
-          "last_seen_at": "2026-11-16T23:45:02.199441+00:00"
+          "last_seen_at": "2026-11-17T23:00:14.610229+00:00"
         }
       ],
       "fields": {
@@ -5922,7 +4976,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/236729/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 모집 연장 안내",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-16T23:44:59.374690+00:00"
+          "last_seen_at": "2026-11-17T23:00:11.504136+00:00"
         }
       ],
       "fields": {
@@ -6186,7 +5240,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236120/artclView.do",
           "title": "전통시장 AI 홍보영상 경진대회",
           "posted_at": "2026-10-07",
-          "last_seen_at": "2026-11-16T23:53:44.722163+00:00"
+          "last_seen_at": "2026-11-17T23:09:03.010728+00:00"
         }
       ],
       "fields": {
@@ -6280,7 +5334,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236172/artclView.do",
           "title": "「제13회 대학생 물환경 정책·기술 공모전」 홍보",
           "posted_at": "2026-10-08",
-          "last_seen_at": "2026-11-16T23:53:40.781142+00:00"
+          "last_seen_at": "2026-11-17T23:08:59.009810+00:00"
         }
       ],
       "fields": {
@@ -6362,7 +5416,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236278/artclView.do",
           "title": "「2026 청년정책 공모전」개최",
           "posted_at": "2026-10-13",
-          "last_seen_at": "2026-11-16T23:53:36.703272+00:00"
+          "last_seen_at": "2026-11-17T23:08:55.008181+00:00"
         }
       ],
       "fields": {
@@ -6444,7 +5498,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236568/artclView.do",
           "title": "[한국사회보장정보원] 2026 사회보장 데이터를 활용한 AI 혁신 아이디어 경진대회",
           "posted_at": "2026-10-26",
-          "last_seen_at": "2026-11-16T23:53:26.739204+00:00"
+          "last_seen_at": "2026-11-17T23:08:47.988169+00:00"
         }
       ],
       "fields": {
@@ -6523,7 +5577,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236610/artclView.do",
           "title": "[서울시설공단] 제2회 잠실 미디어아트 공모전 홍보",
           "posted_at": "2026-10-27",
-          "last_seen_at": "2026-11-16T23:53:16.339258+00:00"
+          "last_seen_at": "2026-11-17T23:08:43.886094+00:00"
         }
       ],
       "fields": {
@@ -6736,7 +5790,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236709/artclView.do",
           "title": "[한국보건복지인재원] 이런(e-Learn) 한 컷, 영상 공모전 개최",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-16T23:53:05.271559+00:00"
+          "last_seen_at": "2026-11-17T23:08:32.877494+00:00"
         }
       ],
       "fields": {
@@ -6886,7 +5940,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236710/artclView.do",
           "title": "[강원특별자치도] 가까운 강원‘1시간대컷 캠페인’영상 공모전",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-16T23:53:02.137245+00:00"
+          "last_seen_at": "2026-11-17T23:08:29.976952+00:00"
         }
       ],
       "fields": {
@@ -6982,7 +6036,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236711/artclView.do",
           "title": "[KSPO&CO] 2026년 공공데이터 활용 경진대회 개최",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-16T23:53:00.114859+00:00"
+          "last_seen_at": "2026-11-17T23:08:27.986146+00:00"
         }
       ],
       "fields": {
@@ -7061,7 +6115,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236758/artclView.do",
           "title": "[행정안전부] 2026년 재난안전 AI 데이터 활용 해커톤 공고 안내",
           "posted_at": "2026-11-02",
-          "last_seen_at": "2026-11-16T23:52:56.242424+00:00"
+          "last_seen_at": "2026-11-17T23:08:24.129420+00:00"
         }
       ],
       "fields": {
