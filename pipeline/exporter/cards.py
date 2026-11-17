@@ -93,6 +93,19 @@ LONG_NUMBER_IN_TEXT = re.compile(r"(?<!\d)\d{8,}(?!\d)", re.ASCII)  # 학번(8�
 # 끊어 쓴 번호 (첨부 입력 보안 리뷰): 주민등록번호, "학번" 뒤의 4-4자리. AI 입력과 같은 꼴 (collector/personal_numbers.py)
 RRN_IN_TEXT = RESIDENT_NUMBER
 SPLIT_NUMBER_IN_TEXT = SPLIT_STUDENT_ID
+# "담당자: 홍길동"처럼 담당 라벨과 콜론 뒤의 사람 이름 (#145). 오탐을 줄이려고 콜론이 있는 꼴만 본다. 이름 바로 뒤의 직함(교수님·팀장 등)은
+# 남기고 이름만 가린다. 부서 낱말(학사팀·교수학습센터·학생처 등)은 이름 후보 낱말 안에서만 보고 그대로 둔다. 이름과 겹치기 쉬운
+# 한 글자 접미사(실·과·단·부: 김진실 등)는 부서로 보지 않아서, "교무과"·"총무실"·"미정" 같은 2~4글자 낱말도 이름처럼 가린다(오탐 허용).
+# 한계(못 가림): 콜론 없는 꼴, "문의:" 등 다른 라벨, 띄어 쓴 이름, 5글자 이상, 목록에 없는 직함이나 다른 한글이 붙은 꼴("홍길동입니다"),
+# 기호 뒤 이름("학사팀(홍길동)"), 직함이 이름 앞에 오는 꼴("학사팀 과장 홍길동", "교무처장 홍길동"), 띄어 쓴 가운뎃점·"및"·"과"로
+STAFF_DEPARTMENT = r"[가-힣]*(?:팀|센터|학과|사업단|본부|처|청)(?![가-힣])"
+# 이름 뒤에 붙는 직함. 직함 뒤의 "님"도 함께 둔다(교수님·팀장님). 비어 있을 수 있다
+STAFF_TITLE = r"(?:선생|교수|조교|주무관|연구원|간사|센터장|처장|실장|부장|차장|팀장|과장|계장)?님?"
+# "담당: 학사팀 홍길동"처럼 부서 뒤에 이름이 오는 꼴도 본다 (부서 낱말은 라벨 쪽에 넣어 그대로 둔다)
+STAFF_NAME_IN_TEXT = re.compile(r"(담당자명|담당자|담당교수|담당조교|담당직원|담당)(\s*:\s*(?:" + STAFF_DEPARTMENT + r"\s+)?)(?!" + STAFF_DEPARTMENT + r")"
+                                r"([가-힣]{2,4}?)(" + STAFF_TITLE + r")(?![가-힣])")
+# 가린 이름 뒤에 쉼표·빗금, 또는 띄어쓰기 없는 가운뎃점(판정 사본에서 ".")으로 이어지는 이름 ("홍길동, 김철수", "홍길동·김철수").
+STAFF_NEXT_NAME_IN_TEXT = re.compile(r"(\(이름 생략\))([가-힣]*(?:\s*[,/]\s*|[.∙•]))(?!" + STAFF_DEPARTMENT + r")([가-힣]{2,4}?)(" + STAFF_TITLE + r")(?![가-힣])")
 PHONE = re.compile(r"^[\s0-9A-Za-z()+\-.~,/:가-힣]*$")
 URL_HOST = re.compile(r"^[a-z0-9.-]+$", re.ASCII)
 GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$", re.ASCII)  # 사이트 Date.parse가 읽는 꼴
@@ -393,7 +406,7 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
         status = "ai"
         notes.append("공지에 AI에게 주는 지시처럼 보이는 문구가 있어 자동 검증 결과를 쓰지 않음")
     if name == "contact" and status != "human_verified":
-        evidence = []  # 문의처 근거에는 담당자 이름이 흔하다. 이름은 패턴으로 못 가려 사람이 본 것만 싣는다
+        evidence = []  # 문의처 근거에는 담당자 이름이 흔하다. "담당(자): 이름" 꼴만 가리고(#145) 다른 꼴은 못 가려 사람이 본 것만 싣는다
     if status in VERIFIED and not evidence:
         status = "ai"  # 계약: 자동 검증 통과·검수 완료는 원문 근거가 있어야 한다
     if name == "contact" and status != "human_verified" and value.get("email"):
@@ -929,7 +942,7 @@ def _clean(text, limit: int) -> tuple[str, set[str]]:
     """공개할 글 정리 → (글, 일어난 일 {"pii", "url", "clipped"}).
 
     AI 입력의 HTML 이스케이프를 되돌리고(사이트는 textContent로 그려 화면에 &amp;가 보이므로), 보이지 않는 글자 정리,
-    학교 밖 이메일·휴대폰 번호·긴 숫자열 가림, 허용 목록 밖 주소 → "(주소 생략)". 판정은 전각·대시를 정규화한 사본에서 한다.
+    학교 밖 이메일·휴대폰 번호·긴 숫자열·담당자 이름 가림, 허용 목록 밖 주소 → "(주소 생략)". 판정은 전각·대시를 정규화한 사본에서 한다.
     """
     if text is None:
         return "", set()
@@ -969,6 +982,22 @@ def _clean(text, limit: int) -> tuple[str, set[str]]:
     cleaned = _mask(cleaned, RRN_IN_TEXT, replace_with("(번호 생략)"))
     cleaned = _mask(cleaned, SPLIT_NUMBER_IN_TEXT, replace_with("(번호 생략)"))
     cleaned = _mask(cleaned, LONG_NUMBER_IN_TEXT, replace_with("(번호 생략)"))
+    # 담당자 이름 가림: events에 "pii"를 넣지 않는다. 학교 메일처럼 공지에 실린 담당 창구라 값의 사실관계는 그대로이고,
+    # 상태를 "원문 확인 필요"로 내려도 근거 인용은 공개되므로 보호 효과가 없다. 값 글자에도 같이 적용되어 검수 완료 값의 이름도 조용히 가려진다
+    before_names = cleaned
+
+    def replace_staff_name(match):
+        # 라벨("담당자: ")과 직함은 원문 글자 그대로 둔다. match는 정규화 사본 기준이라(전각 콜론 등) 같은 위치를 원문에서 자른다
+        title = before_names[match.start(4):match.end(4)]  # 직함 그룹은 늘 참여한다 (비어 있을 수 있음)
+        return before_names[match.start(1):match.end(2)] + "(이름 생략)" + title
+
+    cleaned = _mask(cleaned, STAFF_NAME_IN_TEXT, replace_staff_name)
+    for _ in range(len(cleaned)):  # 이어진 이름을 한 번에 하나씩 뒤로 (바뀌는 동안만 돈다. 상한은 비정상 입력 대비)
+        before_names = cleaned
+        masked = _mask(cleaned, STAFF_NEXT_NAME_IN_TEXT, replace_staff_name)
+        if masked == cleaned:
+            break
+        cleaned = masked
     if len(cleaned) > limit:
         events.add("clipped")
         cleaned = _clip(cleaned, limit)

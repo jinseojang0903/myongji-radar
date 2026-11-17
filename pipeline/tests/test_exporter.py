@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import unittest
 from dataclasses import asdict
 from pathlib import Path
@@ -449,6 +450,44 @@ class ExporterSafetyTests(unittest.TestCase):
         self.assertEqual(checked_contact(raw)["value"]["email"], "hong123@mju.ac.kr")
         item = one_field("how_to_apply", field({"text": "팀장 hong123@mju.ac.kr 로 제출", "url": None}))
         self.assertEqual((item["value"]["text"], item["status"]), ("팀장 (학교 이메일 생략) 로 제출", "ai"))
+
+    def test_staff_name_after_label_is_masked(self):
+        # 공개 카드 인용에 담당 교직원 실명이 나왔다 (#145). 공지에 실린 창구라 가리기만 하고 상태는 내리지 않는다
+        item = one_field("how_to_apply", field({"text": "메일 접수", "url": None},
+                                               quote="○ 메일 접수: (사업단 담당자: 홍길동) ctl@mju.ac.kr"))
+        exported = json.dumps(item, ensure_ascii=False)
+        self.assertNotIn("홍길동", exported)
+        self.assertIn("(사업단 담당자: (이름 생략)) (학교 이메일 생략)", exported)
+        self.assertEqual(item["status"], "ai")
+        for text, expected in [("담당자：이영희", "담당자：(이름 생략)"), ("담당 : 김지원 교수", "담당 : (이름 생략) 교수"),
+                               # 이름 뒤에 부서가 붙거나, 이름 끝 글자가 부서 접미사와 같아도 이름은 가린다 (#145 리뷰)
+                               ("담당: 홍길동(학생처)", "담당: (이름 생략)(학생처)"), ("담당자: 홍길동/학사팀", "담당자: (이름 생략)/학사팀"),
+                               ("담당: 이영희,교무처", "담당: (이름 생략),교무처"), ("담당: 김진실", "담당: (이름 생략)"),
+                               ("담당자: 홍길동팀장", "담당자: (이름 생략)팀장"), ("담당자: 홍길동님", "담당자: (이름 생략)님"),
+                               ("담당자: 홍길동주무관", "담당자: (이름 생략)주무관"),
+                               # 부서 뒤에 이름이 오는 꼴, 라벨 변형 (#145 보안 리뷰)
+                               ("담당: 학사팀 홍길동", "담당: 학사팀 (이름 생략)"),
+                               ("담당자: 학생지원팀 김진실 주무관", "담당자: 학생지원팀 (이름 생략) 주무관"),
+                               ("담당교수: 이영희", "담당교수: (이름 생략)"), ("담당조교: 박민수", "담당조교: (이름 생략)"),
+                               ("담당자명: 홍길동", "담당자명: (이름 생략)"),
+                               # 직함 뒤 "님", 더 많은 직함, 이어진 이름 (#145 2회차 리뷰)
+                               ("담당자: 홍길동교수님", "담당자: (이름 생략)교수님"), ("담당자: 홍길동팀장님", "담당자: (이름 생략)팀장님"),
+                               ("담당자: 홍길동처장", "담당자: (이름 생략)처장"), ("담당자: 홍길동연구원", "담당자: (이름 생략)연구원"),
+                               ("담당: 홍길동, 김철수", "담당: (이름 생략), (이름 생략)"),
+                               ("담당: 홍길동·김철수·이영희교수님", "담당: (이름 생략)·(이름 생략)·(이름 생략)교수님"),
+                               ("담당: 홍길동, 학사팀", "담당: (이름 생략), 학사팀"),
+                               ("담당자: 홍길동. 접수는 메일로", "담당자: (이름 생략). 접수는 메일로"),
+                               # 허용한 오탐: 실·과로 끝나는 부서와 2~4글자 일반 낱말도 이름처럼 가린다
+                               ("담당: 교무과", "담당: (이름 생략)"), ("담당: 학사팀 문의", "담당: 학사팀 (이름 생략)")]:
+            self.assertEqual(one_field("benefits", field(text))["value"], expected, text)
+        for kept in ["담당: 학사팀", "담당자: 교수학습센터", "담당: 학생처", "담당 부서 확인", "담당자 홍길동",
+                     "담당: 학사팀 (02-300-1234)"]:
+            self.assertEqual(one_field("benefits", field(kept))["value"], kept, "부서 이름과 콜론 없는 꼴은 그대로 둔다")
+        started = time.perf_counter()
+        one_field("benefits", field("상금", quote=("담당자:" + "가" * 50) * 200))
+        one_field("benefits", field("상금", quote="담당자: 홍길동," + " 김철수," * 300))
+        one_field("benefits", field("상금", quote="담당자:" + " " * 3000 + "홍길동"))  # 긴 공백은 정리 단계에서 한 칸이 된다
+        self.assertLess(time.perf_counter() - started, 2, "담당 표시가 반복된 긴 글도 빨리 끝난다")
 
     def test_email_variants_are_masked(self):
         fullwidth_at = chr(0xFF20)
