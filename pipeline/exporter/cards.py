@@ -25,7 +25,7 @@ from pathlib import Path
 from urllib.parse import unquote_plus, urlsplit
 
 from collector.personal_numbers import RESIDENT_NUMBER, SPLIT_STUDENT_ID
-from extractor.common import posted_day
+from extractor.common import KST, posted_day
 
 SCHEMA_VERSION = "0.1"
 CARD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -49,6 +49,10 @@ MAX_CARD_QUOTE_CHARS = 1500  # 카드 전체 근거 글자 합계 (같은 문장
 MAX_CARD_NOTE_CHARS = 1000   # 카드 전체 AI note 글자 합계 (note로 본문을 옮겨 싣지 못하게)
 MAX_LIST_ITEMS = 10        # 학적 목록·단계 수
 MAX_REASON_CHARS = 80      # 뺀 이유에 넣는 값 (로그에 AI 값이 길게 남지 않게)
+# 가장 최근 출처 공지가 이보다 오래되면 공개하지 않는다 (#153). 글이 드문 게시판은 RSS 최근 50개에 몇 해 전 글이
+# 들어오고, 마감일을 읽지 못한 지난 대회는 사이트가 "마감됨"으로 볼 수 없어 홈에 계속 남았다. 마감일 유무와
+# 관계없이 1년으로 정했다(보수적으로. 해마다 같은 때 열리는 대회도 새 공지가 올라오면 그 공지로 다시 생긴다)
+MAX_POST_AGE_DAYS = 365
 
 VERIFIED = {"auto_verified", "human_verified"}
 FLAGS = {"found", "missing", "needs_check", "conflict"}
@@ -283,6 +287,31 @@ def build_cards_json(bundles: list[CardBundle], boards: list[dict], generated_at
                            for card_id in sorted(set(blocked) - matched)]
     data = {"schema_version": SCHEMA_VERSION, "generated_at": generated_at, "boards": boards, "cards": cards}
     return data, report
+
+
+def drop_old_cards(cards: list[dict], generated_at: str) -> tuple[list[dict], list[dict]]:
+    """가장 최근 출처 공지가 내보내기 시각보다 MAX_POST_AGE_DAYS일 넘게 지난 카드를 뺀다 (#153).
+
+    같은 대회 묶음(#125)을 합친 뒤에 부른다: 옛 공지와 새 공지가 묶인 대회는 새 공지 기준으로 남는다
+    (합치기가 실패해 합치지 않고 공개하는 날은 공지마다 따로 본다: 옛 공지 카드만 빠진다).
+    generated_at을 한국 날짜로 바꿔 posted_at(posted_day가 만든 한국 날짜)과 비교한다 (Z·UTC 표기여도 같은 날).
+    Returns:
+        (남은 카드, 보고 skipped 항목 [{"id", "reason"}])
+    Raises:
+        ValueError: generated_at 형식이 틀리거나, 카드에 sources가 없을 때 (build_card가 빈 출처를 거부하므로
+            build_cards_json의 카드에서는 나지 않는다)
+    """
+    _check_generated_at(generated_at)
+    today = datetime.fromisoformat(generated_at).astimezone(KST).date()
+    kept, skipped = [], []
+    for card in cards:
+        latest = max(source["posted_at"] for source in card["sources"])  # build_card가 형식을 맞춰 둔다
+        age = (today - date.fromisoformat(latest)).days
+        if age > MAX_POST_AGE_DAYS:
+            skipped.append({"id": card["id"], "reason": f"게시 1년이 지난 공지 (최근 게시 {latest})"})
+        else:
+            kept.append(card)
+    return kept, skipped
 
 
 def boards_from_sources(sources) -> list[dict]:

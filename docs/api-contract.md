@@ -56,6 +56,8 @@
 
 파이프라인은 `pipeline/exporter`가 이 형식으로 내보낸다(#17: 계약 키만, 근거 200자·값 300자·항목당 근거 5개·카드당 근거 1,500자 상한, 링크는 화면 `safeUrl`과 같은 https·허용 도메인만, 개인 연락처 가림. 상세는 `pipeline/README.md`). 화면(`site/js/cards.js`의 `validateCardData`)은 읽을 때 형식을 한 번 더 검사하고, 틀린 카드·게시판만 빼고 건수를 표시한다 (카드 하나 때문에 화면 전체가 멈추지 않게).
 
+**게시 1년이 지난 카드는 싣지 않는다 (#153):** 카드의 가장 최근 출처 공지(`sources[].posted_at` 중 가장 늦은 날)가 `generated_at`의 한국 날짜보다 365일 넘게 지났으면, 마감일이 있든 없든 `cards`에 넣지 않는다. 같은 대회 묶음은 합친 뒤에 판단한다. 형식은 바뀌지 않는다.
+
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
 **같은 대회 묶음 (#16):** 사람이 같은 회차라고 확인한 공지 묶음(`pipeline/config/contest_groups.toml`)만 카드 한 장으로 합친다. 제목이 비슷하다고 묶지 않는다. 공지마다 검증기·내보내기를 거친 카드를 만든 뒤 합친다(`pipeline/exporter/contest_groups.py`).
