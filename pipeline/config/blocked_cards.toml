@@ -14,4 +14,23 @@
 # reason = "결과 공지가 대회 카드로 잘못 뽑힘"
 # since = 2026-11-06
 
-blocked = []
+[[blocked]]
+card_id = "mju-ctl-ctl-792-226092"
+reason = "2025학년도 2학기 대회. 마감일을 못 읽어 지난 대회가 홈에 남음 (#98)"
+since = 2026-11-17
+
+[[blocked]]
+card_id = "mju-ctl-ctl-792-230999"
+reason = "2026학년도 1학기 대회. 마감일을 못 읽어 지난 대회가 홈에 남음 (#98)"
+since = 2026-11-17
+
+[[blocked]]
+card_id = "mju-career-mjukr-146-236538"
+reason = "본선 진행 안내 글이 모집 카드로 뽑힘. 모집은 끝남 (#98)"
+since = 2026-11-17
+
+# 묶음(ai-literacy-2026)의 구성 카드라 묶음 전체가 내려간다 (235972 모집 공지, 236698 후속 공지 포함)
+[[blocked]]
+card_id = "mju-ctl-ctl-792-236616"
+reason = "예선 결과 발표 안내 글이 모집 카드로 뽑힘. 모집은 끝남 (#98)"
+since = 2026-11-17
