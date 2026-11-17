@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .adapters import ADAPTERS
 from .analysis import analyze_file
-from .assets import AssetCollector
+from .assets import AssetCollector, source_order
 from .config import load_sources
 from .fetcher import Fetcher, RunDeadlineExceeded
 from .models import NoticeRef
@@ -69,6 +69,8 @@ def main(argv=None, *, lock_held=False):
     failed = False
     try:
         if args.command == "run":
+            if not args.source:
+                sources = source_order(sources, repo.latest_full_run([s.id for s in sources]))
             run_id = repo.start_run()
             results = []
             exhausted = False
@@ -76,7 +78,8 @@ def main(argv=None, *, lock_held=False):
                 if time.monotonic() >= deadline:
                     raise RunDeadlineExceeded("수집 실행 전체 시간 예산을 초과했습니다")
             for source in sources:
-                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0, "errors": [], "warnings": []}
+                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0,
+                         "errors": [], "warnings": [], "run_scope": "single" if args.source else "all"}
                 adapter = ADAPTERS[source.adapter]()
                 discovery_url = source.list_url if source.discovery == "html" else source.rss_url
                 try:
@@ -84,9 +87,12 @@ def main(argv=None, *, lock_held=False):
                     refs = adapter.discover(fetcher.get(discovery_url, source.allowed_hosts), source)
                     stats["errors"].extend(getattr(adapter, "discovery_errors", []))
                     stats["discovered"] = len(refs)
-                    # 미수집 글을 먼저, 같은 그룹에서는 일반 글을 고정 글보다 먼저.
-                    # stable sort로 각 그룹의 원래 발견 순서는 유지한다.
-                    refs = sorted(refs, key=lambda ref: (repo.has_notice(source.id, ref.external_id), ref.is_pinned))
+                    # 미수집 글·일반 글 우선은 유지한다. 저장된 같은 그룹에서는 미수집 첨부를 먼저,
+                    # 같은 우선순위에서는 원래 발견 순서를 유지한다.
+                    def priority(ref):
+                        previous = repo.latest_payload(source.id, ref.external_id)
+                        return previous is not None, ref.is_pinned, not assets.has_pending(previous)
+                    refs = sorted(refs, key=priority)
                     for ref in refs[:args.limit]:
                         try:
                             check_budget()

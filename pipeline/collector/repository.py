@@ -129,6 +129,23 @@ class Repository:
             self.db.execute("UPDATE runs SET finished_at=?, result_json=? WHERE id=?",
                             (now(), json.dumps(result, ensure_ascii=False), run_id))
 
+    def latest_full_run(self, source_ids):
+        """전체 출처 대상의 직전 종료 결과. 시간 소진으로 중단된 실행도 다음 차례에 반영한다."""
+        configured = set(source_ids)
+        rows = self.db.execute("""SELECT result_json FROM runs
+            WHERE finished_at IS NOT NULL AND result_json IS NOT NULL ORDER BY id DESC""")
+        for (encoded,) in rows:
+            result = json.loads(encoded)
+            if not (isinstance(result, list) and result
+                    and all(isinstance(row, dict) and isinstance(row.get("source"), str) for row in result)):
+                continue
+            if result[0].get("run_scope") == "single":
+                continue
+            ids = {row["source"] for row in result}
+            if ids == configured or (result[0].get("run_scope") == "all" and ids <= configured):
+                return result
+        return []
+
     def has_notice(self, source_id: str, external_id: str) -> bool:
         return self.db.execute("SELECT 1 FROM notices WHERE source_id=? AND external_id=?",
                                (source_id, external_id)).fetchone() is not None
