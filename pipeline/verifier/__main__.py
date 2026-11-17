@@ -68,7 +68,7 @@ def verify_bundles(data: dict, originals: dict[str, dict]) -> tuple[dict, list[d
             # 근거의 공지 번호가 이 순서를 가리키므로 형식이 틀린 공지도 빼지 않고 빈 공지로 둔다
             notices = [notice if isinstance(notice, dict) else {} for notice in bundle.get("notices") or []]
             checks = check_extraction(extraction, notices, [originals.get(notice.get("url")) for notice in notices])
-            statuses = merge_statuses(bundle.get("statuses"), extraction, checks)
+            statuses = merge_statuses(bundle.get("statuses"), extraction, checks, bundle.get("cross_extraction"))
             meta = bundle.get("meta") if isinstance(bundle.get("meta"), dict) else {}
             statuses = cross_verify(statuses, extraction, bundle.get("cross_extraction"), checks, meta.get("cross_model"))
         except Exception as error:  # 카드 하나의 이상한 값이 전체 검증을 멈추지 않게. 그 카드는 검증 없이 통과하지 않는다

@@ -71,6 +71,23 @@ class MergeGroupsTests(unittest.TestCase):
                                  new_card(campus=field("any", status="auto_verified"))], [GROUP])
         self.assertEqual(cards[0]["fields"]["campus"]["status"], "needs_check")
 
+    def test_reviewable_is_dropped_when_notices_disagree_or_are_uncertain(self):
+        """묶음에서 공지끼리 값이 다르거나 다른 공지가 확인 필요면 사람 검수로 올릴 수 있다는 표시를 지운다 (#121).
+        검수자는 최신 공지 근거만 보고 대조하게 되기 때문이다."""
+        def poster(value, source=NEW_URL):
+            return dict(field(value, status="needs_check", source=source), reviewable=True)
+
+        cases = {"값이 다름": old_card(campus=field(["인문"], source=OLD_URL)),
+                 "다른 공지가 확인 필요": old_card(campus=field("any", status="needs_check", source=OLD_URL))}
+        for case, older in cases.items():
+            cards, _ = merge_groups([older, new_card(campus=poster("any"))], [GROUP])
+            self.assertEqual(cards[0]["fields"]["campus"]["status"], "needs_check", case)
+            self.assertNotIn("reviewable", cards[0]["fields"]["campus"], case)
+        cards, _ = merge_groups([old_card(), new_card(campus=poster("any"))], [GROUP])
+        self.assertIs(cards[0]["fields"]["campus"].get("reviewable"), True, "값이 같고 다른 공지가 확인됐으면 남긴다")
+        cards, _ = merge_groups([old_card(benefits=field("상금")), new_card(benefits=poster("상장"))], [GROUP])
+        self.assertIs(cards[0]["fields"]["benefits"].get("reviewable"), True, "판정에 쓰지 않는 항목은 최신 공지 것 그대로")
+
     def test_missing_field_in_newest_card_uses_older_card_field_with_its_evidence(self):
         older_campus = field(["자연"], source=OLD_URL)
         cards, _ = merge_groups([old_card(campus=older_campus), new_card(campus=field(None, status="missing"))],

@@ -121,6 +121,21 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(self.card["fields"]["apply"]["status"], "needs_check")
         self.assertTrue(report["warnings"])
 
+    def test_reviewable_needs_check_can_be_promoted_by_a_person(self):
+        """포스터·글자 없는 첨부만 이유인 항목(reviewable)은 사람이 그 출처를 보고 올린다 (#121). 올리면 표시를 지운다."""
+        self.card["fields"]["apply"]["status"] = "needs_check"
+        self.card["fields"]["apply"]["reviewable"] = True
+        reviews, _ = load_reviews(self.write(self.review_of("apply")))
+        report = {"warnings": []}
+        self.assertEqual(apply_all({"cards": [self.card]}, reviews, report), 1)
+        self.assertEqual(self.card["fields"]["apply"]["status"], "human_verified")
+        self.assertNotIn("reviewable", self.card["fields"]["apply"])
+        self.assertEqual(report["warnings"], [])
+        for marker in (False, "true", 1):
+            card = copy.deepcopy(self.card)
+            card["fields"]["apply"] = dict(card["fields"]["apply"], status="needs_check", reviewable=marker)
+            self.assertEqual(apply_all({"cards": [card]}, reviews, {"warnings": []}), 0, marker)
+
     def test_auto_verified_fields_can_be_promoted_by_a_person(self):
         """교차 검증으로 자동 검증 통과한 항목도 사람이 원문과 대조하면 검수 완료 (판정에는 사람 검수가 필요하다)."""
         self.card["fields"]["apply"]["status"] = "auto_verified"
@@ -132,6 +147,10 @@ class ReviewTests(unittest.TestCase):
         helper = (Path(__file__).resolve().parents[2] / "scripts" / "review_card.mjs").read_text(encoding="utf-8")
         listed = re.search(r"PROMOTABLE = new Set\(\[(.*?)\]\)", helper).group(1)
         self.assertEqual(set(re.findall(r"'([a-z_]+)'", listed)), PROMOTABLE)
+        # reviewable 예외(#121)도 같은 조건이어야 한다: needs_check이고 reviewable이 정확히 true
+        self.assertIn("(field.status === 'needs_check' && field.reviewable === true)", helper)
+        self.assertIn("item.get(\"status\") == \"needs_check\" and item.get(\"reviewable\") is True",
+                      (Path(__file__).resolve().parents[1] / "exporter" / "reviews.py").read_text(encoding="utf-8"))
 
     def test_integral_float_matches_the_node_helper(self):
         """JS는 2.0과 2를 구분하지 않아 도우미가 만든 칸은 2가 된다."""
