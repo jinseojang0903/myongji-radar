@@ -341,6 +341,37 @@ class ExporterSafetyTests(unittest.TestCase):
         with self.assertRaises(CardExportError):
             build_card(bundle(notices=[dict(NOTICE, url="https://evil.example/notice")]))
 
+    def test_apply_link_needs_title_or_body_evidence(self):
+        """포스터·첨부에서만 읽은 신청 링크는 버튼으로 내지 않는다 (#157). 글은 남긴다."""
+        url = "https://forms.gle/abc"
+        poster = {"quote": "QR로 신청", "notice": 1, "location": "이미지", "file": EXAMPLE_FILES[0]}
+        attachment = dict(poster, location="첨부")
+        body = {"quote": "근거 문장", "notice": 1, "location": "본문", "file": None}
+        for evidence in ([poster], [attachment], [poster, attachment], []):
+            raw = dict(field({"text": "구글 폼으로 신청", "url": url}), evidence=evidence)
+            item = one_field("how_to_apply", raw)
+            self.assertIsNone(item["value"]["url"], evidence)
+            self.assertEqual(item["value"]["text"], "구글 폼으로 신청")
+            self.assertIn("신청 링크를 공지 제목·본문에서 확인하지 못해 비움", item["note"])
+            self.assertEqual(item["status"], "ai", "상태는 링크를 비워도 그대로 (검증 결과가 없는 시험)")
+        # 한계(문서에 적음): 링크가 그 제목·본문 근거에서 나왔는지는 보지 않는다
+        for evidence in ([poster, body], [dict(body, location="제목")]):
+            item = one_field("how_to_apply", dict(field({"text": "신청", "url": url}), evidence=evidence))
+            self.assertEqual(item["value"]["url"], url, evidence)
+        item = one_field("how_to_apply", dict(field({"text": "방문 접수", "url": None}), evidence=[poster]))
+        self.assertNotIn("신청 링크", item.get("note") or "", "링크가 없으면 안내도 없다")
+
+    def test_apply_link_is_dropped_when_body_evidence_fails(self):
+        """근거 대조에 실패해 근거를 공개하지 않는 항목도 링크를 비운다 (verifier evidence_failed)."""
+        fields = example_fields()
+        fields["how_to_apply"] = field({"text": "신청", "url": "https://forms.gle/abc"})
+        statuses = {"how_to_apply": {"status": "needs_check", "checked_value": fields["how_to_apply"]["value"],
+                                     "note": "근거 없음", "evidence_failed": True}}
+        item = build_card(with_fields(fields, statuses=statuses))["fields"]["how_to_apply"]
+        self.assertEqual(item["evidence"], [])
+        self.assertIsNone(item["value"]["url"])
+        self.assertEqual(item["status"], "needs_check")
+
     def test_urls_in_text_are_removed(self):
         item = one_field("how_to_apply", field({"text": "신청은 https://evil.example/x 또는 www.phish.kr 에서, 안내 https://ctl.mju.ac.kr/a", "url": None}))
         self.assertEqual(item["value"]["text"], "신청은 (주소 생략) 또는 (주소 생략) 에서, 안내 https://ctl.mju.ac.kr/a")

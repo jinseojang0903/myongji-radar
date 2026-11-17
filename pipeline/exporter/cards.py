@@ -58,6 +58,9 @@ VERIFIED = {"auto_verified", "human_verified"}
 FLAGS = {"found", "missing", "needs_check", "conflict"}
 SKIPPED_KINDS = {"결과", "취소"}  # 수상자 발표·취소 공지는 신청할 카드가 아니다
 EVIDENCE_LOCATIONS = {"제목", "본문", "이미지", "첨부"}
+# 신청 링크는 이 위치의 근거가 있을 때만 버튼으로 낸다 (#157). 포스터 글자는 원문과 대조하지 못하고, 구글 폼은
+# 누구나 만들 수 있어 포스터 속 지시문이 엉뚱한 폼으로 이어질 수 있다. 첨부도 글자를 뽑지 못한 것이 같은 위치로 와서 뺀다
+LINK_EVIDENCE_LOCATIONS = {"제목", "본문"}
 SCOPES = {"교내", "외부"}
 STAGE_NAMES = {"신청", "출품", "예선", "본선", "발표", "시상", "기타"}
 # 마감 단계 (site/js/ics.js DEADLINE_STAGES와 같다). 나머지는 그날 열리는 일정이라 날짜가 하나면 그 날짜가 곧 end다
@@ -442,6 +445,9 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
         # 학생도 mju.ac.kr을 써서 부서 메일인지 사람이 확인해야 공개한다. 근거가 없어 검수 완료가 풀린 경우도 비운다
         value = {**value, "email": ""}
         notes.append("문의 이메일은 사람이 검수하기 전이라 비움")
+    if name == "how_to_apply" and value.get("url") and not any(item["location"] in LINK_EVIDENCE_LOCATIONS for item in evidence):
+        value = {**value, "url": None}
+        notes.append("신청 링크를 공지 제목·본문에서 확인하지 못해 비움 (출처 공지에서 확인)")
     return _make_field(value, status, evidence, problems, notes, ai_note)
 
 

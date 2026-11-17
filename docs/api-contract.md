@@ -116,7 +116,7 @@ AI v0.2의 `found`는 검증 전 `ai`, `needs_check`·`conflict`는 `needs_check
 | `deliverables` | `{ "tags": ["기획서·제안서", "영상", "에세이·수기", "코드·개발", "발표", "디자인", "현장 참가", "기타"], "text": "영상 3~5분 + 대본" }` | 제출물 배지. 태그 목록은 추출 프롬프트 v0.2와 같다 |
 | `benefits` | string | 상금·상장 |
 | `mileage` | `{ "text": "예선 참가자 전원 창의 10점", "area": "창의" \| null, "points": 10 \| null }` | `points`는 참가자 기준. 수상자 추가 점수는 `text`에만 |
-| `how_to_apply` | `{ "text": "신청 방법 요약", "url": "https://..." \| null }` | 링크는 http·https만 |
+| `how_to_apply` | `{ "text": "신청 방법 요약", "url": "https://..." \| null }` | 링크는 http·https만. 공개 근거에 `제목`·`본문`이 하나도 없으면 `url`은 `null`이고 학생은 출처 공지로 간다. 예: 포스터·첨부에서만 읽음, 근거 대조 실패, 근거 상한으로 잘림. 사람 검수 항목도 같다 (#157) |
 | `contact` | `{ "dept": "", "email": "", "phone": "" }` | 문의 초안에 사용. 공지에 있는 값만. `email`은 사람이 검수한 문의처만 채운다 (학생도 `mju.ac.kr`을 써서 부서 메일과 구분할 수 없음) |
 
 ## 2. 조건 (자연어 해석기 출력, 버튼 입력과 같은 형식)
