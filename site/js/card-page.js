@@ -1,7 +1,7 @@
 // 카드 상세 화면 (#25): 내 조건 판정, 항목 표와 근거, 마감 변경 이력, 캘린더 파일, 문의 초안, 원문 링크.
 // 계산은 detail.js·ics.js(Node 테스트), 여기서는 그리기와 버튼만 다룬다. 글자는 모두 el()/textContent로 넣는다.
 import { el, externalLink } from './html.js';
-import { loadPage, badgeElements, ddayElement, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary } from './page.js';
 import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
 import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
@@ -29,7 +29,7 @@ async function main() {
   const container = document.getElementById('card-main');
   const page = await loadPage({ errorTarget: container });
   if (!page) return;
-  const { data, now, rejected } = page;
+  const { data, rejected } = page;
   const id = new URLSearchParams(window.location.search).get('id');
   const card = data.cards.find((item) => item.id === id);
   if (!card) {
@@ -46,15 +46,23 @@ async function main() {
   const conditions = readSavedConditions();
   showConditionSummary(conditions);
 
+  const header = renderHeader(card, page.getNow(), conditions);
+  const calendar = renderCalendar(card, page.getNow);
   container.replaceChildren(
-    renderHeader(card, now, conditions),
+    header,
     el('div', { class: 'split' },
       renderFields(card, data.boards),
       el('div', { class: 'side' },
         renderHistory(card, data.boards),
-        renderCalendar(card, now),
+        calendar.element,
         renderInquiry(card, conditions))),
   );
+  watchPageTime(page, (now) => {
+    const fresh = renderHeader(card, now, conditions);
+    header.querySelector('.deadline-tile').replaceChildren(...fresh.querySelector('.deadline-tile').childNodes);
+    if (hasJudgedConditions(conditions)) header.querySelector('.judgment').replaceWith(fresh.querySelector('.judgment'));
+    calendar.refresh(now);
+  });
 }
 
 // 마감 타일에 날짜를 못 쓸 때: 공지에 없음과 형식을 못 읽음을 나눈다 (마감일이 있는 대회를 "없음"으로 안내하지 않게)
@@ -208,25 +216,36 @@ function renderHistory(card, boards) {
     ])));
 }
 
-function renderCalendar(card, now) {
-  const items = calendarItems(card, now);
+function renderCalendar(card, getNow) {
+  const items = calendarItems(card, getNow());
   const section = el('section', { class: 'panel', 'aria-labelledby': 'h-cal' }, el('h2', { id: 'h-cal' }, '캘린더에 추가'));
   if (items.length === 0) {
     section.append(el('p', { class: 'small' }, '공지에서 마감일을 읽지 못해 캘린더 파일을 만들 수 없습니다.'));
-    return section;
+    return { element: section, refresh: () => {} };
   }
   const status = el('p', { class: 'small', role: 'status' });
   const choices = items.map((item) => {
     const input = el('input', { type: 'checkbox', checked: !item.isPast, disabled: item.isPast });
+    const past = el('span', { class: 'small', hidden: !item.isPast }, '(지남)');
     const label = el('label', { class: 'row' }, input, `${item.label} ${calendarItemText(item)}`,
-      item.isPast ? el('span', { class: 'small' }, '(지남)') : null,
+      past,
       item.isVerified ? null : el('span', { class: 'badge s-before' }, '확인 전'),
       item.note ? el('span', { class: 'badge s-need' }, '! 원문 확인 필요') : null);
-    return { item, input, label };
+    return { item, input, label, past };
   });
+  const refresh = (now) => {
+    const current = new Map(calendarItems(card, now).map((item) => [item.key, item]));
+    for (const choice of choices) {
+      choice.item = current.get(choice.item.key);
+      choice.input.disabled = choice.item.isPast;
+      if (choice.item.isPast) choice.input.checked = false;
+      choice.past.hidden = !choice.item.isPast;
+    }
+  };
   const alarm = el('input', { type: 'checkbox', checked: true });
   const button = el('button', { type: 'button', class: 'btn primary' }, '캘린더 파일 받기 (.ics)');
   button.addEventListener('click', () => {
+    refresh(getNow()); // 탭 타이머가 늦어도 내려받는 순간 지난 일정은 제외한다.
     const selected = choices.filter((choice) => choice.input.checked).map((choice) => choice.item);
     if (selected.length === 0) {
       announce(status, '넣을 일정을 하나 이상 고르세요.');
@@ -240,7 +259,7 @@ function renderCalendar(card, now) {
     el('label', { class: 'row' }, alarm, '3일 전·1일 전 알림', el('span', { class: 'small' }, '(시각이 없는 마감은 그날 오전 9시)')),
     button, status,
     el('p', { class: 'small' }, '휴대폰 기본 달력·구글 캘린더에서 열 수 있습니다. 마감 시각이 공지에 없으면 임의로 채우지 않고 하루 종일 일정으로 넣습니다.'));
-  return section;
+  return { element: section, refresh };
 }
 
 // 캘린더 파일 내려받기. el()은 사이트 밖 주소를 링크로 만들지 않으므로 blob: 주소는 여기서만 직접 단다.
