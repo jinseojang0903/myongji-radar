@@ -42,3 +42,9 @@ desktop.ini
 
 # 로그
 *.log
+
+# AI 도구의 로컬 파일: 설치한 스킬 복사본(StyleSeed, 출처·해시는 skills-lock.json에 둠)과
+# 리뷰 diff·진행 기록(메일 주소 등이 섞일 수 있음)·로컬 설정. .claude/ 아래는 모두 막고,
+# 프로젝트 에이전트 설정을 올리게 되면 그 경로만 따로 연다 (예: !.claude/agents/. .claude/가 아니라 .claude/*여야 예외가 먹는다).
+.claude/*
+.agents/
