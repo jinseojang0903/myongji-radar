@@ -266,7 +266,7 @@ class DailyPublishingTests(unittest.TestCase):
     def test_checked_in_settings_require_explicit_activation(self):
         settings = load_publishing(daily.ROOT / "config/publishing.toml", use_local=False)
         self.assertFalse(settings.enabled)
-        self.assertEqual(settings.max_new, 5)
+        self.assertEqual(settings.max_new, 10)
 
     def test_warning_only_collection_can_publish_without_push(self):
         self.write_settings(push=False)
