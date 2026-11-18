@@ -4,6 +4,7 @@ import math
 import sqlite3
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 
 from .adapters import ADAPTERS
@@ -13,6 +14,7 @@ from .config import load_sources
 from .fetcher import Fetcher, RunDeadlineExceeded
 from .models import NoticeRef
 from .locking import AlreadyRunning, CollectorLock
+from .poster_recovery import priority_refs
 from .repository import Repository
 from .text_safety import safe_terminal
 
@@ -29,9 +31,12 @@ def main(argv=None, *, lock_held=False):
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("--rules", type=Path, default=ROOT / "config/rules.toml")
     parser.add_argument("--source", help="출처 ID 하나만 실행")
+    parser.add_argument("--recover-posters", action="store_true", help="마감일 없는 공개 카드의 누락 포스터 공지만 다시 수집")
     parser.add_argument("--limit", type=int, default=50, help="출처별 상세 수집 상한 (1~50, 기본 50; 시험 시 줄여서 실행)")
     parser.add_argument("--run-timeout", type=float, default=RUN_TIMEOUT, help="수집 전체 요청 시간 예산(초, 기본 1200)")
     args = parser.parse_args(argv)
+    if args.recover_posters and args.command != "run":
+        parser.error("--recover-posters는 run에서만 사용할 수 있습니다")
     if not 1 <= args.limit <= 50:
         parser.error("--limit은 1~50이어야 합니다")
     if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
@@ -77,9 +82,61 @@ def main(argv=None, *, lock_held=False):
             def check_budget():
                 if time.monotonic() >= deadline:
                     raise RunDeadlineExceeded("수집 실행 전체 시간 예산을 초과했습니다")
+
+            def collect_ref(source, adapter, ref, stats, *, poster_first=False):
+                check_budget()
+                previous = repo.latest_payload(source.id, ref.external_id)
+                html = fetcher.get(ref.url, source.allowed_hosts)
+                notice = adapter.parse_detail(html, ref, source)
+                options = {"poster_first": True} if poster_first else {}
+                events = assets.enrich(notice, source.allowed_hosts, previous, **options)
+                stats["errors"].extend(e for e in events if e["severity"] == "error")
+                stats["warnings"].extend(e for e in events if e["severity"] == "warning")
+
+                def reparse_previous(old_html, old_payload):
+                    old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
+                                        old_payload["title"], old_payload["published_at"])
+                    return adapter.parse_detail(old_html, old_ref, source)
+
+                status = repo.save(notice, html, reparse_previous)
+                stats[status] += 1
+                print(safe_terminal(f"[{status}] {source.id} | {notice.title} | 본문 {len(notice.body_text)}자 / 이미지 {len(notice.images)} / 첨부 {len(notice.attachments)}"))
+                check_budget()
+
+            scope = "single" if args.source or args.recover_posters else "all"
+            stats_by_source = {
+                s.id: {"source": s.id, "discovery": s.discovery, "new": 0, "changed": 0, "unchanged": 0,
+                       "errors": [], "warnings": [], "run_scope": scope}
+                for s in sources
+            }
+            by_id = {source.id: source for source in sources}
+            recovered = set()
+            attempted_sources = set()
+            attempts = Counter()
+            # 출처별 목록을 읽기 전에 마감일이 비어 있는 포스터 공지에 먼저 예산을 배정한다.
+            for key, ref in priority_refs(ROOT.parent / "site/data/cards.json", args.data_dir / "notices.json", sources):
+                source = by_id[key[0]]
+                if attempts[source.id] >= args.limit:
+                    continue
+                attempts[source.id] += 1
+                stats = stats_by_source[source.id]
+                attempted_sources.add(source.id)
+                try:
+                    collect_ref(source, ADAPTERS[source.adapter](), ref, stats, poster_first=True)
+                    recovered.add(key)
+                except RunDeadlineExceeded:
+                    stats["errors"].append({"url": ref.url, "error": "run_deadline_exceeded"})
+                    exhausted = True
+                    break
+                except Exception as exc:
+                    level = "errors" if args.recover_posters else "warnings"
+                    stats[level].append({"url": ref.url, "error": "poster_recovery: " + type(exc).__name__})
             for source in sources:
-                stats = {"source": source.id, "discovery": source.discovery, "new": 0, "changed": 0, "unchanged": 0,
-                         "errors": [], "warnings": [], "run_scope": "single" if args.source else "all"}
+                stats = stats_by_source[source.id]
+                if args.recover_posters or exhausted:
+                    if source.id in attempted_sources:
+                        results.append(stats)
+                    continue
                 adapter = ADAPTERS[source.adapter]()
                 discovery_url = source.list_url if source.discovery == "html" else source.rss_url
                 try:
@@ -93,24 +150,13 @@ def main(argv=None, *, lock_held=False):
                         previous = repo.latest_payload(source.id, ref.external_id)
                         return previous is not None, ref.is_pinned, not assets.has_pending(previous)
                     refs = sorted(refs, key=priority)
-                    for ref in refs[:args.limit]:
+                    already = {external_id for sid, external_id in recovered if sid == source.id}
+                    remaining = (ref for ref in refs if ref.external_id not in already)
+                    for index, ref in enumerate(remaining):
+                        if index >= args.limit - attempts[source.id]:
+                            break
                         try:
-                            check_budget()
-                            html = fetcher.get(ref.url, source.allowed_hosts)
-                            notice = adapter.parse_detail(html, ref, source)
-                            asset_errors = assets.enrich(notice, source.allowed_hosts,
-                                                         repo.latest_payload(source.id, ref.external_id))
-                            stats["errors"].extend(e for e in asset_errors if e["severity"] == "error")
-                            stats["warnings"].extend(e for e in asset_errors if e["severity"] == "warning")
-                            def reparse_previous(old_html, old_payload):
-                                old_ref = NoticeRef(old_payload["external_id"], old_payload["url"],
-                                                    old_payload["title"], old_payload["published_at"])
-                                return adapter.parse_detail(old_html, old_ref, source)
-
-                            status = repo.save(notice, html, reparse_previous)
-                            stats[status] += 1
-                            print(safe_terminal(f"[{status}] {source.id} | {notice.title} | 본문 {len(notice.body_text)}자 / 이미지 {len(notice.images)} / 첨부 {len(notice.attachments)}"))
-                            check_budget()
+                            collect_ref(source, adapter, ref, stats)
                         except RunDeadlineExceeded:
                             stats["errors"].append({"url": ref.url, "error": "run_deadline_exceeded"})
                             exhausted = True
@@ -125,10 +171,8 @@ def main(argv=None, *, lock_held=False):
                 if not exhausted and time.monotonic() >= deadline:
                     stats["errors"].append({"url": discovery_url, "error": "run_deadline_exceeded"})
                     exhausted = True
-                failed |= bool(stats["errors"])
                 results.append(stats)
-                if exhausted:
-                    break
+            failed = any(row["errors"] for row in results)
             repo.finish_run(run_id, results)
             print(safe_terminal(json.dumps(results, ensure_ascii=False, indent=2)))
         count = repo.export(args.data_dir / "notices.json")

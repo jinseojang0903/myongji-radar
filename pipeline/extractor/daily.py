@@ -33,6 +33,7 @@ from pathlib import Path
 
 from collector.asset_text import attachment_names, attachment_texts
 from collector.config import load_sources
+from collector.poster_recovery import missing_deadline_urls
 from collector.repository import Repository, content_hash
 from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
@@ -245,8 +246,12 @@ def run_daily(args) -> int:
         pending.append(item)
     # 카드가 없는 공지(새 글·새 판을 기다려 내린 카드)를 먼저, 그다음 최신 공지부터 (같으면 원래 순서).
     # 입력이 바뀌어 모두 다시 뽑을 때 옛 결과로 공개 중인 카드가 하루 상한을 먼저 쓰지 않게 한다
-    pending.sort(key=lambda item: (not has_card[item["card_id"]], posted_day(item["notice"].get("published_at"), "")),
-                 reverse=True)
+    missing_dates = missing_deadline_urls(Path(__file__).resolve().parents[2] / "site/data/cards.json") if args.images else set()
+    pending.sort(key=lambda item: (
+        item["notice"].get("url") in missing_dates and bool(image_refs(item["notice"])),
+        not has_card[item["card_id"]],
+        posted_day(item["notice"].get("published_at"), ""),
+    ), reverse=True)
     for card_id in given_up:
         print(f"[포기] {card_id}: 같은 판을 {MAX_FAILURES}번 실패해 부르지 않음 (공지·모델·프롬프트가 바뀌거나 --force면 다시)",
               file=sys.stderr)
