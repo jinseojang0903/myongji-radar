@@ -15,7 +15,7 @@ from unittest.mock import patch
 from collector import daily
 from collector.local_publishing import migrate_publishing
 from collector.locking import CollectorLock
-from collector.publish_config import load_publishing
+from collector.publish_config import load_publishing, unset_local_options
 from publisher import push
 import runtime
 
@@ -65,6 +65,7 @@ class RuntimeFollowupTests(unittest.TestCase):
         self.assertEqual(config.with_suffix('.local.toml').read_bytes(), original)
         self.assertTrue(load_publishing(config).enabled)
         self.assertFalse(load_publishing(config).images)
+        self.assertEqual(unset_local_options(config), ['images'], '이관본에 없는 새 칸은 알린다')
         self.assertEqual(self.git('status', '--porcelain').strip(), '')
         backups = list((self.root / 'pipeline/data/config_backups').glob('*.toml'))
         self.assertEqual(len(backups), 1)
@@ -88,6 +89,26 @@ class RuntimeFollowupTests(unittest.TestCase):
         local.write_text('broken')
         with self.assertRaises(ValueError): load_publishing(config)
         self.assertFalse(load_publishing(config, use_local=False).enabled)
+
+    def test_unset_local_options_only_counts_missing_keys(self):
+        config = self.root / 'publishing.toml'; config.write_text(BASE + 'images=true\n')
+        self.assertEqual(unset_local_options(config), [], '로컬 설정이 없으면 추적 설정 그대로')
+        local = config.with_suffix('.local.toml')
+        local.write_text(BASE)
+        self.assertEqual(unset_local_options(config), ['images'])
+        local.write_text(BASE + 'images=false\n')
+        self.assertEqual(unset_local_options(config), [], '적어 둔 false는 운영자의 선택')
+        config.write_text(BASE + 'images=true\ncross_model="sonnet"\n')
+        local.write_text(BASE)
+        self.assertEqual(unset_local_options(config), ['cross_model', 'images'])
+        config.write_text(BASE + 'images=false\n')
+        self.assertEqual(unset_local_options(config), [], '추적 값이 끔이면 로컬에 없어도 차이가 없다')
+        config.write_text(BASE)
+        local.write_text(BASE)
+        self.assertEqual(unset_local_options(config), [])
+        config.write_text('broken')
+        self.assertEqual(unset_local_options(config), [], '로컬로 도는 실행을 알림 때문에 멈추지 않는다')
+        self.assertTrue(load_publishing(config).max_new)
 
     def test_valid_local_does_not_hide_invalid_tracked_settings_during_migration(self):
         config = self.setup_repo()
