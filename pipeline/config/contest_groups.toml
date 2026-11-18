@@ -88,3 +88,11 @@ members = [
   {source_id = "mju_general", external_id = "mjukr/141/237247"},
   {source_id = "mju_innovation", external_id = "innovation/56/237238"},
 ]
+
+# 11/18 추가 (원문 지원자격이 같음을 대조한 뒤 팀장 확인). 학적 값이 달라 묶으면 "원문 확인 필요"로 표시된다
+[[groups]]
+id = "innovation-video-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/236905"},
+  {source_id = "mju_innovation", external_id = "innovation/56/236899"},
+]
