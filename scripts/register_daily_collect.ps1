@@ -1,7 +1,7 @@
 ﻿[CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [ValidatePattern('^([01][0-9]|2[0-3]):[0-5][0-9]$')]
-    [string]$At = '07:00',
+    [string]$At = '08:00',
     [ValidatePattern('^[A-Za-z0-9_.-]+$')]
     [string]$TaskName = "MyongjiRadar-DailyCollect-$env:USERNAME",
     [switch]$Remove
