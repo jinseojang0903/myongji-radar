@@ -1,17 +1,54 @@
 """첨부 예산으로 밀린 파일의 다음 실행 처리. 실제 네트워크·문서 변환은 쓰지 않는다."""
 import copy
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from collector.assets import AssetCollector
 from collector.models import Notice
+from collector.poster_recovery import priority_refs
 from collector.fetcher import FetchPolicyError, ResponseTooLarge, RunDeadlineExceeded
 import requests
 
 
 class AssetRecoveryTests(unittest.TestCase):
+    def test_recovery_selects_only_known_missing_deadlines_with_retryable_posters(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cards, notices = (Path(folder) / name for name in ("cards.json", "notices.json"))
+            def url(n):
+                return f"https://test.mju.ac.kr/{n}"
+            def card(n, deadline=None):
+                return {"sources": [{"url": url(n)}], "fields": {"apply": {"value": deadline}}}
+            def notice(n, reason, status="skipped"):
+                return {"source_id": "test", "external_id": str(n), "url": url(n), "title": "공모전",
+                        "published_at": f"2026-11-0{n}", "images": [
+                            {"download_status": status, "download_reason": reason}]}
+            cards.write_text(json.dumps({"cards": [card(1), card(2), card(3, {"end": "2026-12-01"}),
+                                                   card(4), card(5), card(6), card(2)]}), encoding="utf-8")
+            notices.write_text(json.dumps({"notices": [notice(1, "FetchPolicyError"), notice(2, "run_bytes"),
+                                                       notice(3, "run_bytes"), notice(4, "url_policy"),
+                                                       notice(5, None, "downloaded")]}), encoding="utf-8")
+            result = priority_refs(cards, notices, [SimpleNamespace(id="test")])
+            self.assertEqual([key for key, ref in result], [("test", "2"), ("test", "1")])
+
+    def test_recovery_poster_precedes_attachment_even_if_poster_has_old_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            asset = AssetCollector(Path(folder), Mock(get=Mock(return_value=b"poster")))
+            host = "test.mju.ac.kr"
+            image = {"url": f"https://{host}/poster"}
+            notice = Notice("test", "1", f"https://{host}/post", "공모전", None, "", images=[image],
+                            attachments=[{"url": f"https://{host}/attachment", "name": "안내.pdf"}])
+            asset.enrich(Notice("test", "1", notice.url, notice.title, None, "", images=[dict(image)]), [host])
+            previous = {"images": [{"url": image["url"], "local_path": next(Path(folder).glob("assets/*")).relative_to(folder).as_posix()}]}
+            asset = AssetCollector(Path(folder), Mock(get=Mock(return_value=b"poster")))
+            with patch("collector.assets.MAX_RUN_BYTES", 6):
+                asset.enrich(notice, [host], previous, poster_first=True)
+            self.assertEqual(notice.images[0]["download_status"], "downloaded")
+            self.assertEqual(notice.attachments[0]["download_reason"], "run_bytes")
+
     def test_notice_limits_do_not_mark_source_as_pending(self):
         with tempfile.TemporaryDirectory() as folder:
             collector = AssetCollector(Path(folder), Mock())

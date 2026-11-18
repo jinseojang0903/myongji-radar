@@ -132,7 +132,7 @@ class AssetCollector:
         return any(self.needs_download(item) for kind in ("images", "attachments")
                    for item in (previous or {}).get(kind, []))
 
-    def enrich(self, notice, allowed_hosts: list[str], previous: dict | None = None) -> list[dict]:
+    def enrich(self, notice, allowed_hosts: list[str], previous: dict | None = None, *, poster_first=False) -> list[dict]:
         errors = []
         total, count = 0, 0
         tasks = []
@@ -140,7 +140,7 @@ class AssetCollector:
             old = {item["url"]: item for item in (previous or {}).get(kind, [])}
             tasks.extend((kind, item, old.get(item["url"], {})) for item in getattr(notice, kind))
         # 원래 배열은 바꾸지 않아 첨부 이름·번호·해시 순서를 보존한다.
-        tasks.sort(key=lambda task: not self.needs_download(task[2]))
+        tasks.sort(key=lambda task: (poster_first and task[0] != "images", not self.needs_download(task[2])))
         for kind, item, old in tasks:
             count += 1
             url = item["url"]
