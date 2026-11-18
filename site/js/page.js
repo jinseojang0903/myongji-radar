@@ -2,7 +2,7 @@
 // 홈(#21)·추천(#24)·상세(#25)·제작 기록(#26)이 같이 쓴다.
 import { el } from './html.js';
 import { validateCardData, referenceDate, ddayLabel, cardBadges, bannerText, deadlineOf, STALE_HOURS } from './cards.js';
-import { kstDateString } from './dates.js';
+import { kstDateString, parseContractDate, toKstInstant } from './dates.js';
 import { calendarItems } from './ics.js';
 import { loadCardData } from './data.js';
 import { readSavedConditions, describeConditions } from './conditions.js';
@@ -56,24 +56,36 @@ export function watchPageTime(page, render) {
   const key = (now) => JSON.stringify([
     kstDateString(now), bannerText(page.data, now, false),
     ...page.data.cards.map((card) => deadlineOf(card, now).state),
+    ...page.data.cards.map((card) => {
+      const start = parseContractDate(card.fields?.apply?.value?.start);
+      return start ? now < toKstInstant(start.date, start.time ?? '00:00') : false;
+    }),
     ...page.data.cards.flatMap((card) => calendarItems(card, now).map((item) => item.isPast)),
   ]);
-  let previous = key(page.getNow());
+  let previous;
+  try { previous = key(page.getNow()); }
+  catch { console.error('시간 갱신 기준을 준비하지 못했습니다. 다음 확인 때 다시 시도합니다.'); }
   let timer;
   const pause = () => clearTimeout(timer);
   const refresh = () => {
     pause();
     if (document.hidden) return;
-    const now = page.getNow();
-    const current = key(now);
-    if (current !== previous) {
-      previous = current;
-      renderTimeChange(render, now);
+    try {
+      const now = page.getNow();
+      const current = key(now);
+      if (current !== previous) {
+        renderTimeChange(render, now);
+        previous = current; // 그리기와 포커스 복원까지 성공한 상태만 확정한다.
+      }
+    } catch {
+      console.error('화면의 시간 정보를 갱신하지 못했습니다. 다음 확인 때 다시 시도합니다.');
+    } finally {
+      // 기준 계산·렌더가 실패해도 타이머는 복구한다. 외부 오류 문자열은 출력하지 않는다.
+      const time = Date.now();
+      const staleAt = new Date(page.data.generated_at).getTime() + STALE_HOURS * 3600000 + 1;
+      const nextMinute = time - time % 60000 + 60001;
+      timer = setTimeout(refresh, Math.min(nextMinute, staleAt > time ? staleAt : Infinity) - time);
     }
-    const time = now.getTime();
-    const staleAt = new Date(page.data.generated_at).getTime() + STALE_HOURS * 3600000 + 1;
-    const nextMinute = time - time % 60000 + 60001;
-    timer = setTimeout(refresh, Math.min(nextMinute, staleAt > time ? staleAt : Infinity) - time);
   };
   document.addEventListener('visibilitychange', refresh);
   window.addEventListener('focus', refresh);

@@ -156,3 +156,60 @@ for (const mode of ['표시된 예시', '예시 파일 대체']) {
     assert.equal(calls, 0);
   });
 }
+
+for (const failure of ['render', 'key']) {
+  test(`${failure} 예외 뒤에도 다음 분에 같은 변경을 다시 그린다`, async (t) => {
+    const { page } = await fixture(t);
+    const errors = t.mock.method(console, 'error', () => {});
+    let attempts = 0;
+    watch(page, () => {
+      attempts++;
+      if (failure === 'render' && attempts === 1) throw new Error('PRIVATE_ERROR');
+    });
+    const original = page.getNow;
+    let broken = failure === 'key';
+    page.getNow = () => {
+      if (broken) { broken = false; throw new Error('PRIVATE_ERROR'); }
+      return original();
+    };
+    t.mock.timers.tick(60001);
+    assert.equal(errors.mock.callCount(), 1);
+    assert.equal(attempts, failure === 'render' ? 1 : 0);
+    t.mock.timers.tick(60000);
+    assert.equal(attempts, failure === 'render' ? 2 : 1);
+    assert.ok(!JSON.stringify(errors.mock.calls).includes('PRIVATE_ERROR'));
+    t.mock.timers.tick(60000);
+    assert.equal(attempts, failure === 'render' ? 2 : 1);
+  });
+}
+
+test('명시된 신청 시작 시각이 지나면 시작 전 안내도 자동 갱신한다', async (t) => {
+  const { page, card } = await fixture(t, { end: '2026-11-17 11:00' });
+  card.fields.apply.value.start = '2026-11-17 10:00';
+  const seen = [];
+  watch(page, (now) => seen.push(judgeCard(card, STUDENT, { now }).reasons));
+  t.mock.timers.tick(60001);
+  assert.equal(seen.length, 1);
+  assert.ok(seen[0].every((reason) => !reason.message.includes('신청 시작 전')));
+});
+
+for (const mode of ['링크 유지', '버튼 유지', '카드 제거', '버튼 제거']) {
+  test(`자동 렌더의 포커스 복원: ${mode}`, async (t) => {
+    const { page, document } = await fixture(t);
+    let focused;
+    const keeps = mode.endsWith('유지');
+    const card = { dataset: { cardId: 'test-card' }, querySelectorAll: () => keeps ? [replacement] : [] };
+    const active = { tagName: mode === '링크 유지' ? 'A' : 'BUTTON', textContent: '문의 초안 복사',
+      isConnected: true, closest: () => card, getAttribute: () => 'card.html?id=test-card' };
+    const replacement = { tagName: active.tagName, textContent: active.textContent,
+      getAttribute: active.getAttribute, focus: () => { focused = '유지'; } };
+    const status = { focus: () => { focused = '안내'; } };
+    document.activeElement = active;
+    document.querySelectorAll = () => mode === '카드 제거' ? [] : [card];
+    document.getElementById = () => status;
+    watch(page, () => { active.isConnected = false; });
+    t.mock.timers.tick(60001);
+    assert.equal(focused, keeps ? '유지' : '안내');
+    if (!keeps) assert.equal(status.tabIndex, -1);
+  });
+}
