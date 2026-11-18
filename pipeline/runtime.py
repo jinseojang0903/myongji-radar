@@ -1,11 +1,13 @@
 """잠금을 보유한 채 코드를 갱신하고 새 프로세스에서 운영 작업을 시작한다."""
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from collector.locking import CollectorLock
+from collector.process_tree import guard_process_tree
 from publisher.push import prepare
 
 ROOT = Path(__file__).resolve().parent
@@ -24,12 +26,30 @@ def launch(mode, argv, data_dir):
     with CollectorLock(data_dir):
         phase, code, error_type = "prepare", 1 if mode == "daily" else 2, None
         try:
+            if mode == 'daily':
+                from collector.daily import read_daily_state, previous_exit_code, log_skipped, current_time
+                path = data_dir / 'daily_status.json'
+                if path.exists():
+                    phase = 'state_check'
+                    try:
+                        today = current_time().date()
+                        previous = read_daily_state(path, today)
+                    except (ValueError, OSError) as error:
+                        error_type = type(error).__name__
+                        return 1
+                    if previous['local_date'] == today.isoformat() and previous['collection_attempted']:
+                        code = previous_exit_code(previous)
+                        log_skipped(data_dir, 'already_attempted_today', code)
+                        return code
+            phase = 'prepare'
+            guard_process_tree()
             prepare(ROOT.parent)
             phase = "worker"
             # 원격 코드로 갱신된 뒤에 import한다. 부모가 미리 읽은 단계 함수는 실행하지 않는다.
             code = subprocess.run(
                 [sys.executable, "-c", CHILD, mode, *argv, "--data-dir", str(data_dir)],
                 cwd=ROOT, check=False,
+                env={key: value for key, value in os.environ.items() if key != 'MJU_RADAR_SUPERVISOR_PID'},
             ).returncode
             return code
         except BaseException as error:
