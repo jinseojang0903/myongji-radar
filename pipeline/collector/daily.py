@@ -338,10 +338,15 @@ def main(argv=None, *, lock_held=False, synchronized=False):
             rules = tomllib.loads(args.rules.read_text(encoding="utf-8"))
             if not all(key in rules for key in ("version", "activity_types", "non_activity")):
                 raise ValueError("잘못된 규칙 설정")
+            unset = []
             if args.publish_config is not None:
                 load_publishing(args.publish_config)
+                unset = unset_local_options(args.publish_config)
         except (ValueError, OSError) as exc:
             parser.exit(1, f"설정 확인 실패: {type(exc).__name__}\n")
+        if unset:
+            print(f"[설정 확인] 공개 설정에 있는 {', '.join(unset)} 칸이 로컬 설정"
+                  f"(publishing.local.toml)에 없어 꺼진 채로 돈다. 켜려면 로컬 설정에 적는다", file=sys.stderr)
         print(f"설정 확인 완료: 출처 {len(sources)}곳, 데이터 경로 {args.data_dir}")
         return 0
     code = run_daily(args.data_dir, args.config, args.rules, run_timeout=args.run_timeout,

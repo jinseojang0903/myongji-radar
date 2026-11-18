@@ -38,7 +38,7 @@ def load_publishing(path: Path, *, use_local: bool = True) -> Publishing:
 
 
 def unset_local_options(path: Path) -> list[str]:
-    """추적 설정에는 적혀 있는데 로컬 설정에는 칸이 없는 선택 칸. 로컬 설정이 통째로 우선하므로
+    """추적 설정에는 켜져 있는데 로컬 설정에는 칸이 없는 선택 칸. 로컬 설정이 통째로 우선하므로
     이런 칸은 main에서 켜도 운영에서는 기본값(끔)으로 돈다 (#168 이관본에 #158의 images가 없던 경우).
     로컬에 칸을 적어 두면(false 포함) 운영자의 선택으로 보고 알리지 않는다.
     알림일 뿐이라 실행을 막지 않는다: 로컬이 있으면 load_publishing은 추적 파일을 읽지 않으므로, 추적 파일을 읽지
@@ -52,4 +52,5 @@ def unset_local_options(path: Path) -> list[str]:
         mine = tomllib.loads(local.read_text(encoding="utf-8-sig"))
     except (ValueError, OSError):
         return []
-    return sorted(key for key in OPTIONAL_KEYS if key in tracked and key not in mine)
+    # 추적 값이 켜는 값일 때만 (images = false처럼 기본값과 같으면 로컬에 없어도 차이가 없다)
+    return sorted(key for key in OPTIONAL_KEYS if tracked.get(key) not in (None, False) and key not in mine)

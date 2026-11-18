@@ -241,6 +241,19 @@ class DailyPublishingTests(unittest.TestCase):
         self.assertEqual((event["reason"], event["options"]), ("local_config_missing_options", ["images"]))
         self.assertIn("images", stderr.getvalue())
 
+    def test_dry_run_reports_missing_local_options_without_collecting(self):
+        self.write_settings(images="true")
+        self.settings.with_suffix(".local.toml").write_text(
+            'version=1\nenabled=true\nmodel="opus"\npush=true\nmax_new=5\n', encoding="utf-8")
+        argv = ["collector.daily", "--dry-run", "--config", str(self.fixture.config), "--rules", str(self.fixture.rules),
+                "--data-dir", str(self.fixture.data), "--publish-config", str(self.settings)]
+        stderr = io.StringIO()
+        with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            self.assertEqual(daily.main(), 0, "설정 확인은 통과한다")
+        self.assertIn("[설정 확인]", stderr.getvalue())
+        self.assertIn("images", stderr.getvalue())
+        self.fixture.fetcher.get.assert_not_called()
+
     def test_explicit_local_choice_is_not_reported(self):
         self.write_settings(images="true")
         self.settings.with_suffix(".local.toml").write_text(

@@ -5,7 +5,7 @@
 
 ### 비공개 수집 파일 계약 (#12)
 
-#162 운영 후속: `publishing.local.toml`이 있으면 기본 `publishing.toml` 대신 같은 전체 설정 형식으로 검증해 사용한다. 이 파일은 Git에 올리지 않는다. 코드 갱신 전에 추적 설정의 비스테이지 로컬 수정을 검증·백업하고 로컬 사본으로 이관하며, 그 파일만 HEAD 상태로 복구한다. 스테이지된 설정·잘못된 설정은 자동으로 덮어쓰지 않는다. 같은 날 이미 시도한 날짜 상태는 Git 통신 전에 잠금 안에서 확인한다. runtime 로그의 phase에는 기존 prepare·worker 외에 state_check를 허용한다. 일일 잠금 충돌은 날짜별 JSONL에 skipped·another_operation_running·exit_code=0을 남기며 원래 날짜 상태를 덮어쓰지 않는다. 기본 설정에 적힌 선택 칸이 로컬 설정에 칸째 없으면(그 칸은 꺼진 채로 돈다) 실행은 그대로 하고, 날짜별 JSONL에 `publish_config_notice`(`reason: "local_config_missing_options"`, `options`: 칸 이름 목록)를, 날짜 상태(`daily_status.json`)에 `publish_unset_local_options`를 남긴다.
+#162 운영 후속: `publishing.local.toml`이 있으면 기본 `publishing.toml` 대신 같은 전체 설정 형식으로 검증해 사용한다. 이 파일은 Git에 올리지 않는다. 코드 갱신 전에 추적 설정의 비스테이지 로컬 수정을 검증·백업하고 로컬 사본으로 이관하며, 그 파일만 HEAD 상태로 복구한다. 스테이지된 설정·잘못된 설정은 자동으로 덮어쓰지 않는다. 같은 날 이미 시도한 날짜 상태는 Git 통신 전에 잠금 안에서 확인한다. runtime 로그의 phase에는 기존 prepare·worker 외에 state_check를 허용한다. 일일 잠금 충돌은 날짜별 JSONL에 skipped·another_operation_running·exit_code=0을 남기며 원래 날짜 상태를 덮어쓰지 않는다. 기본 설정에서 켠 선택 칸이 로컬 설정에 칸째 없으면(그 칸은 꺼진 채로 돈다) 실행은 그대로 하고, 날짜별 JSONL에 `publish_config_notice`(`reason: "local_config_missing_options"`, `options`: 칸 이름 목록)를, 날짜 상태(`daily_status.json`)에 `publish_unset_local_options`를 남긴다.
 
 `pipeline/data/notices.json`의 `images[]`·`attachments[]`는 기존 `url`·`alt` 또는 `name`을 유지한다. 다운로드 성공 시 `sha256`(파일 바이트), `local_path`(`assets/<sha256>.bin`), `size_bytes`, `download_status: "downloaded"`를 더한다. 이름·URL은 저장 경로에 사용하지 않는다. PDF·HWP 5·HWPX 첨부는 별도 제한 시간의 로컬 프로세스에서 텍스트로 변환하고 `text_path`, `text_status: "extracted"`를 더한다. OCR은 수행하지 않는다. 이미지·지원하지 않는 형식·암호 문서·스캔본·변환 실패는 `text_status: "needs_review"`, `text_reason`으로 원문 확인 필요를 남긴다.
 
