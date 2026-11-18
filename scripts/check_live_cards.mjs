@@ -34,7 +34,7 @@ const MAX_MODEL_LABEL = 40;
 const CARD_FIELDS = new Set(['apply', 'stages', 'campus', 'grades', 'enrollment', 'team', 'deliverables',
   'benefits', 'mileage', 'how_to_apply', 'contact']);
 const KNOWN_KEYS = new Set([...CARD_FIELDS, 'id', 'title', 'organizer', 'scope', 'sources', 'fields', 'deadline_history',
-  'meta', 'board_id', 'url', 'posted_at', 'last_seen_at', 'value', 'status', 'evidence', 'note', 'reviewable', 'quote', 'location',
+  'meta', 'board_id', 'url', 'posted_at', 'last_seen_at', 'value', 'status', 'evidence', 'conflicts', 'note', 'reviewable', 'quote', 'location',
   'file', 'source', 'start', 'end', 'time_given', 'name', 'tags', 'text', 'area', 'points', 'dept', 'email', 'phone',
   'min', 'max', 'individual_ok', 'allowed', 'excluded', 'field', 'old', 'new', 'old_source', 'new_source',
   'checked_at', 'prompt_version', 'extract_model', 'cross_model', 'boards', 'list_url']);
@@ -63,9 +63,9 @@ const probe = (text) => text.normalize('NFKC').replace(INVISIBLE, '').replace(DA
 const cardLabel = (card, index) => (typeof card?.id === 'string' && CARD_ID_PATTERN.test(card.id) ? card.id : `카드 #${index + 1}(id 형식 오류)`);
 const boardLabel = (board, index) => `board:${typeof board?.id === 'string' && BOARD_ID_PATTERN.test(board.id) ? board.id : `#${index + 1}(id 형식 오류)`}`;
 const keyLabel = (key) => (/^\d+$/.test(key) || KNOWN_KEYS.has(key) ? key : '(모르는 키)');
-// 화면 검사 사유는 고정 문구지만 두 사유는 앞에 항목 이름(파일의 키)이 붙는다 (site/js/cards.js findCardProblem).
+// 화면 검사 사유 중 앞에 항목 이름(파일의 키)이 붙는 문구를 모두 포함한다 (site/js/cards.js findCardProblem).
 // 키에 "의 "가 들어 있어도 새지 않게 고정 꼬리로 끝까지 맞춘 뒤 키 전체를 keyLabel로 거른다
-const KEYED_REASON = /^([\s\S]*)의 (status가 계약 값이 아님|evidence가 배열이 아님)$/;
+const KEYED_REASON = /^([\s\S]*)의 (status가 계약 값이 아님|evidence가 배열이 아님|conflicts 형식·상태가 계약과 다름|충돌 값·출처·근거가 계약과 다름)$/;
 const reasonLabel = (reason) => {
   const match = KEYED_REASON.exec(reason);
   return match ? `${keyLabel(match[1])}의 ${match[2]}` : reason;

@@ -1,0 +1,308 @@
+{
+  "schema_version": "0.1",
+  "generated_at": "2026-11-05T09:00:00+09:00",
+  "boards": [],
+  "cards": [
+    {
+      "id": "history-video-5",
+      "title": "AI 리터러시 경진대회",
+      "organizer": "교수학습센터",
+      "scope": "교내",
+      "sources": [
+        {
+          "board_id": "mju-general",
+          "url": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+          "title": "역사 영상 공모전(연장)",
+          "posted_at": "2026-10-07",
+          "last_seen_at": null
+        },
+        {
+          "board_id": "mju-innovation",
+          "url": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+          "title": "역사 영상 공모전",
+          "posted_at": "2026-10-02",
+          "last_seen_at": null
+        }
+      ],
+      "fields": {
+        "apply": {
+          "value": {
+            "start": "2026-10-01",
+            "end": "2026-10-23 15:00",
+            "time_given": true
+          },
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+              "location": "이미지",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do"
+            }
+          ],
+          "note": "게시판마다 값이 다름: 이 카드의 다른 출처 공지와 함께 확인 / 본문에는 없고 일정표 이미지에만 있음. 제안서 제출이 곧 신청",
+          "conflicts": [
+            {
+              "value": {
+                "start": "2026-10-01",
+                "end": "2026-10-23 15:00",
+                "time_given": true
+              },
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+              "evidence": [
+                {
+                  "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+                  "location": "이미지",
+                  "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+                }
+              ]
+            },
+            {
+              "value": {
+                "start": "2026-10-01",
+                "end": "2026-09-30 15:00",
+                "time_given": true
+              },
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+              "evidence": [
+                {
+                  "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+                  "location": "이미지",
+                  "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do"
+                }
+              ]
+            }
+          ]
+        },
+        "stages": {
+          "value": [
+            {
+              "name": "신청",
+              "end": "2026-10-21 15:00",
+              "time_given": true
+            }
+          ],
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "2026.10.01.(목) ~10.21.(수) 15:00",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "결선 일정은 이 예시의 입력에 날짜가 없어 넣지 않음"
+        },
+        "campus": {
+          "value": [
+            "자연"
+          ],
+          "status": "needs_check",
+          "evidence": [
+            {
+              "quote": "자연 캠퍼스 참가 가능. 개인 연락처 (휴대폰 번호 생략), (이메일 생략)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "인문 캠퍼스 참가 가능. 개인 연락처 (휴대폰 번호 생략), (이메일 생략)",
+              "location": "본문",
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do"
+            }
+          ],
+          "note": "게시판마다 값이 다름: 이 카드의 다른 출처 공지와 함께 확인 / 내보내기 검사: 개인 연락처로 보이는 부분을 가림",
+          "conflicts": [
+            {
+              "value": [
+                "자연"
+              ],
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+              "evidence": [
+                {
+                  "quote": "자연 캠퍼스 참가 가능. 개인 연락처 (휴대폰 번호 생략), (이메일 생략)",
+                  "location": "본문",
+                  "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+                }
+              ]
+            },
+            {
+              "value": [
+                "인문"
+              ],
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+              "evidence": [
+                {
+                  "quote": "인문 캠퍼스 참가 가능. 개인 연락처 (휴대폰 번호 생략), (이메일 생략)",
+                  "location": "본문",
+                  "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do"
+                }
+              ]
+            }
+          ]
+        },
+        "grades": {
+          "value": "any",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "1) 정규학기 등록 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "대상 문장에 학년 구분 없음"
+        },
+        "enrollment": {
+          "value": {
+            "allowed": [
+              "재학"
+            ],
+            "excluded": [
+              "휴학",
+              "수료",
+              "초과학기",
+              "졸업유예",
+              "대학원생"
+            ]
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "1) 정규학기 등록 학부 재학생",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "※휴학생, 수료생, 초과 학기생, 졸업유예자, 대학원생은 신청 불가",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "편입생은 마일리지 장학금 지급에서만 제외: \"※편입생의 경우, 비교과 마일리지 장학금 지급 대상에서 제외\""
+        },
+        "team": {
+          "value": {
+            "min": null,
+            "max": 3,
+            "individual_ok": true
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "2) 3인 이내로 구성된 팀 (개인 지원 가능)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "deliverables": {
+          "value": {
+            "tags": [
+              "기획서·제안서",
+              "발표"
+            ],
+            "text": "예선: 신청서, 제안서(최대 3장) / 결선: 현장 발표용 PPT, 최종 결과물, 프롬프트"
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "1) 신청서 1부 (팀원 전원 서명)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "※ 분량 : 최대 3장 이내 (팀 구성원 소개란 제외)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "라. 결선 제출 서류 : 현장 발표용 PPT, 최종 결과물, 프롬포트",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "benefits": {
+          "value": "대상(1팀) 총장상·100만원 등. 장학금은 팀원 수로 균등 분배",
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "1) 대 상(1팀) : 총장상, 100만원, 수상 마일리지 인당 30점",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "※ 장학금은 장학금 총액을 팀원 수로 나누어 균등하게 지급",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ],
+          "note": "형식 예시라 최우수·우수상 근거는 생략하고 값에서도 뺌"
+        },
+        "mileage": {
+          "value": {
+            "text": "예선 참가자 전원 창의 10점 (단순 MYiCap+ 신청은 해당 없음)",
+            "area": "창의",
+            "points": 10
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "가. 예선 참가자 전원 : 명지 비교과 활동 마일리지 창의 10점 지급",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            },
+            {
+              "quote": "(단순 MYiCap+ 신청은 해당되지 않음)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "how_to_apply": {
+          "value": {
+            "text": "제출 파일을 zip으로 압축해 MYiCap+ 비교과 프로그램 신청 시 업로드",
+            "url": null
+          },
+          "status": "ai",
+          "evidence": [
+            {
+              "quote": "제출 파일들을 압축(zip파일)하여 MYiCap+ 비교과 프로그램 신청 시 업로드",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+            }
+          ]
+        },
+        "contact": {
+          "value": {
+            "dept": "교수학습센터",
+            "email": "",
+            "phone": ""
+          },
+          "status": "ai",
+          "evidence": [],
+          "note": "문의 이메일은 사람이 검수하기 전이라 비움 / 제출용 이메일. 문의 전용 연락처는 이 예시 입력에 없음"
+        }
+      },
+      "deadline_history": [
+        {
+          "field": "apply_end",
+          "old": "2026-09-30 15:00",
+          "new": "2026-10-23 15:00",
+          "old_source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+          "new_source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+          "checked_at": "2026-10-07"
+        }
+      ],
+      "meta": {
+        "prompt_version": "v0.2",
+        "extract_model": "시험 고정값",
+        "cross_model": null,
+        "checked_at": "2026-11-05"
+      }
+    }
+  ]
+}

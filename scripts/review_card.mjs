@@ -18,7 +18,7 @@ export const REVIEWABLE_FIELDS = ['apply', 'stages', 'campus', 'grades', 'enroll
 // 고쳤거나 공지끼리 충돌한 경우 등 이유가 여럿이라, 한쪽만 대조하고 검수 완료가 되지 않게 이슈로 남긴다 (아래 예외 하나)
 export const PROMOTABLE = new Set(['ai', 'auto_verified']);
 // 예외: reviewable이 붙은 "원문 확인 필요"는 이유가 포스터·글자 없는 첨부뿐이다 (#121, reviews.py is_promotable과 같다)
-export const isPromotable = (field) => PROMOTABLE.has(field.status) || (field.status === 'needs_check' && field.reviewable === true);
+export const isPromotable = (field) => !field.conflicts?.length && (PROMOTABLE.has(field.status) || (field.status === 'needs_check' && field.reviewable === true));
 const STATUS_LABELS = { ai: 'AI 정리', auto_verified: '자동 검증 통과', needs_check: '원문 확인 필요 (포스터·첨부를 직접 보고 대조)' };
 // 터미널을 조작하는 제어 문자(ESC 등)를 출력 전에 지운다. 배포 데이터는 내보내기가 이미 지우지만 --file은 아무 파일이나 받는다
 const CONTROL = /[\p{Cc}\p{Cf}]/gu;
@@ -70,7 +70,7 @@ async function loadCards(options) {
 
 /** 검수 대상이 아닌 "원문 확인 필요" 항목 (이슈로 남길 것) */
 export function needsCheckItems(card) {
-  return REVIEWABLE_FIELDS.filter((name) => card.fields?.[name]?.status === 'needs_check' && card.fields[name].reviewable !== true)
+  return REVIEWABLE_FIELDS.filter((name) => card.fields?.[name]?.status === 'needs_check' && !isPromotable(card.fields[name]))
     .map((name) => ({ name, label: FIELD_LABELS[name], note: card.fields[name].note ?? '' }));
 }
 

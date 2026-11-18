@@ -35,7 +35,8 @@ PROMOTABLE = {"ai", "auto_verified"}
 
 def is_promotable(item: dict) -> bool:
     """검수 기록으로 "검수 완료"까지 올릴 수 있는 상태인가 (scripts/review_card.mjs의 isPromotable과 같다)."""
-    return item.get("status") in PROMOTABLE or (item.get("status") == "needs_check" and item.get("reviewable") is True)
+    return not item.get("conflicts") and (item.get("status") in PROMOTABLE or (
+        item.get("status") == "needs_check" and item.get("reviewable") is True))
 
 
 class ReviewsError(ValueError):
