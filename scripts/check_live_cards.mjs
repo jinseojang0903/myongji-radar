@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { validateCardData, deadlineOf, STALE_HOURS } from '../site/js/cards.js';
 
 export const DEFAULT_BASE = 'https://myongji-radar-site.vercel.app';
-const PAGES = ['/', '/recommend.html', '/card.html', '/log.html', '/data/log.json'];
+const PAGES = ['/', '/recommend.html', '/card.html', '/calendar.html', '/log.html', '/data/log.json'];
 const FETCH_TIMEOUT_MS = 15000;
 
 // 내보내기와 같은 값 (pipeline/exporter/cards.py, 계약 1절)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
+<title>명지레이더 · 마감 달력</title>
+<link rel="icon" type="image/svg+xml" href="assets/radar-icon.svg">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/calendar-page.js"></script>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/radar-icon.svg" alt="" width="36" height="36"><span>명지레이더</span></a>
+    <nav aria-label="주요 화면">
+      <a href="index.html">홈</a>
+      <a href="recommend.html">맞춤 추천</a>
+      <a href="calendar.html" aria-current="page">달력</a>
+      <a href="log.html">제작 기록</a>
+    </nav>
+    <span class="cond" id="cond-summary">내 조건: 아직 고르지 않음</span>
+  </div>
+</header>
+<p class="demo" id="sample-banner" hidden></p>
+
+<main>
+  <section class="panel page-head" aria-labelledby="h-cal">
+    <h1 id="h-cal">마감 달력</h1>
+    <p class="lead">어느 날에 어떤 대회의 신청·출품이 끝나는지 봅니다. AI가 정리한 날짜이니 신청 전에 원문 공지를 꼭 확인하세요.</p>
+    <p class="small" id="cal-note" role="status">불러오는 중…</p>
+  </section>
+
+  <section class="panel" aria-labelledby="cal-title">
+    <div class="cal-nav">
+      <h2 id="cal-title" aria-live="polite">달력</h2>
+      <div class="cal-moves">
+        <button type="button" class="btn" id="cal-prev">‹ 이전 달</button>
+        <button type="button" class="btn" id="cal-today">이번 달</button>
+        <button type="button" class="btn" id="cal-next">다음 달 ›</button>
+      </div>
+    </div>
+    <div id="cal-body"><p class="small">불러오는 중…</p></div>
+    <ul class="cal-legend" aria-label="달력 표시 설명">
+      <li><span class="cal-event" data-tone="soon" data-verified="true">7일 이내 마감</span></li>
+      <li><span class="cal-event" data-tone="open" data-verified="true">마감 전</span></li>
+      <li><span class="cal-event" data-tone="past" data-verified="true">지난 마감</span></li>
+      <li><span class="cal-event" data-tone="open" data-verified="false">왼쪽 점선</span> 팀이 원문과 대조하기 전(확인 전)</li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="h-agenda">
+    <h2 id="h-agenda">이 달의 마감</h2>
+    <ul class="agenda" id="cal-agenda"></ul>
+    <p class="small">발표·본선·시상 같은 행사 날짜는 달력에 넣지 않았습니다. 대회 카드의 단계별 일정에서 볼 수 있습니다.</p>
+  </section>
+</main>
+</body>
+</html>
