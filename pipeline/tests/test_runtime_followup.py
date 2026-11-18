@@ -84,8 +84,27 @@ class RuntimeFollowupTests(unittest.TestCase):
         self.assertFalse(load_publishing(config).enabled)
         local = config.with_suffix('.local.toml'); local.write_text(BASE.replace('enabled=false', 'enabled=true'))
         self.assertTrue(load_publishing(config).enabled)
+        self.assertFalse(load_publishing(config, use_local=False).enabled)
         local.write_text('broken')
         with self.assertRaises(ValueError): load_publishing(config)
+        self.assertFalse(load_publishing(config, use_local=False).enabled)
+
+    def test_valid_local_does_not_hide_invalid_tracked_settings_during_migration(self):
+        config = self.setup_repo()
+        config.write_text('broken', encoding='utf-8')
+        local = config.with_suffix('.local.toml'); local.write_text(BASE, encoding='utf-8')
+        with self.assertRaises(push.PushError): migrate_publishing(self.root)
+        self.assertEqual(config.read_text(), 'broken')
+        self.assertEqual(local.read_text(), BASE)
+        self.assertFalse((self.root / 'pipeline/data/config_backups').exists())
+
+    def test_supervisor_pid_stays_in_parent_and_is_removed_from_worker_environment(self):
+        with patch.dict(os.environ, {'MJU_RADAR_SUPERVISOR_PID': str(os.getpid())}), \
+                patch.object(runtime, 'guard_process_tree'), patch.object(runtime, 'prepare'), \
+                patch.object(runtime.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as worker:
+            self.assertEqual(runtime.launch('publisher', [], self.data), 0)
+            self.assertNotIn('MJU_RADAR_SUPERVISOR_PID', worker.call_args.kwargs['env'])
+            self.assertEqual(os.environ['MJU_RADAR_SUPERVISOR_PID'], str(os.getpid()))
 
     def test_same_day_result_is_preserved_without_git_network_or_worker(self):
         self.data.mkdir()
@@ -109,6 +128,30 @@ class RuntimeFollowupTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == 'nt', 'Windows Job Object 검증')
 class ProcessTreeTests(unittest.TestCase):
+    def test_supervisor_must_be_a_real_ancestor(self):
+        from collector.process_tree import is_ancestor_process
+        self.assertTrue(is_ancestor_process(os.getppid()))
+        self.assertFalse(is_ancestor_process(os.getpid()))
+        self.assertFalse(is_ancestor_process(0))
+
+    def test_unrelated_live_supervisor_is_rejected(self):
+        other = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
+        try:
+            env = {**os.environ, 'MJU_RADAR_SUPERVISOR_PID': str(other.pid)}
+            code = '''from collector.process_tree import guard_process_tree
+try: guard_process_tree()
+except OSError: raise SystemExit(7)
+raise SystemExit(99)
+'''
+            self.assertEqual(subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env).returncode, 7)
+        finally:
+            other.kill(); other.wait()
+
+    def test_real_supervisor_handle_is_accepted(self):
+        env = {**os.environ, 'MJU_RADAR_SUPERVISOR_PID': str(os.getpid())}
+        code = 'from collector.process_tree import guard_process_tree; guard_process_tree(); raise SystemExit(3)'
+        self.assertEqual(subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env).returncode, 3)
+
     def alive(self, pid):
         k = ctypes.WinDLL('kernel32', use_last_error=True)
         k.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]; k.OpenProcess.restype = ctypes.c_void_p

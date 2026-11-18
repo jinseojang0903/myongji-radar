@@ -31,7 +31,8 @@ def migrate_publishing(repo):
     if changed != 1 or _git(repo, 'diff', '--cached', '--quiet', '--', path, check=False).returncode:
         raise PushError('공개 설정의 Git 상태를 확인할 수 없거나 스테이지된 수정이 있음 (사람이 정리)')
     try:
-        load_publishing(config)  # 설정을 검증하기 전에는 어느 파일도 바꾸지 않는다.
+        load_publishing(config, use_local=False)
+        load_publishing(config)  # 추적 파일·로컬 파일을 모두 검증하기 전에는 바꾸지 않는다.
         original = config.read_bytes()
         backup = config.parents[1] / 'data/config_backups'
         backup.mkdir(parents=True, exist_ok=True)

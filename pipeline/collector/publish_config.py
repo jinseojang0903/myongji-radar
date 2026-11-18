@@ -19,10 +19,10 @@ class Publishing:
     images: bool = False
 
 
-def load_publishing(path: Path) -> Publishing:
+def load_publishing(path: Path, *, use_local: bool = True) -> Publishing:
     path = Path(path)
     local = path.with_suffix('.local.toml')
-    data = tomllib.loads((local if local.is_file() else path).read_text(encoding="utf-8-sig"))
+    data = tomllib.loads((local if use_local and local.is_file() else path).read_text(encoding="utf-8-sig"))
     cross_model = data.get("cross_model")
     if (not REQUIRED_KEYS <= set(data) or not set(data) <= REQUIRED_KEYS | OPTIONAL_KEYS
             or type(data["version"]) is not int or data["version"] != 1

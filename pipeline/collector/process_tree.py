@@ -5,6 +5,45 @@ import threading
 _job = None  # 프로세스 종료까지 보유한다. 자식에게 핸들을 상속하지 않는다.
 
 
+def is_ancestor_process(pid):
+    """가상환경 리다이렉터를 포함한 실제 상위 프로세스인지 확인한다."""
+    import ctypes
+    from ctypes import wintypes as w
+
+    class Entry(ctypes.Structure):
+        _fields_ = [('size', w.DWORD), ('usage', w.DWORD), ('pid', w.DWORD), ('heap', ctypes.c_size_t),
+                    ('module', w.DWORD), ('threads', w.DWORD), ('parent', w.DWORD), ('priority', w.LONG),
+                    ('flags', w.DWORD), ('exe', w.WCHAR * 260)]
+
+    k = ctypes.WinDLL('kernel32', use_last_error=True)
+    k.CreateToolhelp32Snapshot.argtypes = [w.DWORD, w.DWORD]
+    k.CreateToolhelp32Snapshot.restype = w.HANDLE
+    k.Process32FirstW.argtypes = [w.HANDLE, ctypes.POINTER(Entry)]
+    k.Process32NextW.argtypes = [w.HANDLE, ctypes.POINTER(Entry)]
+    k.CloseHandle.argtypes = [w.HANDLE]
+    snapshot = k.CreateToolhelp32Snapshot(2, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = Entry(); entry.size = ctypes.sizeof(entry)
+        parents = {}
+        found = k.Process32FirstW(snapshot, ctypes.byref(entry))
+        while found:
+            parents[entry.pid] = entry.parent
+            found = k.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        k.CloseHandle(snapshot)
+    current, seen = os.getpid(), {os.getpid()}
+    while current in parents:
+        current = parents[current]
+        if current in seen or current == 0:
+            break
+        if current == pid:
+            return True
+        seen.add(current)
+    return False
+
+
 def guard_process_tree():
     """Python 부모 종료와 예약 실행기 PowerShell 종료 모두 하위 작업을 끝낸다."""
     global _job
@@ -48,7 +87,8 @@ def guard_process_tree():
     _job = handle
     supervisor = os.environ.get('MJU_RADAR_SUPERVISOR_PID')
     if supervisor is not None:
-        if not supervisor.isascii() or not supervisor.isdigit() or int(supervisor) <= 0 or int(supervisor) == os.getpid():
+        if (not supervisor.isascii() or not supervisor.isdigit() or not 0 < int(supervisor) <= 0xFFFFFFFF
+                or not is_ancestor_process(int(supervisor))):
             raise OSError('잘못된 운영 실행기 PID')
         parent = k.OpenProcess(0x100000, False, int(supervisor))  # SYNCHRONIZE: 종료 대기만 허용
         if not parent:

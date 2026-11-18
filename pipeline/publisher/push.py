@@ -30,7 +30,9 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
         no_hooks = Path(repo).resolve() / ".git" / "publisher-no-hooks"
         completed = subprocess.run(["git", "-C", str(repo), "-c", f"core.hooksPath={no_hooks}", *args],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace",
-                                   stdin=subprocess.DEVNULL, timeout=GIT_TIMEOUT, env={**os.environ, **GIT_ENV})
+                                   stdin=subprocess.DEVNULL, timeout=GIT_TIMEOUT,
+                                   env={**{key: value for key, value in os.environ.items()
+                                           if key != 'MJU_RADAR_SUPERVISOR_PID'}, **GIT_ENV})
     except subprocess.TimeoutExpired:
         raise PushError(f"git {args[0]}이 {GIT_TIMEOUT}초 안에 끝나지 않음 (자격 증명·네트워크 확인)") from None
     except OSError as error:

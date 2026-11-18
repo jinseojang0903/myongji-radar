@@ -228,7 +228,7 @@ class DailyPublishingTests(unittest.TestCase):
         self.assertIn("--images", publish.call_args.args[0])
 
     def test_checked_in_settings_require_explicit_activation(self):
-        settings = load_publishing(daily.ROOT / "config/publishing.toml")
+        settings = load_publishing(daily.ROOT / "config/publishing.toml", use_local=False)
         self.assertFalse(settings.enabled)
         self.assertEqual(settings.max_new, 5)
 

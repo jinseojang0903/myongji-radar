@@ -1,5 +1,6 @@
 """잠금을 보유한 채 코드를 갱신하고 새 프로세스에서 운영 작업을 시작한다."""
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -48,6 +49,7 @@ def launch(mode, argv, data_dir):
             code = subprocess.run(
                 [sys.executable, "-c", CHILD, mode, *argv, "--data-dir", str(data_dir)],
                 cwd=ROOT, check=False,
+                env={key: value for key, value in os.environ.items() if key != 'MJU_RADAR_SUPERVISOR_PID'},
             ).returncode
             return code
         except BaseException as error:
