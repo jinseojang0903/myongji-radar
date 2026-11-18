@@ -2,7 +2,8 @@
 // 홈(#21)·추천(#24)·상세(#25)·제작 기록(#26)이 같이 쓴다.
 import { el } from './html.js';
 import { validateCardData, referenceDate, ddayLabel, cardBadges, bannerText, deadlineOf, STALE_HOURS } from './cards.js';
-import { kstDateString, parseContractDate, toKstInstant } from './dates.js';
+import { kstDateString } from './dates.js';
+import { isBeforeApplyStart } from './rules.js';
 import { calendarItems } from './ics.js';
 import { loadCardData } from './data.js';
 import { readSavedConditions, describeConditions } from './conditions.js';
@@ -56,15 +57,17 @@ export function watchPageTime(page, render) {
   const key = (now) => JSON.stringify([
     kstDateString(now), bannerText(page.data, now, false),
     ...page.data.cards.map((card) => deadlineOf(card, now).state),
-    ...page.data.cards.map((card) => {
-      const start = parseContractDate(card.fields?.apply?.value?.start);
-      return start ? now < toKstInstant(start.date, start.time ?? '00:00') : false;
-    }),
+    ...page.data.cards.map((card) => isBeforeApplyStart(card.fields?.apply?.value, now)),
     ...page.data.cards.flatMap((card) => calendarItems(card, now).map((item) => item.isPast)),
   ]);
   let previous;
+  let reported = false;
+  const reportError = () => {
+    if (!reported) console.error('화면의 시간 정보를 갱신하지 못했습니다. 다음 확인 때 다시 시도합니다.');
+    reported = true;
+  };
   try { previous = key(page.getNow()); }
-  catch { console.error('시간 갱신 기준을 준비하지 못했습니다. 다음 확인 때 다시 시도합니다.'); }
+  catch { reportError(); }
   let timer;
   const pause = () => clearTimeout(timer);
   const refresh = () => {
@@ -77,8 +80,9 @@ export function watchPageTime(page, render) {
         renderTimeChange(render, now);
         previous = current; // 그리기와 포커스 복원까지 성공한 상태만 확정한다.
       }
+      reported = false;
     } catch {
-      console.error('화면의 시간 정보를 갱신하지 못했습니다. 다음 확인 때 다시 시도합니다.');
+      reportError();
     } finally {
       // 기준 계산·렌더가 실패해도 타이머는 복구한다. 외부 오류 문자열은 출력하지 않는다.
       const time = Date.now();
@@ -105,7 +109,11 @@ export function watchPageTime(page, render) {
 function renderTimeChange(render, now) {
   const active = document.activeElement;
   const cardId = active?.closest('[data-card-id]')?.dataset.cardId;
-  render(now);
+  try { render(now); }
+  finally { restoreTimeFocus(active, cardId); }
+}
+
+function restoreTimeFocus(active, cardId) {
   if (!active || active.isConnected) return;
   const scope = cardId
     ? [...document.querySelectorAll('[data-card-id]')].find((node) => node.dataset.cardId === cardId)

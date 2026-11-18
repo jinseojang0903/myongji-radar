@@ -213,3 +213,65 @@ for (const mode of ['링크 유지', '버튼 유지', '카드 제거', '버튼 �
     if (!keeps) assert.equal(status.tabIndex, -1);
   });
 }
+
+test('처음 기준 계산만 실패해도 즉시 복구하고 다음 분 갱신을 계속한다', async (t) => {
+  const { page } = await fixture(t);
+  const errors = t.mock.method(console, 'error', () => {});
+  const original = page.getNow;
+  let first = true, calls = 0;
+  page.getNow = () => {
+    if (first) { first = false; throw new Error('PRIVATE_ERROR'); }
+    return original();
+  };
+  watch(page, () => calls++);
+  assert.equal(errors.mock.callCount(), 1);
+  assert.equal(calls, 1);
+  t.mock.timers.tick(60001);
+  assert.equal(calls, 2);
+});
+
+test('계속 실패하는 기준 계산은 한 번만 알리고 성공 뒤 새 실패만 다시 알린다', async (t) => {
+  const { page, window } = await fixture(t);
+  const errors = t.mock.method(console, 'error', () => {});
+  const original = page.getNow;
+  page.getNow = () => { throw new Error('PRIVATE_ERROR'); };
+  let calls = 0;
+  watch(page, () => calls++);
+  t.mock.timers.tick(120001);
+  window.dispatchEvent(new Event('focus'));
+  window.dispatchEvent(new Event('pageshow'));
+  assert.equal(errors.mock.callCount(), 1);
+  assert.equal(calls, 0);
+  page.getNow = original;
+  window.dispatchEvent(new Event('focus'));
+  assert.equal(calls, 1);
+  page.getNow = () => { throw new Error('PRIVATE_ERROR'); };
+  window.dispatchEvent(new Event('focus'));
+  window.dispatchEvent(new Event('focus'));
+  assert.equal(errors.mock.callCount(), 2);
+});
+
+test('렌더가 DOM을 바꾸고 실패해도 먼저 포커스를 복원하고 다음 분에 재시도한다', async (t) => {
+  const { page, document } = await fixture(t);
+  t.mock.method(console, 'error', () => {});
+  const card = { dataset: { cardId: 'test-card' }, querySelectorAll: () => [replacement] };
+  const active = { tagName: 'A', isConnected: true, closest: () => card, getAttribute: () => 'card.html?id=test-card' };
+  const replacement = { tagName: 'A', isConnected: true, closest: () => card, getAttribute: active.getAttribute,
+    focus: () => { document.activeElement = replacement; } };
+  document.activeElement = active;
+  document.querySelectorAll = () => [card];
+  let calls = 0;
+  watch(page, () => {
+    if (++calls === 1) {
+      active.isConnected = false;
+      document.activeElement = { isConnected: true, closest: () => null };
+      throw new Error('PRIVATE_ERROR');
+    }
+  });
+  t.mock.timers.tick(60001);
+  assert.equal(document.activeElement, replacement);
+  assert.equal(calls, 1);
+  t.mock.timers.tick(60000);
+  assert.equal(calls, 2);
+  assert.equal(document.activeElement, replacement);
+});
