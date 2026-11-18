@@ -234,7 +234,7 @@ export function withParticle(word, first, second) {
  * @returns {{items: string[], text: string, recipient: string}|null}  text: 인사/질문/자기소개/마무리를 줄바꿈으로 나눈 글.
  *   물을 것이 없으면 null
  */
-export function inquiryDraft(card, conditions = null) {
+export function inquiryDraft(card, conditions = null, boards = []) {
   const isMissing = (field) => !field || field.status === 'missing' || field.value === null || field.value === undefined;
   const asks = Object.keys(INQUIRY_QUESTIONS)
     .map((name) => ({ name, field: card.fields?.[name] }))
@@ -253,7 +253,9 @@ export function inquiryDraft(card, conditions = null) {
     if ((field.conflicts?.length ?? 0) > 1) {
       const values = field.conflicts.map((variant) => {
         const source = card.sources.find((item) => item.url === variant.source);
-        return `「${stripInvisible(fieldValueText(name, variant.value) ?? '조건 확인 필요')}」 (${stripInvisible(source?.board_id ?? '출처')}: ${stripInvisible(variant.source)})`;
+        const sourceName = source ? boardName(source.board_id, boards) : '출처 확인 필요';
+        const url = safeUrl(variant.source);
+        return `「${stripInvisible(fieldValueText(name, variant.value) ?? '조건 확인 필요')}」 (${stripInvisible(sourceName)}${url ? `: ${url}` : ': 주소 확인 필요'})`;
       });
       paragraphs.push(`${withParticle(INQUIRY_QUESTIONS[name], '이', '가')} 공지에 ${values.join(', ')}로 서로 다르게 적혀 있습니다. 어느 쪽이 맞는지 확인 부탁드립니다.`);
     } else {

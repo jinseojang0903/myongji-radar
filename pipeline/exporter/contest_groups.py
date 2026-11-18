@@ -22,6 +22,10 @@ from merger.groups import validate_groups
 # 판정(site/js/rules.js)에 쓰는 항목. 다른 공지와 값이 다르면 어느 쪽이 맞는지 코드가 정하지 않는다
 JUDGED_FIELDS = ("apply", "campus", "grades", "enrollment", "team")
 DIFFERENT_NOTE = "게시판마다 값이 다름: 이 카드의 다른 출처 공지와 함께 확인"
+UNCERTAIN_NOTE = "다른 출처 공지에서 원문 확인이 필요한 항목"
+TRUNCATED_NOTE = "서로 다른 값 중 최신 5개만 표시. 전체 출처 원문 확인"
+QUOTE_BUDGET_NOTE = "카드 전체 인용 상한으로 이 항목의 근거를 생략함. 원문 확인 필요"
+MAX_CONFLICT_VALUES = 5
 # 공지마다 값이 다르면 낮출 상태. 사람 검수(human_verified)는 지금 합친 뒤에 붙지만, 묶음 단계에 이미 있으면
 # 한 공지만 대조한 검수일 수 있어 함께 낮춘다
 LOWERABLE = {"ai", "auto_verified", "human_verified"}
@@ -119,6 +123,7 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
         if fallback is not None:
             merged["fields"][name] = copy.deepcopy(fallback)
             filled.append(name)
+    required_notes = {}
     for name in JUDGED_FIELDS:
         item = merged["fields"].get(name)
         if item is None:
@@ -128,12 +133,13 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
         if disputed:
             # 검수자는 최신 공지 근거만 보고 대조하게 되므로 사람 검수로 올릴 수 있다는 표시를 지운다 (#121)
             item.pop("reviewable", None)
+            if item.get("status") != "missing":
+                required_notes[name] = [DIFFERENT_NOTE if differs else UNCERTAIN_NOTE]
         if item.get("status") in LOWERABLE and disputed:
             item["status"] = "needs_check"
-            item["note"] = _with_note(item.get("note")) if differs else "다른 출처 공지에서 원문 확인이 필요한 항목"
             notes.append(f"{name} 다름" if differs else f"{name} 다른 출처 확인 필요")
     # 내보내기의 카드당 근거·note 합계 상한을 합친 뒤에도 지킨다 (공지 본문을 이어 붙여 싣지 못하게).
-    # 낮추며 붙인 note까지 센 뒤, 넘으면 나중에 채운 항목부터 원래(정보 없음)로 되돌린다
+    # 기존 공개 자료만으로 상한을 넘으면 나중에 채운 항목부터 되돌린다. 추가 안내와 충돌 인용은 아래에서 배분한다.
     while filled and not _within_limits(merged):
         name = filled.pop()
         merged["fields"][name] = copy.deepcopy(primary["fields"][name])
@@ -144,11 +150,10 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
             item = merged["fields"][name]
             item["status"] = "needs_check"
             item.pop("reviewable", None)
-            item["conflicts"] = variants[:MAX_EVIDENCE]
-            if not item.get("note", "").startswith(DIFFERENT_NOTE):
-                item["note"] = _with_note(item.get("note"))
-            if len(variants) > MAX_EVIDENCE:
-                item["note"] = _with_note("서로 다른 값 중 최신 5개만 표시. 전체 출처 원문 확인")
+            item["conflicts"] = variants[:MAX_CONFLICT_VALUES]
+            required_notes[name] = [DIFFERENT_NOTE]
+            if len(variants) > MAX_CONFLICT_VALUES:
+                required_notes[name].append(TRUNCATED_NOTE)
             # 값마다 첫 근거를 먼저 배분하여 한 출처가 공개 한도를 독점하지 않게 한다.
             evidence = []
             for index in range(MAX_EVIDENCE):
@@ -157,7 +162,7 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
                     if index < len(candidates) and candidates[index] not in evidence:
                         evidence.append(copy.deepcopy(candidates[index]))
             item["evidence"] = evidence[:MAX_EVIDENCE]
-    _bound_public_text(merged)
+    _bound_public_text(merged, required_notes)
     merged["deadline_history"] = _history(newest_first)
     return merged, notes
 
@@ -176,27 +181,43 @@ def _conflicting_values(cards: list[dict], name: str) -> list[dict]:
     return variants if len(variants) > 1 else []
 
 
-def _bound_public_text(card: dict) -> None:
-    """충돌의 양쪽 근거를 먼저 남기고 카드 전체 공개 상한을 적용한다. 중첩 근거는 평탄 근거의 부분집합이다."""
-    quotes, note_left = set(), MAX_CARD_NOTE_CHARS
-    items = sorted(card["fields"].values(), key=lambda item: not bool(item.get("conflicts")))
-    for item in items:
-        had_evidence = bool(item.get("evidence"))
-        kept = []
-        for evidence in item.get("evidence", []):
+def _bound_public_text(card: dict, required_notes: dict) -> None:
+    """항목을 순회하며 대표 인용부터 배분하고 필수 안내 몫을 확보한 뒤 기존 메모를 보존한다."""
+    quotes = set()
+    fields = card["fields"]
+    candidates = {name: item.get("evidence", []) for name, item in fields.items()}
+    for item in fields.values():
+        item["evidence"] = []
+    # 첫 인용을 모든 항목에 먼저 배분한다. 충돌 항목의 후보도 값별 첫 인용 순서로 정렬되어 있다.
+    for index in range(MAX_EVIDENCE):
+        for name, item in fields.items():
+            if index >= len(candidates[name]):
+                continue
+            evidence = candidates[name][index]
             quote = evidence.get("quote", "")
             if quote in quotes or sum(map(len, quotes)) + len(quote) <= MAX_CARD_QUOTE_CHARS:
-                kept.append(evidence)
+                item["evidence"].append(evidence)
                 quotes.add(quote)
-        item["evidence"] = kept[:MAX_EVIDENCE]
+    for name, item in fields.items():
         for variant in item.get("conflicts", []):
             variant["evidence"] = [e for e in variant["evidence"] if e in item["evidence"]]
-        if had_evidence and not item["evidence"] and item.get("status") in LOWERABLE:
-            item["status"] = "needs_check"
-            item.pop("reviewable", None)
-        if item.get("note"):
-            item["note"] = item["note"][:note_left]
-            note_left -= len(item["note"])
+        if candidates[name] and not item["evidence"]:
+            required_notes.setdefault(name, []).append(QUOTE_BUDGET_NOTE)
+            if item.get("status") in LOWERABLE:
+                item["status"] = "needs_check"
+                item.pop("reviewable", None)
+    prefixes = {name: " / ".join(messages) for name, messages in required_notes.items()}
+    # 공개 항목 11개에 붙는 위 고정 안내는 모두 합쳐도 1,000자 이하다.
+    note_left = MAX_CARD_NOTE_CHARS - sum(map(len, prefixes.values()))
+    for name, item in fields.items():
+        prefix = prefixes.get(name, "")
+        original = item.get("note") or ""
+        separator = " / " if prefix and original else ""
+        room = max(0, min(MAX_TEXT_CHARS - len(prefix), note_left))
+        suffix = (separator + original)[:room] if room > len(separator) else ""
+        note_left -= len(suffix)
+        if prefix or original:
+            item["note"] = prefix + suffix
 
 
 def _within_limits(card: dict) -> bool:
@@ -269,11 +290,6 @@ def _comparable(value) -> str:
             return {key: unordered(part) for key, part in item.items()}
         return item
     return json.dumps(unordered(value), ensure_ascii=False, sort_keys=True)
-
-
-def _with_note(note) -> str:
-    text = f"{DIFFERENT_NOTE} / {note}" if note else DIFFERENT_NOTE
-    return text[:MAX_TEXT_CHARS]
 
 
 def _history(newest_first: list[dict]) -> list[dict]:

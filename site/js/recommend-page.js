@@ -58,7 +58,7 @@ async function main() {
   const render = () => {
     renderChips();
     renderParsed();
-    renderResults(data.cards, page.getNow(), rejectedCardCount);
+    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
     showConditionSummary(state.conditions);
   };
   // shouldSave=false: 화면에만 반영 (주소로 받은 문장은 학생이 칩·버튼을 누르기 전까지 저장하지 않는다)
@@ -76,7 +76,7 @@ async function main() {
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
   const readTitleQuery = () => {
     state.titleQuery = clipTitleQuery(titleInput.value);
-    renderResults(data.cards, page.getNow(), rejectedCardCount);
+    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
   };
   // 버튼으로 바꿀 때만 입력칸에 쓴다
   const setTitleQuery = (text) => {
@@ -127,7 +127,7 @@ async function main() {
   // 주소로 받은 문장이 공백뿐이거나 해석에 실패하면 interpret가 그리지 않아 결과가 "불러오는 중…"으로 남는다
   if (!hasRenderedResults) render();
   isReadyToAnnounce = true;
-  watchPageTime(page, (now) => renderResults(data.cards, now, rejectedCardCount));
+  watchPageTime(page, (now) => renderResults(data.cards, now, rejectedCardCount, data.boards));
 }
 
 // 주소의 #q= (또는 예전 ?q=)를 읽고 주소에서 지운다. 200자로 자른다
@@ -250,7 +250,7 @@ function announceResults(message) {
   resultAnnounceTimer = setTimeout(() => announce(document.getElementById('result-status'), message), RESULT_ANNOUNCE_DELAY_MS);
 }
 
-function renderResults(cards, now, rejectedCount) {
+function renderResults(cards, now, rejectedCount, boards) {
   hasRenderedResults = true;
   const recommended = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
   const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommended;
@@ -279,14 +279,14 @@ function renderResults(cards, now, rejectedCount) {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
       el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
-      ...groups[result].map((item) => renderItem(item)));
+      ...groups[result].map((item) => renderItem(item, boards)));
   }));
 }
 
-function renderItem({ card, judged, deadline, summary }) {
+function renderItem({ card, judged, deadline, summary }, boards) {
   const view = RESULT_VIEW[judged.result];
   const change = latestDeadlineChange(card);
-  const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions) : null;
+  const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions, boards) : null;
   // 복사 안내 영역은 복사 버튼이 있을 때만 (안내 영역이 카드마다 생기지 않게)
   const status = draft ? el('span', { class: 'small', role: 'status' }) : null;
   const copyButton = draft ? el('button', { type: 'button', class: 'btn spacer' }, '✉ 문의 초안 복사') : null;

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from exporter.cards import build_cards_json
-from exporter.contest_groups import merge_groups, _merge
+from exporter.contest_groups import merge_groups, _merge, _bound_public_text, QUOTE_BUDGET_NOTE, UNCERTAIN_NOTE, TRUNCATED_NOTE
 from exporter.reviews import is_promotable
 from test_contest_groups_export import GROUP, NEW_URL, OLD_URL, field, new_card, old_card, group_bundles
 from test_exporter import GENERATED_AT
@@ -28,6 +28,68 @@ def public_conflict_fixture():
 
 
 class ConflictTests(unittest.TestCase):
+    def test_missing_primary_with_older_conflicting_values_is_needs_check(self):
+        older = old_card(campus=field(["인문"], source=OLD_URL))
+        middle = old_card(campus=field(["자연"], source=NEW_URL))
+        middle["id"] = "middle-card"
+        middle["sources"][0]["url"] = NEW_URL
+        middle["sources"][0]["posted_at"] = "2026-10-05"
+        primary = new_card(campus=field(None, status="missing"))
+        item = _merge("missing-primary", [older, middle, primary])[0]["fields"]["campus"]
+        self.assertEqual(item["status"], "needs_check")
+        self.assertEqual(len(item["conflicts"]), 2)
+        self.assertEqual(item["value"], ["자연"])
+
+    def test_other_fields_receive_representative_quotes_before_conflict_extras(self):
+        older, newer = old_card(), new_card()
+        for index, name in enumerate(("campus", "grades")):
+            for card, source, value, offset in ((older, OLD_URL, [1], 0), (newer, NEW_URL, [2], 10)):
+                card["fields"][name] = field(value, source=source)
+                card["fields"][name]["evidence"] = [
+                    {"quote": chr(0xAC00 + offset + index * 20 + n) * 200, "location": "본문", "source": source}
+                    for n in range(5)]
+        newer["fields"]["benefits"] = field("상장", status="auto_verified", quote="혜" * 200, note="원래 혜택 메모")
+        merged = merge_groups([older, newer], [GROUP])[0][0]
+        benefits = merged["fields"]["benefits"]
+        self.assertEqual(benefits["status"], "auto_verified")
+        self.assertEqual(benefits["evidence"][0]["quote"], "혜" * 200)
+        self.assertEqual(benefits["note"], "원래 혜택 메모")
+
+    def test_budget_downgrade_records_reason_and_reserves_it_before_existing_notes(self):
+        names = ("apply", "stages", "campus", "grades", "enrollment", "team", "deliverables", "benefits", "mileage", "how_to_apply", "contact")
+        card = {"fields": {name: field("값", status="auto_verified", quote=chr(0xAC00 + index) * 200,
+                                       note="기존 메모" * 60) for index, name in enumerate(names)}}
+        _bound_public_text(card, {})
+        removed = [item for item in card["fields"].values() if not item["evidence"]]
+        self.assertTrue(removed)
+        for item in removed:
+            self.assertEqual(item["status"], "needs_check")
+            self.assertIn(QUOTE_BUDGET_NOTE, item["note"])
+        self.assertLessEqual(sum(len(item["note"]) for item in card["fields"].values()), 1000)
+        self.assertTrue(all(len(item["note"]) <= 300 for item in card["fields"].values()))
+
+    def test_uncertainty_preserves_existing_note(self):
+        item = merge_groups([old_card(campus=field("any", status="needs_check", source=OLD_URL)),
+                             new_card(campus=field("any", note="포스터의 학적도 대조 필요"))], [GROUP])[0][0]["fields"]["campus"]
+        self.assertIn(UNCERTAIN_NOTE, item["note"])
+        self.assertIn("포스터의 학적도 대조 필요", item["note"])
+
+    def test_overflow_warning_is_reserved_and_existing_note_is_preserved(self):
+        cards = []
+        for index in range(7):
+            c = new_card(grades=field([index + 1], note="기존 학년 검토 메모"))
+            c["id"] = f"source-{index}"
+            c["sources"][0]["url"] = NEW_URL.replace("236150", str(236150 + index))
+            c["fields"]["grades"]["evidence"][0]["source"] = c["sources"][0]["url"]
+            for name in ("apply", "campus", "benefits"):
+                c["fields"][name]["note"] = "다른 메모" * 60
+            cards.append(c)
+        merged = _merge("bounded", cards)[0]
+        note = merged["fields"]["grades"]["note"]
+        self.assertIn(TRUNCATED_NOTE, note)
+        self.assertIn("기존 학년 검토 메모", note)
+        self.assertLessEqual(sum(len(item.get("note") or "") for item in merged["fields"].values()), 1000)
+
     def test_public_export_fixture_keeps_both_sides_without_private_contacts(self):
         data = public_conflict_fixture()
         serialized = json.dumps(data, ensure_ascii=False)

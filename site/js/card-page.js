@@ -55,7 +55,7 @@ async function main() {
       el('div', { class: 'side' },
         renderHistory(card, data.boards),
         calendar.element,
-        renderInquiry(card, conditions))),
+        renderInquiry(card, conditions, data.boards))),
   );
   watchPageTime(page, (now) => {
     const fresh = renderHeader(card, now, conditions);
@@ -289,8 +289,8 @@ function announce(target, message) {
   setTimeout(() => { target.textContent = message; }, 50);
 }
 
-function renderInquiry(card, conditions) {
-  const draft = inquiryDraft(card, conditions);
+function renderInquiry(card, conditions, boards) {
+  const draft = inquiryDraft(card, conditions, boards);
   if (!draft) return null;
   const text = el('div', { class: 'ev draft', id: 'inquiry-text' }, draft.text);
   const status = el('span', { class: 'small', role: 'status' });
