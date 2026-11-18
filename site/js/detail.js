@@ -94,8 +94,7 @@ function dateTimeText(text, timeGiven) {
  * @returns {{name: string, label: string, text: string|null, status: string, badge: object, note: string|null,
  *   evidence: {quote: string, location: string, file: string|null, isImage: boolean, boardName: string|null, postedAt: string|null, url: string|null}[],
  *   isConflict: boolean}[]}
- *   isConflict: needs_check이면서 서로 다른 근거 문장이 둘 이상 (출처별 값을 모두 보여 줄 것).
- *   계약에 충돌 표시가 따로 없어, 같은 내용이 여러 곳에 나온 경우와 구분하려고 문장이 다른지 본다
+ *   isConflict: 내보내기가 서로 다른 조건 값을 명시한 경우. 근거 문장의 표현 차이는 충돌이 아니다.
  */
 export function fieldRows(card, boards) {
   return FIELD_LABELS.map(([name, label]) => {
@@ -112,20 +111,19 @@ export function fieldRows(card, boards) {
       badge: fieldStatusBadge(name, status),
       note: typeof field?.note === 'string' && field.note !== '' ? field.note : null,
       evidence,
-      isConflict: status === 'needs_check' && distinctQuotes(evidence.map((item) => item.quote)).length > 1,
+      isConflict: status === 'needs_check' && (field?.conflicts?.length ?? 0) > 1,
+      conflicts: (field?.conflicts ?? []).map((variant) => {
+        const source = card.sources.find((candidate) => candidate.url === variant.source);
+        return {
+          text: fieldValueText(name, variant.value),
+          boardName: source ? boardName(source.board_id, boards) : '출처 확인 필요',
+          postedAt: source?.posted_at ?? null,
+          url: safeUrl(variant.source),
+          evidence: variant.evidence.map((item) => evidenceItem(item, card, boards)),
+        };
+      }),
     };
   });
-}
-
-// 띄어쓰기·보이지 않는 글자만 다른 문장은 같은 문장으로 본다
-function distinctQuotes(quotes) {
-  const seen = new Map();
-  for (const quote of quotes) {
-    if (typeof quote !== 'string' || quote.trim() === '') continue;
-    const key = stripInvisible(quote).replace(/\s+/g, '');
-    if (!seen.has(key)) seen.set(key, stripInvisible(quote).trim());
-  }
-  return [...seen.values()];
 }
 
 function evidenceItem(item, card, boards) {
@@ -252,9 +250,12 @@ export function inquiryDraft(card, conditions = null) {
     paragraphs.push(`공지에서 ${listed} 찾지 못했습니다. 알려 주시면 감사하겠습니다.`);
   }
   for (const { name, field } of asks.filter(({ field }) => !isMissing(field))) {
-    const quotes = distinctQuotes((field.evidence ?? []).map((item) => item?.quote));
-    if (quotes.length > 1) {
-      paragraphs.push(`${withParticle(INQUIRY_QUESTIONS[name], '이', '가')} 공지에 ${quotes.map((quote) => `「${quote}」`).join(', ')}로 서로 다르게 적혀 있습니다. 어느 쪽이 맞는지 확인 부탁드립니다.`);
+    if ((field.conflicts?.length ?? 0) > 1) {
+      const values = field.conflicts.map((variant) => {
+        const source = card.sources.find((item) => item.url === variant.source);
+        return `「${stripInvisible(fieldValueText(name, variant.value) ?? '조건 확인 필요')}」 (${stripInvisible(source?.board_id ?? '출처')}: ${stripInvisible(variant.source)})`;
+      });
+      paragraphs.push(`${withParticle(INQUIRY_QUESTIONS[name], '이', '가')} 공지에 ${values.join(', ')}로 서로 다르게 적혀 있습니다. 어느 쪽이 맞는지 확인 부탁드립니다.`);
     } else {
       paragraphs.push(`${withParticle(INQUIRY_QUESTIONS[name], '을', '를')} 공지만으로는 정확히 알기 어려워 확인 부탁드립니다.`);
     }

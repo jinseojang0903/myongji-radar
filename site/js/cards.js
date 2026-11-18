@@ -68,6 +68,20 @@ function findCardProblem(card) {
   for (const [name, field] of Object.entries(card.fields)) {
     if (!field || !FIELD_STATUSES.has(field.status)) return `${name}의 status가 계약 값이 아님`;
     if (!Array.isArray(field.evidence)) return `${name}의 evidence가 배열이 아님`;
+    if (field.conflicts !== undefined) {
+      if (!KEY_FIELDS.includes(name) || field.status !== 'needs_check' || field.reviewable === true ||
+          !Array.isArray(field.conflicts) || field.conflicts.length < 2 || field.conflicts.length > 5) {
+        return `${name}의 conflicts 형식·상태가 계약과 다름`;
+      }
+      for (const variant of field.conflicts) {
+        if (!variant || variant.value == null || !card.sources.some((source) => source.url === variant.source) ||
+            !Array.isArray(variant.evidence) || variant.evidence.length > 5 ||
+            !variant.evidence.every((item) => item && field.evidence.some((kept) => kept &&
+              ['quote', 'source', 'location', 'file'].every((key) => item[key] === kept[key])))) {
+          return `${name}의 충돌 값·출처·근거가 계약과 다름`;
+        }
+      }
+    }
   }
   const history = card.deadline_history ?? [];
   if (!Array.isArray(history)) return 'deadline_history가 배열이 아님';

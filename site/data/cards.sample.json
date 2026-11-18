@@ -329,9 +329,7 @@
             "excluded": [
               "휴학",
               "졸업",
-              "초과학기",
-              "졸업유예",
-              "기존 수상자"
+              "초과학기"
             ]
           },
           "status": "needs_check",
@@ -348,7 +346,51 @@
               "file": "포스터(임시 이름).jpg"
             }
           ],
-          "note": "제외 대상이 본문과 포스터에서 다름. 두 목록을 합쳐 표시"
+          "note": "제외 대상이 본문과 포스터에서 다름. 출처별 조건과 원문 확인",
+          "conflicts": [
+            {
+              "value": {
+                "allowed": [
+                  "재학"
+                ],
+                "excluded": [
+                  "휴학",
+                  "졸업",
+                  "초과학기"
+                ]
+              },
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do",
+              "evidence": [
+                {
+                  "quote": "(휴학생, 졸업생, 초과학기생 신청 불가)",
+                  "location": "본문",
+                  "source": "https://www.mju.ac.kr/bbs/mjukr/141/236150/artclView.do"
+                }
+              ]
+            },
+            {
+              "value": {
+                "allowed": [
+                  "재학"
+                ],
+                "excluded": [
+                  "휴학",
+                  "졸업",
+                  "졸업유예",
+                  "기존 수상자"
+                ]
+              },
+              "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+              "evidence": [
+                {
+                  "quote": "(*휴학생, 졸업생, 졸업유예생, 기존 수상자 참여 불가)",
+                  "location": "이미지",
+                  "source": "https://innov.mju.ac.kr/bbs/innovation/56/235961/artclView.do",
+                  "file": "포스터(임시 이름).jpg"
+                }
+              ]
+            }
+          ]
         },
         "team": {
           "value": {

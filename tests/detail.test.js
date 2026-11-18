@@ -113,7 +113,8 @@ test('문의 초안: 공지에 없거나 원문 확인이 필요한 항목만 �
   const history = inquiryDraft(cardById('history-video-5'), STUDENT);
   assert.deepEqual(history.items, ['학적']);
   assert.match(history.text, /^안녕하세요\. 「제5회/);
-  assert.ok(history.text.includes('「(휴학생, 졸업생, 초과학기생 신청 불가)」, 「(*휴학생, 졸업생, 졸업유예생, 기존 수상자 참여 불가)」'));
+  assert.ok(history.text.includes('「대상: 재학 / 제외: 휴학, 졸업, 초과학기」'));
+  assert.ok(history.text.includes('「대상: 재학 / 제외: 휴학, 졸업, 졸업유예, 기존 수상자」'));
   // 인사 / 질문 / 자기소개 / 마무리를 줄로 나눈다 (이메일에 붙이기 쉽게)
   assert.deepEqual(history.text.split(String.fromCharCode(10)).map((line) => line.slice(0, 6)), ['안녕하세요.', '참가할 수 ', '저는 자연캠', '감사합니다.']);
   assert.ok(history.text.includes('저는 자연캠퍼스 2학년 재학생입니다.'));
@@ -312,14 +313,13 @@ test('.ics 보안: 제목·이유 속 주소는 지우고, 원문 주소는 학�
   assert.ok(!unfold(buildIcs(formOnly, calendarItems(formOnly, AT_SAMPLE))).includes('URL:'), '구글 폼 주소는 달력 URL로 넣지 않는다');
 });
 
-test('정보 충돌은 근거 문장이 서로 다를 때만 (같은 문장이 두 곳에 나온 것은 충돌이 아님)', () => {
+test('충돌 목록이 없으면 서로 다른 근거 문장만으로 충돌을 추측하지 않는다', () => {
   const card = cardById('history-video-5');
-  const quote = card.fields.enrollment.evidence[0].quote;
-  card.fields.enrollment.evidence[1].quote = ` ${quote} `;
+  delete card.fields.enrollment.conflicts;
   const row = fieldRows(card, SAMPLE.boards).find((entry) => entry.name === 'enrollment');
   assert.equal(row.isConflict, false);
   assert.ok(row.text.startsWith('대상: 재학'), '충돌 여부와 상관없이 정리한 값은 보여 준다');
-  assert.ok(inquiryDraft(card).text.includes('공지만으로는 정확히 알기 어려워'), '같은 문장이면 "서로 다르게"라고 하지 않는다');
+  assert.ok(!inquiryDraft(card).text.includes('서로 다르게'), '값 충돌 표시가 없으면 문장 차이를 충돌로 쓰지 않는다');
 });
 
 test('문의 초안: 값이 비어 있는 항목도 묻고, 보이지 않는 글자를 지우고, 이상한 이메일은 받는 곳에 쓰지 않는다', () => {

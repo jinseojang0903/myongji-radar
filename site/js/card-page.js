@@ -162,10 +162,17 @@ function renderFieldRow(row, link) {
     link ? el('div', { class: 'stack-top' }, externalLink(link.url, '신청 페이지 열기'), el('span', { class: 'small' }, ` (${link.host})`)) : null);
 
   const statusCell = el('td', { class: 'st', role: 'cell' }, el('span', { class: `badge ${BADGE_CLASS[row.badge.kind]}` }, row.badge.text));
-  if (row.evidence.length > 0) {
+  if (row.evidence.length > 0 || row.isConflict) {
     // 충돌이면 출처별 값을 바로 보여 준다 (화면설계.md 4절 "정보 충돌")
     const isOpen = row.isConflict;
-    const evidence = el('div', { id: evidenceId }, ...row.evidence.map(renderEvidence));
+    const content = row.isConflict ? row.conflicts.map((variant) => el('div', { class: 'ev' },
+      el('b', {}, variant.text ?? '표시할 수 없는 값'),
+      el('div', { class: 'meta' }, `${variant.boardName} ${variant.postedAt ?? ''} · `,
+        variant.url ? externalLink(variant.url, '이 조건의 원문 보기') : '출처 확인 필요'),
+      ...variant.evidence.map(renderEvidence),
+      variant.evidence.length === 0 ? el('p', { class: 'small' }, '공개된 근거 인용이 없습니다. 원문을 확인하세요.') : null,
+    )) : row.evidence.map(renderEvidence);
+    const evidence = el('div', { id: evidenceId }, ...content);
     evidence.hidden = !isOpen;
     const button = el('button', {
       type: 'button', class: 'btn small-btn', 'aria-expanded': String(isOpen), 'aria-controls': evidenceId,

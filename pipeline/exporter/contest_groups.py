@@ -8,13 +8,14 @@
 - 공지마다 신청 마감이 다르면 마감 변경 이력에 남긴다 (확인 날짜는 새 마감이 적힌 공지의 게시일).
 - 판정에 쓰는 항목이 공지마다 다르면 "원문 확인 필요"로 낮춘다. 올리지는 않는다. 낮춘 항목은 사람 검수로도
   올리지 않는다 (exporter/reviews.py: 출처끼리 값이 다른 항목은 한쪽만 대조하고 검수 완료가 될 수 있어서, #121).
+- 충돌한 판정 항목은 출처별 대표 값과 공개 근거를 conflicts에 남긴다 (#151). 공개 인용·메모 상한은 유지한다.
 """
 
 import copy
 import json
 import re
 
-from exporter.cards import MAX_CARD_NOTE_CHARS, MAX_CARD_QUOTE_CHARS, MAX_TEXT_CHARS
+from exporter.cards import MAX_CARD_NOTE_CHARS, MAX_CARD_QUOTE_CHARS, MAX_TEXT_CHARS, MAX_EVIDENCE
 from extractor.daily import card_id_of
 from merger.groups import validate_groups
 
@@ -122,22 +123,80 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
         item = merged["fields"].get(name)
         if item is None:
             continue
-        disputed = _differs(newest_first, name) or _uncertain_elsewhere(newest_first, name)
+        differs = _differs(newest_first, name)
+        disputed = differs or _uncertain_elsewhere(newest_first, name)
         if disputed:
             # 검수자는 최신 공지 근거만 보고 대조하게 되므로 사람 검수로 올릴 수 있다는 표시를 지운다 (#121)
             item.pop("reviewable", None)
         if item.get("status") in LOWERABLE and disputed:
             item["status"] = "needs_check"
-            item["note"] = _with_note(item.get("note"))
-            notes.append(f"{name} 다름")
+            item["note"] = _with_note(item.get("note")) if differs else "다른 출처 공지에서 원문 확인이 필요한 항목"
+            notes.append(f"{name} 다름" if differs else f"{name} 다른 출처 확인 필요")
     # 내보내기의 카드당 근거·note 합계 상한을 합친 뒤에도 지킨다 (공지 본문을 이어 붙여 싣지 못하게).
     # 낮추며 붙인 note까지 센 뒤, 넘으면 나중에 채운 항목부터 원래(정보 없음)로 되돌린다
     while filled and not _within_limits(merged):
         name = filled.pop()
         merged["fields"][name] = copy.deepcopy(primary["fields"][name])
         notes.append(f"{name} 상한으로 채우지 않음")
+    for name in JUDGED_FIELDS:
+        variants = _conflicting_values(newest_first, name)
+        if variants:
+            item = merged["fields"][name]
+            item["status"] = "needs_check"
+            item.pop("reviewable", None)
+            item["conflicts"] = variants[:MAX_EVIDENCE]
+            if not item.get("note", "").startswith(DIFFERENT_NOTE):
+                item["note"] = _with_note(item.get("note"))
+            if len(variants) > MAX_EVIDENCE:
+                item["note"] = _with_note("서로 다른 값 중 최신 5개만 표시. 전체 출처 원문 확인")
+            # 값마다 첫 근거를 먼저 배분하여 한 출처가 공개 한도를 독점하지 않게 한다.
+            evidence = []
+            for index in range(MAX_EVIDENCE):
+                for variant in item["conflicts"]:
+                    candidates = variant["evidence"]
+                    if index < len(candidates) and candidates[index] not in evidence:
+                        evidence.append(copy.deepcopy(candidates[index]))
+            item["evidence"] = evidence[:MAX_EVIDENCE]
+    _bound_public_text(merged)
     merged["deadline_history"] = _history(newest_first)
     return merged, notes
+
+
+def _conflicting_values(cards: list[dict], name: str) -> list[dict]:
+    """정제된 공개 값의 최신 대표와 그 공지 근거를 보존한다. 인용문 차이로 충돌을 추측하지 않는다."""
+    variants = []
+    for card in cards:
+        item = card["fields"].get(name, {})
+        if item.get("status") in (None, "missing") or item.get("value") is None:
+            continue
+        if any(_equivalent(name, kept["value"], item["value"]) for kept in variants):
+            continue
+        variants.append({"value": copy.deepcopy(item["value"]), "source": _latest_source(card)["url"],
+                         "evidence": copy.deepcopy(item.get("evidence", []))})
+    return variants if len(variants) > 1 else []
+
+
+def _bound_public_text(card: dict) -> None:
+    """충돌의 양쪽 근거를 먼저 남기고 카드 전체 공개 상한을 적용한다. 중첩 근거는 평탄 근거의 부분집합이다."""
+    quotes, note_left = set(), MAX_CARD_NOTE_CHARS
+    items = sorted(card["fields"].values(), key=lambda item: not bool(item.get("conflicts")))
+    for item in items:
+        had_evidence = bool(item.get("evidence"))
+        kept = []
+        for evidence in item.get("evidence", []):
+            quote = evidence.get("quote", "")
+            if quote in quotes or sum(map(len, quotes)) + len(quote) <= MAX_CARD_QUOTE_CHARS:
+                kept.append(evidence)
+                quotes.add(quote)
+        item["evidence"] = kept[:MAX_EVIDENCE]
+        for variant in item.get("conflicts", []):
+            variant["evidence"] = [e for e in variant["evidence"] if e in item["evidence"]]
+        if had_evidence and not item["evidence"] and item.get("status") in LOWERABLE:
+            item["status"] = "needs_check"
+            item.pop("reviewable", None)
+        if item.get("note"):
+            item["note"] = item["note"][:note_left]
+            note_left -= len(item["note"])
 
 
 def _within_limits(card: dict) -> bool:
