@@ -227,6 +227,29 @@ class DailyPublishingTests(unittest.TestCase):
             self.assertEqual(self.run_day(), 0)
         self.assertIn("--images", publish.call_args.args[0])
 
+    def test_local_settings_without_a_tracked_option_are_reported(self):
+        """#168 이관본처럼 로컬 설정에 images 칸이 없으면, main에서 켜도 꺼진 채로 돌고 그 사실을 남긴다."""
+        self.write_settings(images="true")
+        local = self.settings.with_suffix(".local.toml")
+        local.write_text('version=1\nenabled=true\nmodel="opus"\npush=true\nmax_new=5\n', encoding="utf-8")
+        stderr = io.StringIO()
+        with patch.object(daily, "call_publisher", return_value=0) as publish, contextlib.redirect_stderr(stderr):
+            self.assertEqual(self.run_day(), 0, "알림만 하고 공개는 막지 않는다")
+        self.assertNotIn("--images", publish.call_args.args[0], "로컬 설정이 우선한다")
+        self.assertEqual(self.state()["publish_unset_local_options"], ["images"])
+        event = next(e for e in self.fixture.events() if e["event"] == "publish_config_notice")
+        self.assertEqual((event["reason"], event["options"]), ("local_config_missing_options", ["images"]))
+        self.assertIn("images", stderr.getvalue())
+
+    def test_explicit_local_choice_is_not_reported(self):
+        self.write_settings(images="true")
+        self.settings.with_suffix(".local.toml").write_text(
+            'version=1\nenabled=true\nmodel="opus"\npush=true\nmax_new=5\nimages=false\n', encoding="utf-8")
+        with patch.object(daily, "call_publisher", return_value=0):
+            self.assertEqual(self.run_day(), 0)
+        self.assertNotIn("publish_unset_local_options", self.state())
+        self.assertFalse(any(e["event"] == "publish_config_notice" for e in self.fixture.events()))
+
     def test_checked_in_settings_require_explicit_activation(self):
         settings = load_publishing(daily.ROOT / "config/publishing.toml", use_local=False)
         self.assertFalse(settings.enabled)
