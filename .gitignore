@@ -48,3 +48,4 @@ desktop.ini
 # 프로젝트 에이전트 설정을 올리게 되면 그 경로만 따로 연다 (예: !.claude/agents/. .claude/가 아니라 .claude/*여야 예외가 먹는다).
 .claude/*
 .agents/
+pipeline/config/publishing.local.toml

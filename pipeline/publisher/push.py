@@ -85,6 +85,8 @@ def prepare(repo: Path, remote: str = "origin", branch: str = "main") -> None:
     current = _git(repo, "branch", "--show-current").stdout.strip()
     if current != branch:
         raise PushError(f"{branch} 브랜치에서만 올린다 (지금 {current or '브랜치 없음'})")
+    from collector.local_publishing import migrate_publishing
+    migrate_publishing(repo)
     _git(repo, "fetch", "--quiet", remote, branch)
     _sync(repo, f"{remote}/{branch}", keep_cards=None)
 

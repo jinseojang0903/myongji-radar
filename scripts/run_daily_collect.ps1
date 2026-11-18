@@ -17,6 +17,8 @@ if (-not $ValidateOnly) {
 $env:PYTHONUTF8 = '1'
 $env:PYTHONIOENCODING = 'utf-8'
 $env:NoDefaultCurrentDirectoryInExePath = '1'
+$previousSupervisorPid = $env:MJU_RADAR_SUPERVISOR_PID
+$env:MJU_RADAR_SUPERVISOR_PID = [string]$PID
 Push-Location -LiteralPath $pipelineRoot
 try {
     $dailyArguments = @('-m', 'collector.daily', '--publish-config', $publishConfigPath)
@@ -25,6 +27,7 @@ try {
     $resultCode = $LASTEXITCODE
 }
 finally {
+    $env:MJU_RADAR_SUPERVISOR_PID = $previousSupervisorPid
     Pop-Location
 }
 exit $resultCode

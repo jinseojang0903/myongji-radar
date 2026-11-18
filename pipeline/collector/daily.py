@@ -24,6 +24,32 @@ def current_time():
     return datetime.now(SEOUL)
 
 
+def previous_exit_code(previous):
+    """정상 완료만 0이며 중단·실패는 같은 날에도 실패로 보존한다."""
+    saved = previous.get('exit_code')
+    if previous['status'] == 'success' and (saved is None or type(saved) is int and saved == 0):
+        return 0
+    if type(saved) is int and saved in (1, 2, 3):
+        return saved
+    published = previous.get('publish_exit_code')
+    if saved is None and previous.get('failure_phase') == 'publish' and type(published) is int and published in (2, 3):
+        return published
+    return 1
+
+
+def log_skipped(data_dir, reason, code):
+    """코드 갱신 전의 날짜·잠금 건너뜀도 공지 내용 없이 기록한다."""
+    now = current_time()
+    folder = Path(data_dir) / 'logs'
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        with (folder / (now.date().isoformat() + '.jsonl')).open('a', encoding='utf-8') as file:
+            file.write(json.dumps({'timestamp': now.isoformat(), 'invocation_id': uuid.uuid4().hex,
+                                   'event': 'skipped', 'reason': reason, 'exit_code': code}) + '\n')
+    except OSError as error:
+        print(f'[주의] 건너뜀 기록을 쓰지 못함 ({type(error).__name__})', file=sys.stderr)
+
+
 def atomic_json(path, value):
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -143,13 +169,7 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                     return 1
                 if previous_date == started.date() and previous["collection_attempted"]:
                     # 수집·분석·공개 실패와 중단 상태를 재실행으로 성공으로 덮지 않는다.
-                    saved = previous.get("exit_code")
-                    code = saved if type(saved) is int and saved in (1, 2, 3) else 1
-                    if previous["status"] == "success" and (saved is None or type(saved) is int and saved == 0):
-                        code = 0
-                    elif saved is None and previous.get("failure_phase") == "publish":
-                        published = previous.get("publish_exit_code")
-                        code = published if type(published) is int and published in (2, 3) else 1
+                    code = previous_exit_code(previous)
                     emit("skipped", reason="already_attempted_today", exit_code=code)
                     return code
             state = {"invocation_id": invocation, "local_date": started.date().isoformat(),
@@ -287,6 +307,7 @@ def cli_main(argv=None, *, args=None):
                  "--publish-config", str(args.publish_config.resolve())]
         return launch("daily", [*argv, *paths], args.data_dir)
     except AlreadyRunning:
+        log_skipped(args.data_dir, 'another_operation_running', 0)
         print("[건너뜀] 같은 데이터로 다른 작업이 실행 중임")
         return 0
     except (PushError, OSError) as error:
