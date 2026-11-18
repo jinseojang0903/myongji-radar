@@ -118,7 +118,7 @@ class AssetCollector:
     def needs_download(self, item):
         if not item:
             return True
-        if item.get("download_reason") in {"url_policy", "file_bytes", "http_permanent"}:
+        if item.get("download_reason") in {"url_policy", "file_bytes", "http_permanent", "asset_count", "notice_bytes"}:
             return False  # 매번 확인은 하되 재시도 가능한 첨부보다 먼저 예산을 쓰지 않는다.
         relative = item.get("local_path")
         if not isinstance(relative, str) or not re.fullmatch(r"assets/[0-9a-f]{64}\.bin", relative):

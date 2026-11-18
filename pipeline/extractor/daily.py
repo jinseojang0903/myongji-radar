@@ -167,6 +167,13 @@ def same_attachment_input(entry: dict, notice: dict, digest: str) -> bool:
             and not set(attachment_names(notice)).intersection(name for name in files if isinstance(name, str)))
 
 
+def same_failure_attachment_input(record: dict, notice: dict, digest: str) -> bool:
+    """옛 실패에는 지문·파일 목록이 없었다. 현재 입력이 빈 경우에만 횟수를 보존한다."""
+    if 'attachment_input_hash' not in record and 'files' not in record:
+        return digest == EMPTY_ATTACHMENT_HASH
+    return same_attachment_input(record, notice, digest)
+
+
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str, use_images: bool = False,
                *, attachment_hash: str) -> bool:
     """같은 판·같은 입력(내용 해시)을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
@@ -383,6 +390,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
         item["attachment_input_hash"] = attachment_hash
         inputs = expected_inputs(notice, args.images)
         images = poster_images(notice, args.notices.parent) if IMAGES_INPUT in inputs else []
+        files = [name for name, _, _ in fit_attachments(attachments)] + [image.name for image in images]
         if IMAGES_INPUT in inputs and not is_cross:
             if images:
                 meta["image_calls"] = meta.get("image_calls", 0) + 1
@@ -406,6 +414,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
                 failures[card_id] = {"version_id": notice.get("version_id"), "model": model, "prompt_fingerprint": fingerprint,
                                      "input_hash": content_hash(notice),
                                      "attachment_input_hash": attachment_hash,
+                                      "files": files,
                                      "inputs": inputs, "count": _failure_count(failures, card_id, notice, model, fingerprint,
                                                                                 inputs, attachment_hash) + 1,
                                      "last_error": str(error)[:120]}
@@ -423,7 +432,7 @@ def _extract_pending(args, pending, claude, ledger, meta, boards, fingerprint, f
                     "prompt_fingerprint": fingerprint, "input_hash": content_hash(notice), "inputs": inputs,
                     "attachment_input_hash": attachment_hash,
                     # 실제로 AI에 넣은 첨부·이미지 이름만 (명단 이름 첨부·합계 상한으로 빠진 것은 근거가 될 수 없다)
-                    "files": [name for name, _, _ in fit_attachments(attachments)] + [image.name for image in images],
+                    "files": files,
                     "extracted_at": now_text(), "output": result.output}
         if not is_cross:
             _persist_entry(args.notices.parent, notice, entry)
@@ -454,9 +463,7 @@ def _failure_count(failures: dict, card_id: str, notice: dict, model: str, finge
         return 0
     same = (record.get("version_id") == notice.get("version_id") and record.get("model") == model
             and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice)
-            and (record.get("attachment_input_hash") == attachment_hash
-                 or ("attachment_input_hash" not in record and not notice.get("attachments")
-                     and attachment_hash == EMPTY_ATTACHMENT_HASH))
+            and same_failure_attachment_input(record, notice, attachment_hash)
             and record.get("inputs", INPUTS) == inputs)  # 입력 종류가 없는 옛 기록은 글만 넣던 때 것
     count = record.get("count")
     return count if same and isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
