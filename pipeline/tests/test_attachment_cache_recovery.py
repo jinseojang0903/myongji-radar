@@ -4,21 +4,28 @@ import unittest
 
 import test_daily_extract as fixtures
 from collector.repository import content_hash
-from extractor.daily import _failure_count, same_attachment_input, EMPTY_ATTACHMENT_HASH, INPUTS
+from extractor.daily import _failure_count, EMPTY_ATTACHMENT_HASH, INPUTS
 
 
 class AttachmentCacheRecoveryTests(unittest.TestCase):
-    def test_legacy_failure_count_uses_the_same_attachment_migration_rule_as_cache(self):
+    def test_legacy_failure_without_hash_or_files_preserves_count_only_for_empty_input(self):
         notice = {'version_id': 1, 'title': 'title', 'images': [], 'body_text': 'body',
                   'attachments': [{'name': 'a.pdf', 'url': 'https://test.mju.ac.kr/a'}]}
         record = {'version_id': 1, 'model': 'opus', 'prompt_fingerprint': 'fp', 'input_hash': content_hash(notice), 'count': 3}
-        for files, digest, expected in (([], EMPTY_ATTACHMENT_HASH, 3), (['a.pdf'], EMPTY_ATTACHMENT_HASH, 0),
-                                         ([], 'new-input', 0)):
-            with self.subTest(files=files, digest=digest):
-                record['files'] = files
+        self.assertNotIn('files', record)
+        for digest, expected in ((EMPTY_ATTACHMENT_HASH, 3), ('new-input', 0)):
+            with self.subTest(digest=digest):
                 count = _failure_count({'id': record}, 'id', notice, 'opus', 'fp', INPUTS, digest)
                 self.assertEqual(count, expected)
-                self.assertEqual(count == 3, same_attachment_input(record, notice, digest))
+
+    def test_actual_failed_model_call_records_the_files_sent(self):
+        self.f.write_inputs()
+        failing = fixtures.FakeRun(fixtures.stream(), fixtures.stream(output=None))
+        self.assertEqual(self.f.run_cli(failing)[0], 0)
+        records = json.loads((self.f.folder / 'extractions' / '_failures.json').read_text(encoding='utf-8'))
+        record = next(iter(records.values()))
+        self.assertEqual(record['files'], ['안내.pdf'])
+        self.assertIn('attachment_input_hash', record)
 
     def setUp(self):
         self.f = fixtures.DailyExtractTests("runTest")
@@ -95,6 +102,7 @@ class AttachmentCacheRecoveryTests(unittest.TestCase):
         records = json.loads(failure_path.read_text(encoding='utf-8'))
         for record in records.values():
             record.pop('attachment_input_hash', None)
+            record.pop('files', None)  # 실제 옛 실패 기록에는 두 필드 모두 없다.
         failure_path.write_text(json.dumps(records), encoding='utf-8')
         self.assertEqual(self.call().calls, [], "같은 입력을 3번 실패하면 포기")
         self.item["text_status"] = "extracted"
