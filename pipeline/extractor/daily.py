@@ -454,9 +454,7 @@ def _failure_count(failures: dict, card_id: str, notice: dict, model: str, finge
         return 0
     same = (record.get("version_id") == notice.get("version_id") and record.get("model") == model
             and record.get("prompt_fingerprint") == fingerprint and record.get("input_hash") == content_hash(notice)
-            and (record.get("attachment_input_hash") == attachment_hash
-                 or ("attachment_input_hash" not in record and not notice.get("attachments")
-                     and attachment_hash == EMPTY_ATTACHMENT_HASH))
+            and same_attachment_input(record, notice, attachment_hash)
             and record.get("inputs", INPUTS) == inputs)  # 입력 종류가 없는 옛 기록은 글만 넣던 때 것
     count = record.get("count")
     return count if same and isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0

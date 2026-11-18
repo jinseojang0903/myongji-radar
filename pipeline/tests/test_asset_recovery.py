@@ -7,10 +7,44 @@ from unittest.mock import Mock, patch
 
 from collector.assets import AssetCollector
 from collector.models import Notice
-from collector.fetcher import FetchPolicyError, ResponseTooLarge
+from collector.fetcher import FetchPolicyError, ResponseTooLarge, RunDeadlineExceeded
+import requests
 
 
 class AssetRecoveryTests(unittest.TestCase):
+    def test_notice_limits_do_not_mark_source_as_pending(self):
+        with tempfile.TemporaryDirectory() as folder:
+            collector = AssetCollector(Path(folder), Mock())
+            for reason in ('asset_count', 'notice_bytes', 'url_policy', 'file_bytes', 'http_permanent'):
+                old = {'attachments': [{'url': 'https://test.mju.ac.kr/a', 'download_reason': reason}]}
+                self.assertFalse(collector.has_pending(old), reason)
+            for reason in ('run_requests', 'run_bytes', 'run_time', 'run_deadline', 'download_failed'):
+                self.assertTrue(collector.has_pending({'attachments': [{'download_reason': reason}]}), reason)
+
+    def test_retry_reasons_and_previous_file_survive_failed_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data = Path(folder)
+            url = 'https://test.mju.ac.kr/a'
+            original = Notice('test', '1', url, 'title', None, 'body', attachments=[{'url': url, 'name': 'a.pdf'}])
+            collector = AssetCollector(data, Mock(get=Mock(return_value=b'original-file')))
+            with patch.object(collector, 'convert'):
+                collector.enrich(original, ['test.mju.ac.kr'])
+            old = copy.deepcopy(original.attachments[0])
+            response = requests.Response(); response.status_code = 404
+            for error, reason in ((requests.HTTPError('PRIVATE', response=response), 'http_permanent'),
+                                  (requests.Timeout('PRIVATE'), 'download_failed'),
+                                  (RunDeadlineExceeded('PRIVATE'), 'run_deadline')):
+                with self.subTest(reason=reason):
+                    notice = Notice('test', '1', url, 'title', None, 'body', attachments=[{'url': url, 'name': 'a.pdf'}])
+                    events = AssetCollector(data, Mock(get=Mock(side_effect=error))).enrich(
+                        notice, ['test.mju.ac.kr'], {'attachments': [old]})
+                    item = notice.attachments[0]
+                    self.assertEqual(item['download_reason'], reason)
+                    self.assertEqual(item['sha256'], old['sha256'])
+                    self.assertEqual((data / item['local_path']).read_bytes(), b'original-file')
+                    self.assertNotEqual(item['download_status'], 'downloaded')
+                    self.assertNotIn('PRIVATE', str(events))
+
     def test_deferred_file_precedes_previously_downloaded_file_next_run(self):
         with tempfile.TemporaryDirectory() as folder:
             data = Path(folder)
