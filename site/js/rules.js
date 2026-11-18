@@ -102,11 +102,15 @@ function rule(outcome, message) {
 
 // --- 항목별 규칙. 반환값은 { outcome, message } 목록이다. ---
 
+export function isBeforeApplyStart(apply, now) {
+  const start = parseContractDate(apply?.start);
+  return start ? now < toKstInstant(start.date, start.time ?? '00:00') : false;
+}
+
 function checkApply(apply, now) {
   const end = parseContractDate(apply.end);
-  const start = parseContractDate(apply.start);
   const reasons = [];
-  if (start && now < toKstInstant(start.date, start.time ?? '00:00')) {
+  if (isBeforeApplyStart(apply, now)) {
     reasons.push(rule('note', `신청 시작 전 (${apply.start}부터)`));
   }
   if (apply.end === null || apply.end === undefined) {
