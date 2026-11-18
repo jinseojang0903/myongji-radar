@@ -1,4 +1,4 @@
-﻿# #16: 사람 검토를 거친 같은 회차의 공지만 등록한다. 제목 유사도 자동 병합은 하지 않는다.
+# #16: 사람 검토를 거친 같은 회차의 공지만 등록한다. 제목 유사도 자동 병합은 하지 않는다.
 # 근거: 처음 5개는 eval/answer_key/sources.csv, 그 뒤 5개는 11/16 공개 카드에서 같은 연도·회차를 팀장이 확인.
 # 원문·연락처는 이 파일에 넣지 않는다.
 # 쓰는 곳 두 가지:
@@ -79,4 +79,12 @@ id = "energy-capstone-1"
 members = [
   {source_id = "mju_energy", external_id = "energymaterials/1634/235013"},
   {source_id = "mju_general", external_id = "mjukr/141/235215"},
+]
+
+# 11/18 추가 (같은 연도·회차, 원문 대조 뒤 팀장 확인, #169)
+[[groups]]
+id = "innovation-essay-2026"
+members = [
+  {source_id = "mju_general", external_id = "mjukr/141/237247"},
+  {source_id = "mju_innovation", external_id = "innovation/56/237238"},
 ]
