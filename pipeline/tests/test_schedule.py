@@ -37,7 +37,7 @@ function Register-ScheduledTask {{ throw 'Registration must not run in this test
         task = json.loads(result.stdout.strip().splitlines()[-1])
         trigger = datetime.fromisoformat(task["start"].replace("Z", "+00:00"))
         local_start = trigger.astimezone(timezone(timedelta(hours=9)))
-        self.assertEqual((local_start.hour, local_start.minute), (7, 0), "기본 시각은 한국시간 07:00 (#129, #133)")
+        self.assertEqual((local_start.hour, local_start.minute), (8, 0), "기본 시각은 한국시간 08:00 (#129)")
         self.assertEqual(task["days"], 1)
         self.assertTrue(task["catchup"])
         self.assertEqual(task["instances"], "IgnoreNew")
