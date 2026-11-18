@@ -170,9 +170,9 @@ class ManualMergerTests(unittest.TestCase):
             self.run_preview(groups=[Group(self.first[1]["card_id"], self.group.members)])
 
     def test_curated_groups_count_and_no_campus_specific_evc(self):
-        # 조사표 5개 + 11/16 공개 카드에서 팀장이 확인한 5개 (#16 공개 연결)
+        # 조사표 5개 + 11/16 공개 카드에서 팀장이 확인한 5개 (#16 공개 연결) + 11/18 수기공모전 1개 (#169)
         groups = load_groups(Path(__file__).resolve().parents[1] / "config/contest_groups.toml")
-        self.assertEqual(len(groups), 10)
+        self.assertEqual(len(groups), 11)
         self.assertFalse(any(group.id.startswith("evc-") for group in groups))
 
     def test_cli_preview_cannot_be_exported_and_never_writes_input_or_db(self):
