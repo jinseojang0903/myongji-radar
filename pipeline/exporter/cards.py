@@ -84,7 +84,9 @@ EXTRA_INVISIBLE_CODES = ({0x034F, 0x115F, 0x1160, 0x180E, 0x3164, 0xFFA0}  # 글
 # 판정용 사본에서만 바꾸는 글자 (전각·여러 대시·가운뎃점). 한 글자 → 한 글자라 위치가 원문과 같다
 DASH_CODES = {0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0xFE58, 0xFE63, 0xFF0D,
               0x2500, 0x2501, 0x2796, 0x3161, 0x30FC, 0xFF70}  # 한글 'ㅡ'·괘선·장음 기호도 대시처럼 쓰인다
-DOT_CODES = {0x00B7, 0x2027, 0x30FB, 0xFF65, 0x3002, 0xFF61}
+DOT_CODES = {0x00B7, 0x2027, 0x30FB, 0xFF65, 0x3002, 0xFF61, 0x318D}  # 0x318D: 가운뎃점으로 쓰는 아래아(ㆍ)
+COMMA_CODES = {0x3001, 0xFF64, 0xFE50}  # 모점(、 ､ ﹐): 이어진 이름 구분 (#146 보안 리뷰)
+COLON_CODES = {0x2236, 0xFE30, 0xFE55}  # 콜론 변형(∶ ︰ ﹕): "담당∶ 홍길동"도 라벨로 본다
 
 URL_CHAR = "[A-Za-z0-9._~:/?#@!$&'()*+,;=%" + re.escape(BACKSLASH) + r"\[\]-]"
 BARE_DOMAIN_ENDINGS = "com|net|org|kr|me|ly|io|co|gl|gle|link|site|xyz|app|page|to|info|biz|kakao"  # 단축 주소·오픈채팅 포함
@@ -106,15 +108,34 @@ SPLIT_NUMBER_IN_TEXT = SPLIT_STUDENT_ID
 # 남기고 이름만 가린다. 부서 낱말(학사팀·교수학습센터·학생처 등)은 이름 후보 낱말 안에서만 보고 그대로 둔다. 이름과 겹치기 쉬운
 # 한 글자 접미사(실·과·단·부: 김진실 등)는 부서로 보지 않아서, "교무과"·"총무실"·"미정" 같은 2~4글자 낱말도 이름처럼 가린다(오탐 허용).
 # 한계(못 가림): 콜론 없는 꼴, "문의:" 등 다른 라벨, 띄어 쓴 이름, 5글자 이상, 목록에 없는 직함이나 다른 한글이 붙은 꼴("홍길동입니다"),
-# 기호 뒤 이름("학사팀(홍길동)"), 직함이 이름 앞에 오는 꼴("학사팀 과장 홍길동", "교무처장 홍길동"), 띄어 쓴 가운뎃점·"및"·"과"로
+# 기호 뒤 이름("학사팀(홍길동)"), 라벨 없이 직함이 이름 앞에 오는 꼴 중 아래 STAFF_TITLED_NAME_IN_TEXT 밖의 것, 띄어 쓴 가운뎃점·"및"·"과"로
 STAFF_DEPARTMENT = r"[가-힣]*(?:팀|센터|학과|사업단|본부|처|청)(?![가-힣])"
 # 이름 뒤에 붙는 직함. 직함 뒤의 "님"도 함께 둔다(교수님·팀장님). 비어 있을 수 있다
-STAFF_TITLE = r"(?:선생|교수|조교|주무관|연구원|간사|센터장|처장|실장|부장|차장|팀장|과장|계장)?님?"
-# "담당: 학사팀 홍길동"처럼 부서 뒤에 이름이 오는 꼴도 본다 (부서 낱말은 라벨 쪽에 넣어 그대로 둔다)
-STAFF_NAME_IN_TEXT = re.compile(r"(담당자명|담당자|담당교수|담당조교|담당직원|담당)(\s*:\s*(?:" + STAFF_DEPARTMENT + r"\s+)?)(?!" + STAFF_DEPARTMENT + r")"
+STAFF_TITLE_WORDS = r"(?:선생|교수|조교|주무관|연구원|간사|센터장|처장|실장|부장|차장|팀장|과장|계장)"
+STAFF_TITLE = STAFF_TITLE_WORDS + r"?님?"
+STAFF_HEAD_TITLE = r"[가-힣]{1,10}(?:처장|센터장|단장)"  # 기관 이름이 붙은 장(長) 직함: 교무처장, 학생지원센터장, 사업단장
+# "담당: 학사팀 홍길동"처럼 부서 뒤에 이름이 오는 꼴, "담당: 학사팀 과장 홍길동"처럼 직함이 이름 앞에 오는 꼴(#146)도 본다
+# (부서·앞 직함은 라벨 쪽에 넣어 그대로 둔다. 앞 직함이 없으면 예전처럼 "과장"만 이름으로 가리고 뒤 이름이 드러났다)
+STAFF_NAME_IN_TEXT = re.compile(r"(담당자명|담당자|담당교수|담당조교|담당직원|담당)(\s*:\s*(?:" + STAFF_DEPARTMENT + r"\s+)?"
+                                r"(?:(?:" + STAFF_TITLE_WORDS + r"|" + STAFF_HEAD_TITLE + r")님?\s+)?)(?!" + STAFF_DEPARTMENT + r")"
                                 r"([가-힣]{2,4}?)(" + STAFF_TITLE + r")(?![가-힣])")
+# 라벨 없이 기관장 직함 뒤에 이름이 오는 꼴 ("학생지원센터장 김철수님", "교무처장 홍길동 (02-300-1234)", #146).
+# 값 글자에도 적용되므로 "학생처장 추천"·"산학협력단장 승인" 같은 일반 문구를 가리지 않게(#146 리뷰), 기관 이름이 붙은 장(長) 직함 뒤
+# 이름에 "님"이 붙거나 바로 전화번호가 이어질 때만 사람으로 본다.
+# 한계(못 가림): "교무처장 홍길동"처럼 뒤에 아무것도 없는 꼴, 팀장·과장 등 기관 이름이 없는 직함, 학장·원장 등 목록 밖 직함
+# 전화번호는 0으로 시작하는 지역·휴대폰 번호만 본다("모집 20-300명"은 아님). 휴대폰 번호는 이름보다 먼저 "(휴대폰 번호 생략)"이 되므로 그 표시도 본다.
+# "학생처장 교수님"·"교무처장 문의 02-…"처럼 직함·라벨 낱말은 이름 후보에서 뺀다 (#146 2회차 리뷰)
+STAFF_TITLED_NAME_IN_TEXT = re.compile(r"(?<![가-힣])(" + STAFF_HEAD_TITLE + r"\s+)(?!" + STAFF_TITLE_WORDS
+                                       + r"|위원|문의|연락처|담당|전화)([가-힣]{2,4}?)"
+                                       r"(님(?![가-힣])|(?=\s*[,(]?\s*(?:0\d{1,2}[)\s-]*\d{3,4}-\d{4}"
+                                       r"|\((?:휴대폰 번호|번호|학교 이메일|이메일) 생략\))))")
 # 가린 이름 뒤에 쉼표·빗금, 또는 띄어쓰기 없는 가운뎃점(판정 사본에서 ".")으로 이어지는 이름 ("홍길동, 김철수", "홍길동·김철수").
-STAFF_NEXT_NAME_IN_TEXT = re.compile(r"(\(이름 생략\))([가-힣]*(?:\s*[,/]\s*|[.∙•]))(?!" + STAFF_DEPARTMENT + r")([가-힣]{2,4}?)(" + STAFF_TITLE + r")(?![가-힣])")
+# 공지에 흔한 라벨 낱말 뒤에 콜론이 오면 다음 항목이라 이름으로 보지 않는다 ("홍길동, 후원: 학생처", #146).
+# 아무 낱말이나 빼면 "홍길동, 김철수: 010-…"에서 이름이 드러나므로 정한 낱말만 뺀다 (#146 보안 리뷰)
+STAFF_NEXT_LABEL = (r"(?:주최|주관|후원|협조|협력|문의|문의처|연락처|전화|이메일|메일|홈페이지|주소|장소|위치|일시|시간|기간|마감|대상"
+                    r"|접수|접수기간|제출|신청|시상|상금|심사|비고|참고|담당|담당자|부서)")
+STAFF_NEXT_NAME_IN_TEXT = re.compile(r"(\(이름 생략\))([가-힣]*(?:\s*[,/]\s*|[.∙•]))(?!" + STAFF_DEPARTMENT + r")(?!" + STAFF_NEXT_LABEL
+                                     + r"\s*:)([가-힣]{2,4}?)(" + STAFF_TITLE + r")(?![가-힣])")
 PHONE = re.compile(r"^[\s0-9A-Za-z()+\-.~,/:가-힣]*$")
 URL_HOST = re.compile(r"^[a-z0-9.-]+$", re.ASCII)
 GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$", re.ASCII)  # 사이트 Date.parse가 읽는 꼴
@@ -951,7 +972,8 @@ def _strip_invisible(text: str) -> str:
 
 
 def _probe(text: str) -> str:
-    """판정용 사본: 전각 → 반각, 여러 대시 → "-", 가운뎃점 → ".", 다른 문자 체계의 숫자 → 0-9. 길이는 원문과 같다."""
+    """판정용 사본: 전각 → 반각, 여러 대시 → "-", 가운뎃점 → ".", 모점 → ",", 콜론 변형 → ":", 다른 문자 체계의 숫자 → 0-9.
+    길이는 원문과 같다."""
     folded = []
     for char in text:
         code = ord(char)
@@ -959,6 +981,10 @@ def _probe(text: str) -> str:
             folded.append("-")
         elif code in DOT_CODES:
             folded.append(".")
+        elif code in COMMA_CODES:
+            folded.append(",")
+        elif code in COLON_CODES:
+            folded.append(":")
         elif 0xFF01 <= code <= 0xFF5E:
             folded.append(chr(code - 0xFEE0))
         elif char.isdecimal() and not char.isascii():
@@ -1042,6 +1068,12 @@ def _clean(text, limit: int) -> tuple[str, set[str]]:
         return before_names[match.start(1):match.end(2)] + "(이름 생략)" + title
 
     cleaned = _mask(cleaned, STAFF_NAME_IN_TEXT, replace_staff_name)
+    before_names = cleaned
+
+    def replace_titled_name(match):  # 직함("교무처장 ")과 "님"은 원문 글자 그대로 둔다
+        return before_names[match.start(1):match.end(1)] + "(이름 생략)" + before_names[match.start(3):match.end(3)]
+
+    cleaned = _mask(cleaned, STAFF_TITLED_NAME_IN_TEXT, replace_titled_name)
     for _ in range(len(cleaned)):  # 이어진 이름을 한 번에 하나씩 뒤로 (바뀌는 동안만 돈다. 상한은 비정상 입력 대비)
         before_names = cleaned
         masked = _mask(cleaned, STAFF_NEXT_NAME_IN_TEXT, replace_staff_name)
