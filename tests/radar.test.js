@@ -1,9 +1,11 @@
-// 홈 레이더 점 안내 상자(site/js/radar-popover.js) 테스트 (#178): 상자를 둘 자리 계산과 상태(미리보기·잡아 둠·닫힘) 전이.
+// 홈 레이더 테스트: 점 안내 상자(site/js/radar-popover.js, #178)의 자리 계산과 상태(미리보기·잡아 둠·닫힘) 전이,
+// 겹친 점을 떼어 놓는 자리 잡기(site/js/radar.js layoutBlips, #184).
 // 실제 마우스·터치 입력과 화면 배치는 브라우저에서 확인한다 (PR #178의 확인 방법).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { popoverPosition, pickAction, isTouchPointer, createPopoverController, HIDE_DELAY_MS } from '../site/js/radar-popover.js';
+import { layoutBlips, BLIP_GAP } from '../site/js/radar.js';
 
 const RADAR = readFileSync(new URL('../site/js/radar.js', import.meta.url), 'utf8');
 const POPOVER = readFileSync(new URL('../site/js/radar-popover.js', import.meta.url), 'utf8');
@@ -267,4 +269,108 @@ test('미리보기는 마우스를 받지 않고, 공지 글자는 글자로만 
   assert.match(CSS, /\.hero \.rd-pop \.small\s*{\s*color:\s*var\(--sub\)/);
   assert.match(CSS, /\.hero \.rd-pop a:not\(\.btn\)\s*{\s*color:\s*var\(--blue\)/);
   assert.match(CSS, /\.hero \.rd-pop :focus-visible\s*{\s*outline-color:\s*var\(--blue\)/);
+});
+
+// ── 겹친 점 떼어 놓기 (#184) ─────────────────────────────
+const radiusOf = (spot) => Math.hypot(spot.x, spot.y);
+function closestPair(spots) {
+  let closest = Infinity;
+  for (let a = 0; a < spots.length; a += 1) {
+    for (let b = a + 1; b < spots.length; b += 1) closest = Math.min(closest, Math.hypot(spots[a].x - spots[b].x, spots[a].y - spots[b].y));
+  }
+  return closest;
+}
+// 시험마다 같은 값이 나오는 난수 (Math.random을 쓰면 실패를 다시 볼 수 없다)
+function seeded(seed) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 2 ** 32;
+  };
+}
+
+test('겹치지 않는 점은 제자리에 둔다 (혼자 있을 때와 같은 자리)', () => {
+  // 반지름은 같고 각도가 서로 먼 네 점 (0도, -65도, 101도, -131도)
+  const dots = ['pt-9', 'festival-2026', 'hackathon-7', 'idea-3'].map((id) => ({ id, radius: 80 }));
+  const alone = dots.map((dot) => layoutBlips([dot])[0]);
+  assert.ok(closestPair(alone) >= BLIP_GAP * 2, `이 시험의 전제: 원래 자리가 서로 떨어져 있다 (${closestPair(alone).toFixed(1)})`);
+  const together = layoutBlips(dots);
+  dots.forEach((dot, index) => {
+    assert.deepEqual(together[index], alone[index], dot.id);
+    assert.ok(Math.abs(radiusOf(together[index]) - dot.radius) < 1e-9, `${dot.id}: 반지름`);
+  });
+  assert.deepEqual(layoutBlips([]), []);
+});
+
+test('공지 번호가 이어진 두 대회처럼 각도가 거의 같으면 같은 거리의 원을 따라 떼어 놓는다', () => {
+  // 11/19 공개 데이터에서 실제로 겹친 두 카드. id가 끝자리만 달라 각도가 1도 차이였다
+  const dots = [{ id: 'mju-student-mjukr-853-236710', radius: 67.4 }, { id: 'mju-student-mjukr-853-236711', radius: 69.7 }];
+  const alone = dots.map((dot) => layoutBlips([dot])[0]);
+  assert.ok(closestPair(alone) < 5, '이 시험의 전제: 그대로 두면 겹친다');
+  const spots = layoutBlips(dots);
+  assert.ok(closestPair(spots) >= BLIP_GAP, `떨어진 거리 ${closestPair(spots).toFixed(1)}`);
+  spots.forEach((spot, index) => assert.ok(Math.abs(radiusOf(spot) - dots[index].radius) < 1e-9, '남은 날을 나타내는 거리는 그대로'));
+  assert.deepEqual(spots[0], alone[0], 'id가 앞선 점은 제자리');
+});
+
+test('같은 데이터면 화면 순서가 바뀌어도 같은 자리에 찍힌다', () => {
+  const random = seeded(7);
+  const dots = Array.from({ length: 25 }, (_, index) => ({ id: `card-${index}`, radius: 14 + random() * 150 }));
+  const expected = new Map(layoutBlips(dots).map((spot, index) => [dots[index].id, spot]));
+  const shuffled = [...dots].sort((a, b) => (a.radius < b.radius ? -1 : 1));
+  layoutBlips(shuffled).forEach((spot, index) => assert.deepEqual(spot, expected.get(shuffled[index].id), shuffled[index].id));
+  // 넘긴 배열은 건드리지 않는다
+  assert.deepEqual(shuffled.map((dot) => dot.id), [...dots].sort((a, b) => (a.radius < b.radius ? -1 : 1)).map((dot) => dot.id));
+});
+
+test('점이 많아도 어떤 두 점도 최소 간격보다 가깝지 않고, 거리는 한도 안에서만 옮긴다', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const random = seeded(seed);
+    const dots = Array.from({ length: 40 }, (_, index) => ({ id: `mju-board-${seed}-${1000 + index}`, radius: 14 + random() * 152 }));
+    const spots = layoutBlips(dots);
+    assert.equal(spots.length, dots.length);
+    assert.ok(closestPair(spots) >= BLIP_GAP - 1e-9, `seed ${seed}: 가장 가까운 두 점 ${closestPair(spots).toFixed(2)}`);
+    spots.forEach((spot, index) => {
+      assert.ok(Math.abs(radiusOf(spot) - dots[index].radius) <= 24 + 1e-9, `seed ${seed}: ${dots[index].id} 거리 이동`);
+      assert.ok(radiusOf(spot) >= 14 - 1e-9 && radiusOf(spot) <= 166 + 1e-9, `seed ${seed}: 마감일이 있는 점의 범위 안`);
+    });
+  }
+});
+
+test('오늘 마감이 여러 건이면 중심 근처에서 거리를 조금 옮겨서라도 떼어 놓는다', () => {
+  // 반지름 14의 원에는 간격 26으로 두 점밖에 못 놓는다
+  const dots = Array.from({ length: 6 }, (_, index) => ({ id: `today-${index}`, radius: 14 }));
+  const spots = layoutBlips(dots);
+  assert.ok(closestPair(spots) >= BLIP_GAP - 1e-9, `가장 가까운 두 점 ${closestPair(spots).toFixed(2)}`);
+  assert.ok(spots.every((spot) => radiusOf(spot) >= 14 - 1e-9 && radiusOf(spot) <= 14 + 24 + 1e-9), '거리 이동은 한도 안');
+  assert.equal(spots.filter((spot) => Math.abs(radiusOf(spot) - 14) < 1e-9).length, 2, '반지름 14의 원에는 두 점까지만 남고 나머지는 거리를 옮긴다');
+  // id가 같은 카드 두 장이 들어와도 떼어 놓는다
+  assert.ok(closestPair(layoutBlips([{ id: 'same', radius: 80 }, { id: 'same', radius: 80 }])) >= BLIP_GAP - 1e-9);
+});
+
+test('거리를 옮기더라도 그 점의 마감 구간 고리는 넘지 않는다', () => {
+  // D-6쯤(반지름 52)에 12건이 몰린 경우. 7일 고리(58)를 넘으면 30일 이내 구간처럼 보인다
+  const week = Array.from({ length: 12 }, (_, index) => ({ id: `week-${index}`, radius: 52, minRadius: 14, maxRadius: 58 }));
+  const weekSpots = layoutBlips(week);
+  assert.ok(closestPair(weekSpots) >= BLIP_GAP - 1e-9, `가장 가까운 두 점 ${closestPair(weekSpots).toFixed(2)}`);
+  assert.ok(weekSpots.every((spot) => radiusOf(spot) <= 58 + 1e-9 && radiusOf(spot) >= 14 - 1e-9), '7일 고리 안에 머문다');
+  assert.ok(weekSpots.some((spot) => radiusOf(spot) < 52 - 1e-9), '바깥으로 못 가는 만큼 안쪽으로 옮긴 점이 있다 (이 시험이 이동을 실제로 일으킨다)');
+
+  // 범위를 주지 않으면 같은 입력이 고리를 넘는다: 위 단언이 범위 덕분임을 보인다
+  const free = layoutBlips(week.map(({ id, radius }) => ({ id, radius })));
+  assert.ok(free.some((spot) => radiusOf(spot) > 58 + 1e-9));
+
+  // 30일 이내 구간의 안쪽 끝(반지름 58~)에 몰려도 7일 고리 안으로 들어가지 않는다
+  const month = Array.from({ length: 16 }, (_, index) => ({ id: `month-${index}`, radius: 60, minRadius: 58, maxRadius: 112 }));
+  const monthSpots = layoutBlips(month);
+  assert.ok(closestPair(monthSpots) >= BLIP_GAP - 1e-9);
+  assert.ok(monthSpots.every((spot) => radiusOf(spot) >= 58 - 1e-9 && radiusOf(spot) <= 112 + 1e-9));
+});
+
+test('자리가 끝내 없으면 겹치더라도 모든 점을 그린다', () => {
+  const dots = Array.from({ length: 80 }, (_, index) => ({ id: `crowd-${index}`, radius: 14 }));
+  const spots = layoutBlips(dots);
+  assert.equal(spots.length, 80);
+  assert.ok(spots.every((spot) => Number.isFinite(spot.x) && Number.isFinite(spot.y)));
+  assert.ok(spots.every((spot) => radiusOf(spot) <= 14 + 24 + 1e-9), '한도 밖으로 밀어내지는 않는다');
 });
