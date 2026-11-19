@@ -484,6 +484,12 @@ def _field(name: str, raw, notices: list[dict], verification, has_warnings: bool
             and not has_warnings and not link_dropped and name != "contact"
             and any(entry["location"] in UNCHECKED_LOCATIONS for entry in evidence)):
         item["reviewable"] = True
+    if (name == "apply" and status == "needs_check" and flag == "found" and value.get("end")
+            and not problems and not evidence_failed and evidence
+            and all(entry["location"] == "이미지" for entry in evidence)
+            and isinstance(verification, dict) and verification.get("checked_value") == raw_value
+            and verification.get("image_cross_checked") is True):
+        item["image_cross_checked"] = True
     return item
 
 

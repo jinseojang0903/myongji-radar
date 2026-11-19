@@ -267,6 +267,8 @@ class DailyPublishingTests(unittest.TestCase):
         settings = load_publishing(daily.ROOT / "config/publishing.toml", use_local=False)
         self.assertFalse(settings.enabled)
         self.assertEqual(settings.max_new, 10)
+        self.assertEqual(settings.cross_model, "sonnet")
+        self.assertTrue(settings.cross_image_apply_only)
 
     def test_warning_only_collection_can_publish_without_push(self):
         self.write_settings(push=False)

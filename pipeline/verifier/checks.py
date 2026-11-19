@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
 from exporter.cards import DASH_CODES, DOT_CODES, EXTRA_INVISIBLE_CODES, REMOVED_CATEGORIES, SKIPPED_KINDS
+from extractor.poster_deadline import poster_deadline
 
 # 내보내기의 CARD_FIELDS에 카드 최상위 값(title·organizer·scope)과 kind를 더한 것.
 # 최상위 값은 근거를 공개하지 않지만, 지어낸 근거면 내보내기가 그 값을 확정처럼 싣지 않도록 대조한다.
@@ -462,7 +463,8 @@ def _comparable(name: str, value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
-def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: dict[str, FieldCheck], cross_model: str | None) -> dict:
+def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: dict[str, FieldCheck],
+                 cross_model: str | None, *, distinct_models=False) -> dict:
     """교차 검증 모델의 값과 같은 핵심 항목을 auto_verified로 올린다 (계약 1절: 근거 문장 실재·모델 일치·형식·상식 통과).
 
     올리는 조건: 이 도구나 사람이 이미 남긴 기록이 없고(merge_statuses 뒤 statuses에 없음), 근거를 모두 코드로 대조해
@@ -473,10 +475,18 @@ def cross_verify(statuses: dict, extraction: dict, cross: dict | None, checks: d
     """
     if not isinstance(cross, dict) or not isinstance(cross.get("fields"), dict):
         return statuses
-    if extraction.get("warnings") or cross.get("warnings"):
-        return statuses
     fields = extraction.get("fields") if isinstance(extraction.get("fields"), dict) else {}
     result = dict(statuses)
+    image_check = result.get("apply")
+    check = checks.get("apply")
+    if (distinct_models and cross_model and isinstance(image_check, dict)
+            and image_check.get("status") == "needs_check" and not image_check.get("evidence_failed")
+            and check and check.unchecked_sources and not check.failures):
+        primary, secondary = poster_deadline(extraction), poster_deadline(cross)
+        if primary and secondary and primary[:2] == secondary[:2] and primary[2] & secondary[2]:
+            result["apply"] = {**image_check, "image_cross_checked": True}
+    if extraction.get("warnings") or cross.get("warnings"):
+        return result
     for name in CROSS_FIELDS:
         check, raw, other = checks.get(name), fields.get(name), cross["fields"].get(name)
         if name in result or check is None or check.result != "pass":

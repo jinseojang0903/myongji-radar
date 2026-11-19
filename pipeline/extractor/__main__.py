@@ -260,6 +260,8 @@ def main(argv=None) -> int:
                        help="교차 검증 모델 (#15). 주 모델로 뽑은 카드를 이 모델로 한 번 더 뽑아, 검증기가 값이 같은 핵심 항목을 "
                             "자동 검증 통과로 올린다. 주 모델과 달라야 한다. 없으면 교차 검증 안 함. --max-new는 주·교차에 "
                             "따로 적용되고, 둘을 합친 호출은 --max-calls가 막는다. 교차 단계가 멈춰도 주 결과로 묶음은 만든다")
+    daily.add_argument("--cross-image-apply-only", action="store_true",
+                       help="교차 모델은 포스터만으로 읽은 신청 마감 후보를 최대 3건 확인")
     daily.add_argument("--images", action="store_true",
                        help="내려받은 포스터 이미지도 AI에 넣는다 (공지당 4장, 도구는 계속 끈 채 표준 입력으로). 켜고 끌 때 "
                             "이미지가 있는 공지는 다시 뽑는다. 이미지 근거는 사람 확인으로 간다")

@@ -40,6 +40,7 @@ from extractor import claude as claude_cli
 from extractor.common import (CallLedger, StopRun, add_usage, after_failure, new_totals, now_text, posted_day, probe,
                               write_json)
 from extractor.images import INPUT_MARK as IMAGES_INPUT, image_refs, poster_images
+from extractor.poster_deadline import poster_deadline
 from extractor.prompt import (PROMPT_VERSION, InputNotice, build_input, fit_attachments, is_result_notice,
                               mask_student_ids, prompt_fingerprint)
 
@@ -223,6 +224,8 @@ def run_daily(args) -> int:
     if args.max_new < 1:
         raise ValueError("--max-new는 1 이상")
     args.cross_model = cross_model = getattr(args, "cross_model", None)  # 이 함수를 직접 부르는 쪽(시험)은 안 줄 수 있다
+    if getattr(args, "cross_image_apply_only", False) and (not cross_model or not args.images):
+        raise ValueError("--cross-image-apply-only에는 --cross-model과 --images가 필요하다")
     args.images = bool(getattr(args, "images", False))
     if cross_model is not None and cross_model == args.model:
         raise ValueError("--cross-model은 --model과 다른 모델이어야 한다 (같은 모델끼리는 교차 검증이 아니다)")
@@ -322,16 +325,30 @@ def _current_cross(args, item: dict, entry: dict, fingerprint: str) -> dict | No
                                              attachment_hash=item["attachment_input_hash"]):
         return None
     cross = read_cache(_cross_dir(args), item["card_id"], item["notice"])
-    return cross if is_current(cross, item["notice"], args.cross_model, fingerprint, args.images,
-                               attachment_hash=item["attachment_input_hash"]) else None
+    if not is_current(cross, item["notice"], args.cross_model, fingerprint, args.images,
+                      attachment_hash=item["attachment_input_hash"]):
+        return None
+    if getattr(args, "cross_image_apply_only", False):
+        if (not poster_deadline(entry.get("output")) or not entry.get("model_id") or not cross.get("model_id")
+                or entry["model_id"] == cross["model_id"]):
+            return None
+        output = cross["output"]
+        apply = (output.get("fields") or {}).get("apply")
+        cross = {**cross, "output": {**output, "fields": {"apply": apply}}}
+    return cross
 
 
 def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failures: dict) -> list[dict]:
     """주 결과는 지금 것인데 교차 결과가 없거나 낡은 카드 (최신 공지부터). 같은 판을 교차 모델로 MAX_FAILURES번
     실패한 카드는 뺀다 (계속 실패하는 카드가 매일 맨 앞에서 상한을 먹지 않게)."""
     items = []
+    poster_only = getattr(args, "cross_image_apply_only", False)
+    today = now_text()[:10] if poster_only else ""
     for item in candidates:
         entry = read_cache(args.cache, item["card_id"], item["notice"])
+        deadline = poster_deadline(entry.get("output")) if poster_only and entry else None
+        if poster_only and (not deadline or not image_refs(item["notice"])):
+            continue
         if (not is_current(entry, item["notice"], args.model, fingerprint, args.images,
                            attachment_hash=item["attachment_input_hash"])
                 or _current_cross(args, item, entry, fingerprint)):
@@ -339,8 +356,9 @@ def _cross_pending(args, candidates: list[dict], fingerprint: str, cross_failure
         if _failure_count(cross_failures, item["card_id"], item["notice"], args.cross_model, fingerprint,
                           expected_inputs(item["notice"], args.images), item["attachment_input_hash"]) >= MAX_FAILURES:
             continue
-        items.append(item)
-    return sorted(items, key=lambda item: posted_day(item["notice"].get("published_at"), ""), reverse=True)
+        items.append((bool(deadline and deadline[0] >= today),
+                      posted_day(item["notice"].get("published_at"), ""), item))
+    return [item for _, _, item in sorted(items, key=lambda pair: pair[:2], reverse=True)]
 
 
 def _call_pending(args, pending, candidates, boards, fingerprint, failures, cross_failures, meta) -> StopRun | None:
@@ -377,7 +395,8 @@ def _call_pending(args, pending, candidates, boards, fingerprint, failures, cros
         cross_meta = {"totals": meta["cross_totals"]}  # 사용량을 교차 합계에 센다
         try:
             probe(claude, cross_model, args.timeout, args.use_env_account, ledger, cross_meta, with_image=args.images)
-            _extract_pending(args, cross_items[:args.max_new], claude, ledger, cross_meta, boards, fingerprint, cross_failures,
+            cross_limit = min(3, args.max_new) if getattr(args, "cross_image_apply_only", False) else args.max_new
+            _extract_pending(args, cross_items[:cross_limit], claude, ledger, cross_meta, boards, fingerprint, cross_failures,
                              model=cross_model, cache=_cross_dir(args))
         except StopRun as stop:
             # 교차 검증은 덧붙이는 단계다. 멈춰도 주 결과의 공개는 막지 않는다 (교차 결과가 없는 카드는 "AI 정리"로 남는다)
