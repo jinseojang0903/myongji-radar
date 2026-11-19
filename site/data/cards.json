@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "generated_at": "2026-11-19T08:46:41+09:00",
+  "generated_at": "2026-11-19T09:12:25+09:00",
   "boards": [
     {
       "id": "mju-startup",
@@ -70,7 +70,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/230819/artclView.do",
           "title": "2026학년도 한국통신학회 하계종합학술발표회 참여 및 학부생 아이디어 경진대회 참가 사전신청 안내(~04/17)",
           "posted_at": "2026-04-02",
-          "last_seen_at": "2026-11-18T23:02:36.767842+00:00"
+          "last_seen_at": "2026-11-19T00:04:44.089749+00:00"
         }
       ],
       "fields": {
@@ -255,7 +255,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/232980/artclView.do",
           "title": "2026학년도 제5회 창의적SW프로그램 경진대회 참가자 모집 안내",
           "posted_at": "2026-06-22",
-          "last_seen_at": "2026-11-18T23:02:14.919537+00:00"
+          "last_seen_at": "2026-11-19T00:04:35.982214+00:00"
         }
       ],
       "fields": {
@@ -506,7 +506,7 @@
           "url": "https://aict.mju.ac.kr/bbs/aict/1394/236337/artclView.do",
           "title": "2026학년도 AI 창의적 아이디어 해커톤 경진대회 참가자 모집 안내",
           "posted_at": "2026-10-15",
-          "last_seen_at": "2026-11-18T23:01:51.125645+00:00"
+          "last_seen_at": "2026-11-19T00:04:28.955478+00:00"
         }
       ],
       "fields": {
@@ -754,7 +754,7 @@
           "url": "https://ctl.mju.ac.kr/bbs/ctl/792/235921/artclView.do",
           "title": "[What-SSUP] 2026학년도 2학기 학습법 적용 우수 사례 공모전 안내(★기간연장★)",
           "posted_at": "2026-10-01",
-          "last_seen_at": "2026-11-18T23:38:21.662064+00:00"
+          "last_seen_at": "2026-11-19T00:03:51.829110+00:00"
         }
       ],
       "fields": {
@@ -1025,7 +1025,7 @@
           "url": "https://www.mju.ac.kr/bbs/eng/1736/234605/artclView.do",
           "title": "2026 공과대학생 전공영어 발표 경진대회 신청자 모집 안내",
           "posted_at": "2026-08-21",
-          "last_seen_at": "2026-11-18T23:04:39.405397+00:00"
+          "last_seen_at": "2026-11-19T00:05:26.590518+00:00"
         }
       ],
       "fields": {
@@ -1252,7 +1252,7 @@
     },
     {
       "id": "mju-energy-energymaterials-1634-230799",
-      "title": "2026학년도 명지대학교 에너지 소재사업단 명지 R&D 랩 (LAB) 경진대회",
+      "title": "[혁신사업-에너지소재사업단]2026학년도 명지대학교 에너지 소재단 명지 R&D 랩 (LAB) 경진대회 신청안내",
       "organizer": "에너지 소재 사업단",
       "scope": "교내",
       "sources": [
@@ -1261,25 +1261,37 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
           "title": "[혁신사업-에너지소재사업단]2026학년도 명지대학교 에너지 소재단 명지 R&D 랩 (LAB) 경진대회 신청안내",
           "posted_at": "2026-04-01",
-          "last_seen_at": "2026-11-18T23:10:04.733309+00:00"
+          "last_seen_at": "2026-11-19T00:00:59.864496+00:00"
         }
       ],
       "fields": {
         "apply": {
           "value": {
-            "start": null,
+            "start": "2026-04-01",
             "end": "2026-06-01 17:00",
             "time_given": true
           },
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "접수기간 : 2026.6.1(월) 17:00까지",
+              "quote": "가. 접수기간 : 2026.6.1(월) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+            },
+            {
+              "quote": "접수기간 2026. 4. 1 (수) ~ 6. 1 (월)",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
+            },
+            {
+              "quote": "26. 4. 1 ~ 26. 5 .1 (17:00까지) : 참가 접수",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "시작일 미기재, 마감만 명시"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 본문·포스터 상단은 마감 6/1, 포스터 진행일정은 마감 5/1(17:00)로 다름. 본문 값을 따름. 시작일 4/1은 본문에 없어 포스터에서 가져옴"
         },
         "stages": {
           "value": [
@@ -1309,56 +1321,75 @@
               "time_given": false
             }
           ],
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "접수기간 : 2026.6.1(월) 17:00까지",
+              "quote": "가. 접수기간 : 2026.6.1(월) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "제출기간 : 2026.9.30(수) 17:00까지",
+              "quote": "가. 제출기간 : 2026.9.30(수) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "일 시 : 2026년 10월 12일 ~ 2026년 10월 30일",
+              "quote": "○ 일 시 : 2026년 10월 12일 ~ 2026년 10월 30일",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "일 시 : 2026년 11월 26일 (목)",
+              "quote": "○ 일 시 : 2026년 11월 26일 (목)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+            },
+            {
+              "quote": "26. 4. 1 ~ 26. 5 .1 (17:00까지) : 참가 접수",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "단계 원문 표현: 심사 / 일정은 주최부서 사정으로 변경될 수 있다고 명시"
+          "note": "단계 원문 표현: 심사 및 입상작 선정 / 이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 신청 마감이 본문(6/1)과 포스터 진행일정(5/1)에서 다름. 본문 값을 따름. 그 밖의 일정은 본문과 포스터가 같음"
         },
         "campus": {
           "value": "any",
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 1,2학년 재학생",
+              "quote": "3. 참가자격: 명지대학교 소속 1,2학년 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+            },
+            {
+              "quote": "명지대학교 화학·에너지융합학부 1,2학년 재학생",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "대상 문장에 캠퍼스 구분 없음 (방문 접수처가 자연캠퍼스이나 이는 장소)"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 대상 문장에 캠퍼스 구분이 없음. 다만 포스터는 화학·에너지융합학부로 한정하고 있어 실제 대상이 특정 학부일 수 있음"
         },
         "grades": {
           "value": [
             1,
             2
           ],
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 1,2학년 재학생",
+              "quote": "3. 참가자격: 명지대학교 소속 1,2학년 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+            },
+            {
+              "quote": "명지대학교 화학·에너지융합학부 1,2학년 재학생",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
-          ]
+          ],
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인)"
         },
         "enrollment": {
           "value": {
@@ -1367,79 +1398,83 @@
             ],
             "excluded": []
           },
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 1,2학년 재학생",
+              "quote": "3. 참가자격: 명지대학교 소속 1,2학년 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "재학증명서...참가자 각 1부 *2026학년도 3월 이후 발급본",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+              "quote": "명지대학교 화학·에너지융합학부 1,2학년 재학생",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
-          ]
+          ],
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 본문은 '명지대학교 소속' 재학생 전체, 포스터는 '화학·에너지융합학부' 재학생으로 대상 범위가 다름. 더 좁은 쪽(화학·에너지융합학부만)일 수 있으니 확인 필요. 재학증명서 제출 필요"
         },
         "team": {
           "value": {
             "min": null,
-            "max": null,
-            "individual_ok": null
+            "max": 4,
+            "individual_ok": true
           },
-          "status": "needs_check",
+          "status": "ai",
           "evidence": [
             {
-              "quote": "대표자 선임계...1부(팀으로 참가할 경우)",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+              "quote": "신청단위 □ 개인 □ 팀(최대4인)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "붙임 1. 신청서류.pdf"
             }
           ],
-          "note": "팀 참가 가능함은 드러나나 인원 수와 개인 참가 허용 여부가 명시되지 않음"
+          "note": "팀 참가 시 대표자 선임계를 내야 하며, 상금은 팀원끼리 1/n로 나눠 지급함"
         },
         "deliverables": {
           "value": {
             "tags": [
               "영상"
             ],
-            "text": "에너지 소재 사업단 소속 연구실 소개, 선후배 교류, R&D 주제를 담은 숏츠 또는 동영상 1건(신청자·팀당 1건). 신청 시 참가신청서·재학증명서·대표자 선임계(팀)·개인정보 활용동의서 제출"
+            "text": "에너지 소재 사업단 소속 연구실을 체험한 뒤 만드는 숏츠 또는 동영상. 연구실 소개, 선후배와의 교류, 연구실 R&D 주제에 관한 내용을 담아야 함. 신청자(팀)마다 1건만 낼 수 있음"
           },
           "status": "ai",
           "evidence": [
             {
-              "quote": "아래 내용을 포함한 숏츠 또는 동영상",
+              "quote": "○ 아래 내용을 포함한 숏츠 또는 동영상",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "참가 신청자만이 출품이 가능하고 신청자(팀) 각 1건만 제출 가능",
+              "quote": "가. 참가 신청자만이 출품이 가능하고 신청자(팀) 각 1건만 제출 가능",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             }
           ],
-          "note": "영상 길이·형식 규정 없음"
+          "note": "분량·파일 형식은 적혀 있지 않음"
         },
         "benefits": {
-          "value": "우수컨텐츠상 1,000,000원(1명), 창의컨텐츠상 1,000,000원(1명), 상장(총장명으로 보임). 팀은 상금(장학금) 1/n 지급, 입상작 수·금액 변동 가능",
+          "value": "우수컨텐츠상 1명(팀) 상금 100만원, 창의컨텐츠상 1명(팀) 상금 100만원, 상장(총장명). 참가팀 수와 심사 결과에 따라 금액·입상작 수는 달라질 수 있음",
           "status": "needs_check",
           "evidence": [
             {
-              "quote": "우수컨텐츠상",
+              "quote": "우수컨텐츠상 1,000,000 1 총장명 창의컨텐츠상 1,000,000 1",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "창의컨텐츠상",
+              "quote": "※ 참가팀 수와 심사 결과에 따라 장학금액 및 입상작 수는 다소 변동될 수 있음",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
-              "quote": "※ 팀으로 참가한 경우 상금(장학금)은 1/n을 원칙으로 지급함",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+              "quote": "우수컨텐츠 1팀 100만원 / 창의컨텐츠 1팀 100만원",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "시상 표가 깨져 행·열 대응이 불확실하고, 표 제목이 '아이디어 프로그램 경진대회'로 되어 있음"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 본문 표가 깨져 있지만 포스터에서 금액·인원이 확인됨. '총장명'은 상장 명의로 보임"
         },
         "mileage": {
           "value": null,
@@ -1448,7 +1483,7 @@
         },
         "how_to_apply": {
           "value": {
-            "text": "학교 홈페이지 지정 양식의 참가신청서 등을 사업단사무실(자연 제5공학관 2층 Y5246호)에 방문 접수하거나 담당자 메일로 접수. 우편 접수 불가",
+            "text": "학교 홈페이지의 지정 양식으로 참가신청서, 재학증명서(2026년 3월 이후 발급본), 개인정보 동의서, 대표자 선임계(팀일 때)를 작성해 방문 접수(자연캠퍼스 제5공학관 2층 Y5246호)하거나 메일로 접수함. 우편 접수는 받지 않음",
             "url": null
           },
           "status": "ai",
@@ -1459,22 +1494,27 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             },
             {
+              "quote": "다. 제출서류(학교 홈페이지 지정 양식으로 작성)",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
+            },
+            {
               "quote": "나. 신청접수 및 출품작 제출은 우편접수 불가",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/230799/artclView.do"
             }
           ],
-          "note": "메일 주소가 공지에서 가려져 있음"
+          "note": "접수용 메일 주소는 공지에서 가려져 있음(@mju.ac.kr). 작품 제출용 (이메일 생략)으로 접수용과 다름"
         },
         "contact": {
           "value": {
-            "dept": "명지대학교 에너지 소재사업단",
+            "dept": "에너지 소재사업단",
             "email": "",
             "phone": "031-330-6332"
           },
           "status": "ai",
           "evidence": [],
-          "note": "이메일은 일부가 가려져 있어 적지 않음"
+          "note": "담당자 메일 주소는 공지에서 가려져 있어 적지 않음"
         }
       },
       "deadline_history": [],
@@ -1496,7 +1536,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do",
           "title": "[혁신사업 - 에너지 소재 사업단] 명지대학교 에너지 소재 사업단 R&D 아이디어 경진대회 공고",
           "posted_at": "2026-04-20",
-          "last_seen_at": "2026-11-18T23:10:03.820558+00:00"
+          "last_seen_at": "2026-11-19T00:00:55.132022+00:00"
         }
       ],
       "fields": {
@@ -1514,7 +1554,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "시작일이 적혀 있지 않고 마감만 있음"
+          "note": "참가신청서 접수 마감만 명시, 시작일 없음"
         },
         "stages": {
           "value": [
@@ -1567,7 +1607,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "단계 원문 표현: 심사"
+          "note": "단계 원문 표현: 심사 / 일정은 주최부서 사정으로 변경될 수 있다고 명시됨"
         },
         "campus": {
           "value": "any",
@@ -1579,7 +1619,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "참가 대상 문장에 캠퍼스 구분 없음"
+          "note": "대상 문장에 캠퍼스 구분 없음 (접수처가 자연캠퍼스이나 장소일 뿐)"
         },
         "grades": {
           "value": "any",
@@ -1591,7 +1631,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "참가 대상 문장에 학년 구분 없음"
+          "note": "대상 문장에 학년 구분 없음"
         },
         "enrollment": {
           "value": {
@@ -1600,7 +1640,7 @@
             ],
             "excluded": []
           },
-          "status": "needs_check",
+          "status": "ai",
           "evidence": [
             {
               "quote": "3. 참가자격: 명지대학교 소속 재학생",
@@ -1608,21 +1648,27 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             },
             {
-              "quote": "본 대회는 멘토와 멘티가 1:1로 협력하여",
+              "quote": "○ 재학증명서...참가자 각 1부 *2026학년도 4월 이후 발급본",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "'재학생'에 대학원생이 들어가는지 확실하지 않음. 멘토의 자격(대학원생 등)이 적혀 있지 않음"
+          "note": "대학원생 포함 여부는 명시되지 않음 (멘토 역할에 선배가 참여하는 구조)"
         },
         "team": {
           "value": {
             "min": null,
-            "max": null,
+            "max": 2,
             "individual_ok": null
           },
           "status": "needs_check",
           "evidence": [
+            {
+              "quote": "신청단위 □ 개인 ■ 팀(최대2인)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do",
+              "file": "붙임1. 참가신청서류.pdf"
+            },
             {
               "quote": "본 대회는 멘토와 멘티가 1:1로 협력하여",
               "location": "본문",
@@ -1634,14 +1680,14 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "멘토·멘티 1:1 협력이라는 말은 있지만 팀 인원이 적혀 있지 않음. '팀으로 참가할 경우'라는 표현만으로는 개인 참가가 되는지 확실하지 않음"
+          "note": "신청서에 개인 칸이 있고 본문에 '팀으로 참가할 경우'라는 표현이 있으나, 대회 구조는 멘토·멘티 1:1이라 개인 참가 가능 여부 불명확. 최대 2인은 첨부 신청서 기준"
         },
         "deliverables": {
           "value": {
             "tags": [
               "기획서·제안서"
             ],
-            "text": "참가신청서·재학증명서·개인정보 활용동의서 등을 낸 뒤, 포스터 형식의 연구 내용 또는 아이디어 제안서 제출(연구 배경, 핵심 가설·목표, 세부 연구 계획, 팀원 역할 분담 필수). 신청자(팀)당 1건"
+            "text": "참가신청서·재학증명서·개인정보 동의서·대표자 선임계(팀) 제출 후, Poster 형식의 연구 내용 또는 아이디어 제안서 1건 제출(연구 배경·핵심 가설·세부 연구계획·팀원 역할 분담 포함)"
           },
           "status": "ai",
           "evidence": [
@@ -1658,7 +1704,7 @@
           ]
         },
         "benefits": {
-          "value": "상장 및 상금(장학금). 표 기준 대상 1,600,000원(2), 최우수상 1,200,000원(2), 입상작 4. 팀 참가 시 상금은 1/n 지급",
+          "value": "상장 및 상금(장학금): 대상 1,600,000원(2점), 최우수상 1,200,000원(2점), 입상작 4점으로 보임. 상장 총장명. 팀은 1/n 지급, 금액·입상작 수 변동 가능",
           "status": "needs_check",
           "evidence": [
             {
@@ -1677,7 +1723,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231244/artclView.do"
             }
           ],
-          "note": "상금 표가 깨져 있어 상별 금액·수상 수·상장 명의(총장명)가 어떻게 짝지어지는지 확실하지 않음. 금액과 수상 수는 바뀔 수 있음"
+          "note": "시상 표가 깨져 상별 금액·수여 수·상장명 대응이 불확실함"
         },
         "mileage": {
           "value": null,
@@ -1686,12 +1732,12 @@
         },
         "how_to_apply": {
           "value": {
-            "text": "학교 홈페이지 지정 양식으로 참가신청서 등을 작성해 제출. 방문 접수(자연캠퍼스 제5공학관 2층 Y5246호)라고도 적혀 있고, 이메일 제출만 가능하다고도 적혀 있음",
+            "text": "학교 홈페이지 지정 양식으로 참가신청서 등 제출. 방문 접수(자연 제5공학관 2층 Y5246호 사업단사무실)로 안내되었으나 기타사항에는 이메일 제출만 가능하다고 함",
             "url": null
           },
           "status": "needs_check",
           "evidence": [],
-          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 같은 본문 안에서 접수 방법이 방문 접수와 이메일 제출만 가능으로 서로 다름. 이메일 주소가 가려져 있음"
+          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 같은 본문 안에서 신청 접수 방법이 방문 접수와 이메일 제출만 가능으로 서로 다름. 이메일 주소는 공지에서 가려져 있음"
         },
         "contact": {
           "value": {
@@ -1701,7 +1747,7 @@
           },
           "status": "ai",
           "evidence": [],
-          "note": "공지 원문에서 이메일 주소가 '(8자리 숫자 생략)@mju.ac.kr'로 가려져 있어 비워 둠"
+          "note": "담당자 이메일은 공지 원문에서 일부 생략되어 기재하지 않음"
         }
       },
       "deadline_history": [],
@@ -1714,7 +1760,7 @@
     },
     {
       "id": "mju-energy-energymaterials-1634-231764",
-      "title": "제2회 에너지 소재 아이디어 경진대회",
+      "title": "제2회 2026년도 에너지 소재 아이디어 경진대회",
       "organizer": "에너지 소재 사업단",
       "scope": "교내",
       "sources": [
@@ -1723,7 +1769,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do",
           "title": "[혁신사업-에너지소재사업단] 제2회 2026년도 명지대학교 에너지 소재 사업단 에너지 소재 아이디어 경진대회 공고",
           "posted_at": "2026-05-11",
-          "last_seen_at": "2026-11-18T23:10:01.787958+00:00"
+          "last_seen_at": "2026-11-19T00:00:50.752980+00:00"
         }
       ],
       "fields": {
@@ -1741,7 +1787,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "시작일 표기 없음, 마감만 명시"
+          "note": "시작일 없이 마감만 적혀 있음"
         },
         "stages": {
           "value": [
@@ -1794,7 +1840,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "연도가 공지에 없어 게시일의 연도로 추정함 / 단계 원문 표현: 심사 / 일정은 주최부서 사정으로 변경될 수 있다고 명시. 시상식 장소는 별도지정"
+          "note": "단계 원문 표현: 심사 / 일정은 주최부서 사정으로 변경될 수 있다고 명시됨"
         },
         "campus": {
           "value": "any",
@@ -1806,7 +1852,7 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "대상 문장에 캠퍼스 구분 없음 (방문 접수처가 자연캠퍼스일 뿐 참가 제한 아님)"
+          "note": "대상 문장에 캠퍼스 구분 없음 (접수처가 자연캠퍼스인 것은 장소일 뿐)"
         },
         "grades": {
           "value": "any",
@@ -1827,7 +1873,7 @@
             ],
             "excluded": []
           },
-          "status": "needs_check",
+          "status": "ai",
           "evidence": [
             {
               "quote": "3. 참가자격: 명지대학교 소속 재학생",
@@ -1840,35 +1886,36 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "'재학생'에 대학원생 포함 여부 불명확. 재학증명서 제출 필요"
+          "note": "참가자 전원 재학증명서(2026학년도 5월 이후 발급본) 제출 필요. 학부/대학원 구분은 없음"
         },
         "team": {
           "value": {
             "min": null,
-            "max": null,
-            "individual_ok": null
+            "max": 4,
+            "individual_ok": true
           },
-          "status": "needs_check",
+          "status": "ai",
           "evidence": [
+            {
+              "quote": "신청단위 □ 개인 □ 팀(최대4인)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do",
+              "file": "붙임 1. 참가신청서류.pdf"
+            },
             {
               "quote": "○ 대표자 선임계...1부(팀으로 참가할 경우)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
-            },
-            {
-              "quote": "가. 참가 신청자만이 출품이 가능하고 신청자(팀) 각 1건만 제출 가능",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "팀 참가 가능하나 인원 수 명시 없음. '팀으로 참가할 경우' 표현상 개인 참가도 가능해 보이나 명시되지 않음"
+          "note": "개인 또는 팀(최대 4인) 참가. 팀은 대표자 선임계 제출, 신청자(팀)당 1건만 제출 가능"
         },
         "deliverables": {
           "value": {
             "tags": [
               "기획서·제안서"
             ],
-            "text": "PPT 형식 보고서(문제·해결 방안·개발 범위를 담은 계획서, 관련 결과물 일체, 프로젝트 결과 보고서). 신청 시 참가신청서, 재학증명서, 대표자 선임계(팀), 개인정보 활용동의서 제출. 신청자(팀)당 1건"
+            "text": "PPT 형식 보고서 1건: 문제·해결 방안·개발 범위를 담은 계획서, 관련 결과물 일체(논문 데이터·실험 방법 조사 정리 등), 프로젝트 결과 보고서. 신청 시 참가신청서·재학증명서·개인정보 동의서(팀은 대표자 선임계) 제출"
           },
           "status": "ai",
           "evidence": [
@@ -1883,14 +1930,14 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             },
             {
-              "quote": "- 프로젝트 결과 보고서",
+              "quote": "가. 참가 신청자만이 출품이 가능하고 신청자(팀) 각 1건만 제출 가능",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ]
         },
         "benefits": {
-          "value": "상장 및 상금: 대상 1,000,000원(1명), 최우수상 700,000원(1명), 우수상 500,000원(2명), 입상작 4명(상금 표기 불명확). 팀은 1/n 지급, 금액·입상 수 변동 가능",
+          "value": "상장 및 상금: 대상 1,000,000원(1명), 최우수상 700,000원(1명), 우수상 500,000원(2명), 입상작 4. 팀 상금은 1/n 지급, 참가팀 수·심사 결과에 따라 금액·입상작 수 변동 가능",
           "status": "needs_check",
           "evidence": [
             {
@@ -1909,21 +1956,22 @@
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/231764/artclView.do"
             }
           ],
-          "note": "상금 표가 깨져 있어 상별 금액·수여 인원·상장 명의(총장명) 대응이 불확실함"
+          "note": "시상 표가 깨져 있어 상별 상금·인원·수여 명의(총장명)의 대응이 불확실함"
         },
         "mileage": {
           "value": null,
           "status": "missing",
-          "evidence": []
+          "evidence": [],
+          "note": "비교과 마일리지 언급 없음"
         },
         "how_to_apply": {
           "value": {
-            "text": "학교 홈페이지 지정 양식으로 참가신청서 등 서류 제출. 본문에 방문 접수(자연 제5공학관 2층 Y5246호)와 '이메일 제출만 가능'이 함께 적혀 있음. 완성품은 메일 접수",
+            "text": "학교 홈페이지 지정 양식으로 참가신청서·재학증명서·개인정보 활용동의서(팀은 대표자 선임계)를 작성해 제출. 방문 접수(자연캠퍼스 제5공학관 2층 Y5246호)와 이메일 제출만 가능이라는 문구가 함께 있음",
             "url": null
           },
           "status": "needs_check",
           "evidence": [],
-          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 4항은 방문 접수, 9항은 이메일 제출만 가능이라 서로 다름. 이메일 주소는 원문에서 가려져 있음"
+          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 본문 안에서 접수 방법이 방문 접수와 이메일 전용으로 엇갈리며, 이메일 주소도 가려져 있음"
         },
         "contact": {
           "value": {
@@ -1933,7 +1981,7 @@
           },
           "status": "ai",
           "evidence": [],
-          "note": "이메일은 원문에서 '(8자리 숫자 생략)@mju.ac.kr'로 가려져 있어 넣지 않음"
+          "note": "이메일은 원문에서 '(8자리 숫자 생략)@mju.ac.kr'로 가려져 있어 비워 둠"
         }
       },
       "deadline_history": [],
@@ -1955,7 +2003,7 @@
           "url": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do",
           "title": "[에너지 소재 사업단] 제1회 2026년도 에너지 소재 사업단 캡스톤 디자인 경진대회 참가신청 안내",
           "posted_at": "2026-09-03",
-          "last_seen_at": "2026-11-18T23:09:59.619316+00:00"
+          "last_seen_at": "2026-11-19T00:00:45.587391+00:00"
         }
       ],
       "fields": {
@@ -1968,12 +2016,12 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "접수기간 : 2026.09.21(월) 17:00까지",
+              "quote": "가. 접수기간 : 2026.09.21(월) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ],
-          "note": "시작일 명시 없음, 마감만 기재"
+          "note": "시작일 표기 없음(마감만 명시)"
         },
         "stages": {
           "value": [
@@ -2006,22 +2054,22 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "접수기간 : 2026.09.21(월) 17:00까지",
+              "quote": "가. 접수기간 : 2026.09.21(월) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "제출기간 : 2026.11.20(금) 17:00까지",
+              "quote": "가. 제출기간 : 2026.11.20(금) 17:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "일 시 : 2026년 11월 20일 ~ 11월 23일",
+              "quote": "○ 일 시 : 2026년 11월 20일 ~ 11월 23일",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "일 시 : 2026년 11월 26일 (목)",
+              "quote": "○ 일 시 : 2026년 11월 26일 (목)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
@@ -2033,19 +2081,19 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 재학생",
+              "quote": "2. 참가자격: 명지대학교 소속 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ],
-          "note": "대상 문장에 캠퍼스 구분 없음 (접수처가 자연캠퍼스이나 참가 자격 제한은 아님)"
+          "note": "대상 문장에 캠퍼스 구분 없음"
         },
         "grades": {
           "value": "any",
           "status": "ai",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 재학생",
+              "quote": "2. 참가자격: 명지대학교 소속 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
@@ -2062,33 +2110,39 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "참가자격: 명지대학교 소속 재학생",
+              "quote": "2. 참가자격: 명지대학교 소속 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "재학증명서...참가자 각 1부 *2026학년도 5월 이후 발급본",
+              "quote": "○ 재학증명서...참가자 각 1부 *2026학년도 5월 이후 발급본",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ],
-          "note": "학부·대학원 구분 없음, 재학증명서 제출 필요"
+          "note": "참가자 전원 재학증명서 제출 필요. 대학원생 포함 여부는 명시 없음"
         },
         "team": {
           "value": {
             "min": null,
-            "max": null,
-            "individual_ok": null
+            "max": 4,
+            "individual_ok": true
           },
-          "status": "needs_check",
+          "status": "ai",
           "evidence": [
             {
-              "quote": "대표자 선임계...1부(팀으로 참가할 경우)",
+              "quote": "신청단위 □ 개인 □ 팀(최대4인)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do",
+              "file": "붙임 1. 참가신청자료.pdf"
+            },
+            {
+              "quote": "○ 대표자 선임계...1부(팀으로 참가할 경우)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ],
-          "note": "'팀으로 참가할 경우'라는 표현만 있어 개인 참가 허용이 명시되지 않음, 인원 수 기재 없음"
+          "note": "팀 참가 시 대표자 선임계 제출, 신청자(팀)당 1건만 출품"
         },
         "deliverables": {
           "value": {
@@ -2096,29 +2150,29 @@
               "기획서·제안서",
               "기타"
             ],
-            "text": "포스터 형식 보고서(해결하고자 하는 문제·해결 방안·개발 범위 등을 포함한 계획서, 논문 데이터 정리·실험 방법 조사 등 관련 결과물 일체), 지정 양식. 신청자(팀)당 1건"
+            "text": "포스터 형식 보고서(해결하려는 문제·해결 방안·개발 범위를 포함한 계획서, 논문 데이터 정리·실험 방법 조사 등 관련 결과물 일체), 지정 양식. 신청 시 참가신청서·재학증명서·개인정보 동의서·대표자 선임계(팀) 제출"
           },
           "status": "ai",
           "evidence": [
             {
-              "quote": "아래 내용을 포함한 포스터 형식 보고서",
+              "quote": "○ 아래 내용을 포함한 포스터 형식 보고서",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "해결하고자 하는 문제, 해결 방안 및 개발 범위 등을 포함한 계획서",
+              "quote": "- 해결하고자 하는 문제, 해결 방안 및 개발 범위 등을 포함한 계획서",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             },
             {
-              "quote": "관련 결과물 일체(논문 데이터 정리, 실험 방법 조사 내용 정리 등)",
+              "quote": "- 관련 결과물 일체(논문 데이터 정리, 실험 방법 조사 내용 정리 등)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ]
         },
         "benefits": {
-          "value": "상장 및 상금(장학금): 대상 300,000원(1, 총장명), 최우수상 150,000원(1), 입상작 2. 팀은 상금 1/n 지급, 참가팀 수·심사 결과에 따라 금액·입상작 수 변동 가능",
+          "value": "상장 및 상금(장학금): 대상 300,000원(1), 최우수상 150,000원(1), 입상작(2) — 표가 깨져 정확한 대응 확인 필요. 팀은 1/n 지급, 참가팀 수·심사 결과에 따라 변동 가능",
           "status": "needs_check",
           "evidence": [
             {
@@ -2130,9 +2184,14 @@
               "quote": "※ 팀으로 참가한 경우 상금(장학금)은 1/n을 원칙으로 지급함",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
+            },
+            {
+              "quote": "※ 참가팀 수와 심사 결과에 따라 장학금액 및 입상작 수는 다소 변동될 수 있음",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/energymaterials/1634/235013/artclView.do"
             }
           ],
-          "note": "시상 표가 변환 중 깨져 상별 금액·수여 인원·상장 명의 대응이 불확실함 (입상작 상금 미기재)"
+          "note": "시상 표의 행·열(상금·부분합계(점)·수여명·총장명)이 깨져 있어 상금·인원 대응이 불확실함. 상장 명의는 변동 가능"
         },
         "mileage": {
           "value": null,
@@ -2141,22 +2200,22 @@
         },
         "how_to_apply": {
           "value": {
-            "text": "참가신청서·재학증명서(2026학년도 5월 이후 발급)·대표자 선임계(팀)·개인정보 활용동의서를 학교 홈페이지 지정 양식으로 제출. 방문 접수(자연 제5공학관 2층 Y5246호)로 안내되나 기타사항에는 이메일 제출만 가능하다고 기재",
+            "text": "학교 홈페이지 지정 양식으로 참가신청서 등 서류 제출. 접수처는 방문 접수(자연 제5공학관 2층 Y5246호)로 적혀 있으나 기타사항에는 이메일 제출만 가능하다고 되어 있음",
             "url": null
           },
           "status": "needs_check",
           "evidence": [],
-          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 같은 본문 안에서 신청 접수 방법이 방문 접수와 이메일 전용으로 다르게 적혀 있음. 이메일 주소는 원문에서 생략됨"
+          "note": "근거 문장을 원문에서 찾지 못함 / 근거 문장을 공지 1 본문에서 찾지 못함 / 방문 접수와 이메일 전용 제출 문구가 공지 안에서 서로 다름. 이메일 주소는 공지에서 생략됨"
         },
         "contact": {
           "value": {
-            "dept": "명지대학교 에너지 소재 사업단",
+            "dept": "에너지 소재 사업단",
             "email": "",
             "phone": "031-330-6332"
           },
           "status": "ai",
           "evidence": [],
-          "note": "이메일 주소는 원문에서 생략되어 기재하지 않음"
+          "note": "이메일은 공지에 주소 일부가 생략되어 있어 비워 둠"
         }
       },
       "deadline_history": [],
@@ -2178,7 +2237,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236667/artclView.do",
           "title": "[제약바이오융합 특성화사업단] 2026학년도 신규 의약품·건강기능식품 개발 아이디어 경진대회 안내",
           "posted_at": "2026-10-28",
-          "last_seen_at": "2026-11-18T23:10:49.682635+00:00"
+          "last_seen_at": "2026-11-19T00:02:39.980452+00:00"
         }
       ],
       "fields": {
@@ -2438,15 +2497,15 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 모집 연장 안내",
           "posted_at": "2026-11-02",
-          "last_seen_at": "2026-11-18T23:10:44.730231+00:00"
+          "last_seen_at": "2026-11-19T00:02:31.005519+00:00"
         }
       ],
       "fields": {
         "apply": {
           "value": {
-            "start": null,
-            "end": "2026-11-04",
-            "time_given": false
+            "start": "2026-10-19",
+            "end": "2026-11-04 23:59",
+            "time_given": true
           },
           "status": "needs_check",
           "evidence": [
@@ -2454,16 +2513,28 @@
               "quote": "가. 접수: 2026. 11. 4.(수)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
+            },
+            {
+              "quote": "1. 예선 접수: 2026. 10. 19.(월)~11. 4.(수) 23:59",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
+              "file": "이미지 1.jpg"
+            },
+            {
+              "quote": "신청 마감: 2026. 11. 4.(수) 23:59",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "접수 날짜가 하나만 적혀 있어 마감일로 보았음. 시작일은 적혀 있지 않음(전체 일정 시작은 2026. 10. 19.)"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 본문에는 접수일이 11.4. 하나뿐이고 시각이 없음. 시작일 10.19.과 마감 시각 23:59는 포스터에서만 확인됨. 연장 공지인데 이전 마감일이 적혀 있지 않음"
         },
         "stages": {
           "value": [
             {
               "name": "신청",
-              "end": "2026-11-04",
-              "time_given": false
+              "end": "2026-11-04 23:59",
+              "time_given": true
             },
             {
               "name": "예선",
@@ -2486,13 +2557,8 @@
               "time_given": false
             }
           ],
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
-            {
-              "quote": "가. 접수: 2026. 11. 4.(수)",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
-            },
             {
               "quote": "나. 예선 심사 및 본선 진출자 선정: 2026. 11. 5.(목)~2026. 11. 6.(금)",
               "location": "본문",
@@ -2507,9 +2573,15 @@
               "quote": "라. 발표 및 평가(본선), 결과 발표: 2026. 11. 20.(금)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
+            },
+            {
+              "quote": "4. 본선 및 결과 발표: 2026. 11. 20.(금) 13:30~",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "단계 원문 표현: 본선 진출자 발표, 결과 발표 / 공지에 세부 일정이 조정될 수 있다고 적혀 있음"
+          "note": "단계 원문 표현: 본선 진출자 발표, 결과 발표 / 이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 신청 단계의 시작일과 시각은 포스터에만 있음. 본선은 포스터 기준 13:30에 시작. 본문에 '세부 일정이 조정될 수 있음'이라고 적혀 있음"
         },
         "campus": {
           "value": "any",
@@ -2540,7 +2612,9 @@
             "allowed": [
               "재적생"
             ],
-            "excluded": []
+            "excluded": [
+              "졸업"
+            ]
           },
           "status": "needs_check",
           "evidence": [
@@ -2555,12 +2629,13 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
             },
             {
-              "quote": "다. 사업자등록증을 가진 창업자 및 사업자 등록 예정인 창업자",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
+              "quote": "본교 재적생(1~5인 이하 팀, 졸업생 참여 불가)",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do",
+              "file": "이미지 1.jpg"
             }
           ],
-          "note": "팀원은 재적생(휴학 등 포함 여부 확인 필요), 1인 팀·팀 대표자는 재학생만 가능. 사업자등록증을 가졌거나 등록 예정인 창업자여야 함"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / '졸업생 참여 불가'는 포스터에만 있어 제외 목록에 합침. 1인 팀과 팀 대표자는 재학생이어야 함. 또 사업자등록증을 가졌거나 등록할 예정인 창업자여야 함"
         },
         "team": {
           "value": {
@@ -2581,14 +2656,15 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
             }
           ],
-          "note": "1인 팀 참가 가능(재학생만). 팀 대표자도 재학생이어야 함"
+          "note": "1인 팀으로 참가하거나 팀 대표를 맡으려면 재학생이어야 함"
         },
         "deliverables": {
           "value": {
             "tags": [
-              "발표"
+              "발표",
+              "기타"
             ],
-            "text": "온라인 폼으로 창업스토리 PT 경진대회 신청서, 개인정보수집동의서, 발표 자료 제출. 본선에서 발표·평가"
+            "text": "온라인 폼으로 신청서, 개인정보수집동의서, 발표 자료를 제출하고 본선에서 발표·평가를 받음. 사업자등록증(또는 제출 이행 확약서)도 내야 함"
           },
           "status": "ai",
           "evidence": [
@@ -2598,15 +2674,14 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
             },
             {
-              "quote": "라. 발표 및 평가(본선), 결과 발표: 2026. 11. 20.(금)",
+              "quote": "※ 사업자 등록 예정인 창업자의 경우 본선 당일까지 사업자등록증을 제출하거나 사업자등록증 제출 이행 확약서를 제출해야 함",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
             }
-          ],
-          "note": "사업자 등록 예정자는 본선 당일까지 사업자등록증 또는 제출 이행 확약서를 내야 함"
+          ]
         },
         "benefits": {
-          "value": "우수팀 상장 및 장학금 총 5,000,000원: 대상 1,000,000원(1팀), 최우수 800,000원(1팀), 우수 700,000(2팀), 장려 300,000(6팀). 신청 현황에 따라 규모 조정 가능",
+          "value": "우수팀 상장 및 장학금(총 500만 원): 대상 100만 원(1팀), 최우수 80만 원(1팀), 우수 70만 원(2팀), 장려 30만 원(6팀). 신청 현황에 따라 규모가 조정될 수 있음",
           "status": "ai",
           "evidence": [
             {
@@ -2634,8 +2709,7 @@
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236755/artclView.do"
             }
-          ],
-          "note": "수상 팀 수·장학금은 신청 현황에 따라 조정될 수 있음"
+          ]
         },
         "mileage": {
           "value": null,
@@ -2644,7 +2718,7 @@
         },
         "how_to_apply": {
           "value": {
-            "text": "온라인 폼에 접속해 내용을 입력하고 신청서와 발표 자료를 제출(네이버 계정 로그인 필요). 양식은 교내·창업교육센터 홈페이지와 신청 폼에서 내려받기",
+            "text": "온라인 신청 폼에 접속해 내용을 입력하고 신청서와 발표 자료를 제출함(네이버 계정 로그인 필요). 양식은 홈페이지나 신청 폼에서 내려받을 수 있음",
             "url": null
           },
           "status": "needs_check",
@@ -2673,9 +2747,9 @@
             "email": "",
             "phone": "02-300-1538(인문캠퍼스), 031-330-6144(자연캠퍼스)"
           },
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [],
-          "note": "문의처 부서명은 명시되지 않아 발신 부서(창업교육센터)로 기재"
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인)"
         }
       },
       "deadline_history": [],
@@ -2697,7 +2771,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236861/artclView.do",
           "title": "[경기앵커사업단] 전통시장 AI 홍보영상 콘텐츠 공모전 안내(기간 연장)",
           "posted_at": "2026-11-04",
-          "last_seen_at": "2026-11-18T23:38:02.166928+00:00"
+          "last_seen_at": "2026-11-19T00:02:58.309714+00:00"
         }
       ],
       "fields": {
@@ -2895,14 +2969,14 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
           "title": "[대학혁신지원사업 총괄협의회] 2026 대학혁신지원사업 참여학생 사례영상 경진대회 개최 안내",
           "posted_at": "2026-11-05",
-          "last_seen_at": "2026-11-18T23:10:37.803239+00:00"
+          "last_seen_at": "2026-11-19T00:02:15.046419+00:00"
         },
         {
           "board_id": "mju-innovation",
           "url": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do",
           "title": "[대학혁신지원사업 총괄협의회] 2026 대학혁신지원사업 참여학생 사례영상 경진대회 개최 안내",
           "posted_at": "2026-11-05",
-          "last_seen_at": "2026-11-18T23:04:27.797332+00:00"
+          "last_seen_at": "2026-11-19T00:05:22.723238+00:00"
         }
       ],
       "fields": {
@@ -2912,14 +2986,27 @@
             "end": "2026-12-11 23:00",
             "time_given": true
           },
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
               "quote": "- 2026. 11. 9.(월) ~ 2026. 12. 11.(금) 23:00까지",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
+            },
+            {
+              "quote": "◦ 접수기간: 2026. 11. 9.(월) ~ 2026. 12. 11.(금) 23:00 까지",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
+            },
+            {
+              "quote": "접수기간 : 2026. 11. 9.(월) ~ 2026. 12. 11.(금) 23시까지",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "이미지 1.jpg"
             }
-          ]
+          ],
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인)"
         },
         "stages": {
           "value": [
@@ -2927,6 +3014,26 @@
               "name": "신청",
               "end": "2026-12-11 23:00",
               "time_given": true
+            },
+            {
+              "name": "예선",
+              "end": "2026-12-16",
+              "time_given": false
+            },
+            {
+              "name": "예선",
+              "end": "2026-12-28",
+              "time_given": false
+            },
+            {
+              "name": "본선",
+              "end": "2027-01-15",
+              "time_given": false
+            },
+            {
+              "name": "시상",
+              "end": "2027-01-15",
+              "time_given": false
             }
           ],
           "status": "ai",
@@ -2937,12 +3044,31 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             },
             {
-              "quote": "- 1·2차 심사: 2026년 12월 중 / 최종심사: 2027년 1월 중",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
+              "quote": "1차 심사 2026. 12. 14.(월) ~ 12. 16.(수) 적격성 심사",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
+            },
+            {
+              "quote": "2차 심사 2026. 12. 17.(목) ~ 12. 28.(월) 실무위원 블라인드 심사",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
+            },
+            {
+              "quote": "최종심사 2027. 1. 15.(금) ｢2026 대학혁신포럼｣ 2일차 현장 심사",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
+            },
+            {
+              "quote": "1·2차 심사를 거쳐 ｢2026 대학혁신포럼｣ 2일차(2027. 1. 15.)에",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
             }
           ],
-          "note": "1·2차 심사(2026년 12월 중)와 최종심사·시상(2027년 1월 중, 2026 대학혁신포럼)은 구체적인 날짜가 없어 뺌"
+          "note": "단계 원문 표현: 1차 심사(적격성 심사), 2차 심사(실무위원 블라인드 심사) / 최종심사 진출작 선정 결과는 2026년 12월 말~2027년 1월 초 개별 안내 예정(날짜 미확정이라 단계에서 뺌)"
         },
         "campus": {
           "value": "any",
@@ -2971,8 +3097,7 @@
         "enrollment": {
           "value": {
             "allowed": [
-              "재학",
-              "대학혁신지원사업 참여자"
+              "재학"
             ],
             "excluded": []
           },
@@ -2984,69 +3109,19 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             },
             {
-              "quote": "3. 지원자격: 대학혁신지원사업에 참여한 재학생",
-              "location": "본문",
-              "source": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do"
-            },
-            {
-              "quote": "팀 참가의 경우 구성원 모두 참가자격을 충족하여야 함",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
-            },
-            {
               "quote": "□ (참가자격) 대학혁신지원사업에 참여한 총괄협의회 회원교 재학생(개인 또는 팀)",
               "location": "첨부",
-              "source": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do",
-              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
-            }
-          ],
-          "note": "게시판마다 값이 다름: 이 카드의 다른 출처 공지와 함께 확인 / 대학혁신지원사업에 참여한 재학생만 가능하며, 팀이면 구성원 모두 자격을 갖춰야 함",
-          "conflicts": [
-            {
-              "value": {
-                "allowed": [
-                  "재학",
-                  "대학혁신지원사업 참여자"
-                ],
-                "excluded": []
-              },
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
-              "evidence": [
-                {
-                  "quote": "3. 지원자격: 대학혁신지원사업에 참여한 재학생",
-                  "location": "본문",
-                  "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
-                },
-                {
-                  "quote": "팀 참가의 경우 구성원 모두 참가자격을 충족하여야 함",
-                  "location": "본문",
-                  "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
-                }
-              ]
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
             },
             {
-              "value": {
-                "allowed": [
-                  "재학"
-                ],
-                "excluded": []
-              },
-              "source": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do",
-              "evidence": [
-                {
-                  "quote": "3. 지원자격: 대학혁신지원사업에 참여한 재학생",
-                  "location": "본문",
-                  "source": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do"
-                },
-                {
-                  "quote": "□ (참가자격) 대학혁신지원사업에 참여한 총괄협의회 회원교 재학생(개인 또는 팀)",
-                  "location": "첨부",
-                  "source": "https://innov.mju.ac.kr/bbs/innovation/56/236899/artclView.do",
-                  "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
-                }
-              ]
+              "quote": "대학혁신지원사업에 참여하여 수혜 받은 회원교 재학생",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "이미지 1.jpg"
             }
-          ]
+          ],
+          "note": "이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 대학혁신지원사업 참여 이력이 있어야 함. 팀은 구성원 모두 자격 충족 필요. 재학증명서(2026년 9월 이후 발행)를 구성원 모두 제출해야 함"
         },
         "team": {
           "value": {
@@ -3062,20 +3137,21 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             }
           ],
-          "note": "팀 인원 수는 공지에 없음. 팀원 모두 참가 자격 필요"
+          "note": "팀 인원 수는 공지에 없음. 팀원 모두 참가자격을 충족해야 함"
         },
         "deliverables": {
           "value": {
             "tags": [
               "영상",
-              "발표"
+              "발표",
+              "현장 참가"
             ],
-            "text": "대학혁신지원사업 참여 경험·후기를 담은 사례영상. HD(1280×720) 이상, MP4·AVI·WMV·MOV 등, 10분 이내. 참가신청서를 내야 하며 생성형 AI를 쓰면 신청서에 적어야 함. 최종심사 진출작은 대표자 1인 이상이 현장 발표에 참석해야 함"
+            "text": "참여 경험과 후기를 담은 사례영상(HD 1280×720 이상, MP4·AVI·WMV·MOV 등, 10분 이내)과 참가신청서·개인정보 동의서·참가서약서·재학증명서(PDF 1개). 최종심사 진출작은 현장에서 5분 이내 발표, 대표자 1인 이상 참석 필수"
           },
-          "status": "ai",
+          "status": "needs_check",
           "evidence": [
             {
-              "quote": "- 파일규격: HD(1280×720) 픽셀 이상",
+              "quote": "- 작품분량: 10분 이내",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             },
@@ -3085,19 +3161,21 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             },
             {
-              "quote": "- 작품분량: 10분 이내",
+              "quote": "- 최종심사 진출작은 발표자(대표자) 1인 이상이 현장 발표에 참석하여야 하며, 불참 시 최종심사에서 제외됩니다.",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             },
             {
-              "quote": "- 최종심사 진출작은 발표자(대표자) 1인 이상이 현장 발표에 참석하여야 하며, 불참 시 최종심사에서 제외됩니다.",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
+              "quote": "◦ 접수방법: 참가서류 및 동영상 원본파일 이메일 접수((이메일 생략))",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
             }
-          ]
+          ],
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림 / 생성형 AI를 쓰면 참가신청서에 사용 도구와 범위를 적어야 함"
         },
         "benefits": {
-          "value": "대상 팀 300만원/개인 100만원, 최우수상 팀 100만원/개인 70만원, 우수상 팀 50만원/개인 40만원, 장려상 팀 30만원/개인 20만원 (장학금으로 지급, 팀은 대표자 1인에게 일괄 지급)",
+          "value": "장학금: 대상 팀 300만원/개인 100만원(1팀/명), 최우수상 팀 100만원/개인 70만원(1팀/명), 우수상 팀 50만원/개인 40만원(2팀/명), 장려상 팀 30만원/개인 20만원(4팀/명). 팀과 개인 통합 심사, 팀 수상 시 대표자 1인에게 지급",
           "status": "ai",
           "evidence": [
             {
@@ -3126,7 +3204,7 @@
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
             }
           ],
-          "note": "최종 8개 팀 선발"
+          "note": "선발 수는 첨부 공고문과 포스터의 시상 표를 따름"
         },
         "mileage": {
           "value": null,
@@ -3135,23 +3213,25 @@
         },
         "how_to_apply": {
           "value": {
-            "text": "참가신청서(첨부)와 영상을 이메일 (이메일 생략)으로 접수",
+            "text": "이메일((이메일 생략))로 접수. 참가서류 1~4번은 스캔해 PDF 1개로, 동영상 원본은 대용량 첨부나 클라우드 공유 링크로 제출. 파일명·메일 제목: UI학생사례영상경진대회_참가자(팀)명. 서식은 총괄협의회 홈페이지((주소 생략)) 공지사항 참조",
             "url": null
           },
           "status": "needs_check",
           "evidence": [
             {
-              "quote": "- 이메일: (이메일 생략)",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
+              "quote": "◦ 접수방법: 참가서류 및 동영상 원본파일 이메일 접수((이메일 생략))",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
             },
             {
-              "quote": "- 세부사항은 첨부된 공고문 및 참가신청서를 반드시 확인하여 주시기 바랍니다.",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do"
+              "quote": "※ 참가신청서 및 관련 제출 서류는 총괄협의회 홈페이지 공지사항 참조",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/236905/artclView.do",
+              "file": "붙임 1. 2026 대학혁신지원사업 참여학생 사례영상 경진대회 공고문.pdf"
             }
           ],
-          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림 / 신청 링크는 없음. 안내 웹사이트: (주소 생략)"
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 허용 목록 밖 주소를 글에서 뺌 / 이메일 접수라 따로 신청 링크가 없음"
         },
         "contact": {
           "value": {
@@ -3161,7 +3241,7 @@
           },
           "status": "needs_check",
           "evidence": [],
-          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 문의 이메일이 학교 주소가 아니라 뺌 / 문의란에 부서명이 없어 주최 기관명으로 추정함"
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 허용 목록 밖 주소를 글에서 뺌, 문의 이메일이 학교 주소가 아니라 뺌 / 웹사이트: (주소 생략)"
         }
       },
       "deadline_history": [],
@@ -3183,14 +3263,14 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do",
           "title": "[한국연구재단] 2026 대학혁신지원사업 학생참여 수기공모전 개최 안내",
           "posted_at": "2026-11-17",
-          "last_seen_at": "2026-11-18T23:10:24.724185+00:00"
+          "last_seen_at": "2026-11-19T00:01:36.069799+00:00"
         },
         {
           "board_id": "mju-innovation",
           "url": "https://innov.mju.ac.kr/bbs/innovation/56/237238/artclView.do",
           "title": "[한국연구재단] 2026 대학혁신지원사업 학생참여 수기공모전 개최 안내",
           "posted_at": "2026-11-17",
-          "last_seen_at": "2026-11-18T23:04:17.177215+00:00"
+          "last_seen_at": "2026-11-19T00:05:14.715894+00:00"
         }
       ],
       "fields": {
@@ -3203,9 +3283,15 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "quote": "- 접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "ㅇ 접수 기간 : 2026년 11월 16일(월) ~ 2026년 12월 6일(일)",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do",
+              "file": "[붙임2] 수기공모전 관련 유의사항.pdf"
             }
           ]
         },
@@ -3220,24 +3306,24 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
+              "quote": "- 접수기간: 2026. 11. 16.(월) ~ 2026. 12. 6.(일)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "발표 시기: 2026년 12월 중 예정",
+              "quote": "- 발표 시기: 2026년 12월 중 예정",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
           ],
-          "note": "결과발표는 '2026년 12월 중 예정'으로 날짜가 정해지지 않아 단계에 넣지 않음"
+          "note": "결과 발표는 '2026년 12월 중 예정'으로 구체 날짜가 없어 제외"
         },
         "campus": {
           "value": "any",
           "status": "ai",
           "evidence": [
             {
-              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
@@ -3249,7 +3335,7 @@
           "status": "ai",
           "evidence": [
             {
-              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
@@ -3266,107 +3352,117 @@
           "status": "needs_check",
           "evidence": [
             {
-              "quote": "응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
+              "quote": "3. 응모자격: 대학혁신지원사업 참여 대학의 학부 재학생",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "재학증명서 1부( 2026년 10월 이후 발행본)",
+              "quote": "대학혁신지원사업 참여대학의 학부생",
+              "location": "첨부",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do",
+              "file": "[붙임2] 수기공모전 관련 유의사항.pdf"
+            },
+            {
+              "quote": "응모 자격 대학혁신지원사업 참여 대학의 학부생",
+              "location": "이미지",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do",
+              "file": "이미지 1.png"
+            },
+            {
+              "quote": "- 재학증명서 1부( 2026년 10월 이후 발행본)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
           ],
-          "note": "다른 출처 공지에서 원문 확인이 필요한 항목 / 학부 재학생 대상이며 재학증명서(2026년 10월 이후 발행본) 제출 필요"
+          "note": "다른 출처 공지에서 원문 확인이 필요한 항목 / 이미지에서 읽은 값이라 코드로 대조하지 못함 (원문 포스터에서 확인) / 본문·HWP는 '학부 재학생', PDF·포스터는 '학부생'으로 다름 → 더 좁은 '재학'으로 적용. 학부생 한정이라 대학원생은 대상 아님으로 보임. 재학증명서 제출 필요"
         },
         "team": {
           "value": null,
           "status": "missing",
           "evidence": [],
-          "note": "팀·개인 참가에 대한 언급 없음"
+          "note": "참가 인원·팀 구성에 대한 언급 없음"
         },
         "deliverables": {
           "value": {
             "tags": [
               "에세이·수기"
             ],
-            "text": "대학혁신지원사업 참여 경험 수기(A4 3페이지 이내, 총 3,000자 이내, 맑은 고딕 12pt, 줄간격 160%) + 신청서·개인정보 수집활용 동의서(자필 서명 후 스캔/촬영) 각 1부, 재학증명서 1부(2026년 10월 이후 발행)"
+            "text": "대학혁신지원사업 참여 경험 수기(A4 3페이지·3,000자 이내, 12pt·줄간격 160%·맑은 고딕) + 자필 서명한 신청서·개인정보 동의서 스캔본 + 재학증명서(2026년 10월 이후 발행)"
           },
           "status": "ai",
           "evidence": [
             {
-              "quote": "작성분량: A4용지 기준 3페이지 이내(총 3,000자 이내)",
+              "quote": "- 작성분량: A4용지 기준 3페이지 이내(총 3,000자 이내)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "작성형식: 글자 크기 12포인트, 줄간격 160%, 맑은 고딕",
+              "quote": "- 작성형식: 글자 크기 12포인트, 줄간격 160%, 맑은 고딕",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "신청서 및 개인정보 수집활용 동의서 각 1부",
+              "quote": "- 신청서 및 개인정보 수집활용 동의서 각 1부",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "재학증명서 1부( 2026년 10월 이후 발행본)",
+              "quote": "- 재학증명서 1부( 2026년 10월 이후 발행본)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
           ]
         },
         "benefits": {
-          "value": "대상 1명 100만원+한국연구재단 이사장상, 최우수상 2명 50만원+대학혁신지원사업 총괄협의회장상, 우수상 8명 30만원+총괄협의회장상, 장려상 15명 10만원 (제세공과금 수상자 부담)",
+          "value": "대상 1명 100만원·한국연구재단 이사장상, 최우수상 2명 50만원·총괄협의회장상, 우수상 8명 30만원·총괄협의회장상, 장려상 15명 10만원 (제세공과금 수상자 부담)",
           "status": "ai",
           "evidence": [
             {
-              "quote": "대상: 1명 / 100만원 및 한국연구재단 이사장상",
+              "quote": "- 대상: 1명 / 100만원 및 한국연구재단 이사장상",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "최우수상: 2명 / 50만원 및 대학혁신지원사업 총괄협의회장상",
+              "quote": "- 최우수상: 2명 / 50만원 및 대학혁신지원사업 총괄협의회장상",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "우수상: 8명 / 30만원 및 대학혁신지원사업 총괄협의회장상",
+              "quote": "- 우수상: 8명 / 30만원 및 대학혁신지원사업 총괄협의회장상",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "장려상: 15명 / 10만원",
-              "location": "본문",
-              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
-            },
-            {
-              "quote": "※ 상금에 대한 제세공과금은 수상자 부담",
+              "quote": "- 장려상: 15명 / 10만원",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
-          ],
-          "note": "수상자는 사업 관련 행사에서 발표를 요청받을 수 있으며, 참석이 어려우면 수상이 취소될 수 있음"
+          ]
         },
         "mileage": {
           "value": null,
           "status": "missing",
-          "evidence": [],
-          "note": "비교과 마일리지 언급 없음"
+          "evidence": []
         },
         "how_to_apply": {
           "value": {
-            "text": "이메일((이메일 생략))로 접수. 메일명과 파일명은 '[수기공모전]제목_제출자명' 형식",
+            "text": "이메일((이메일 생략))로 제출. 메일명·파일명: [수기공모전]제목_제출자명. 신청서·동의서는 자필 서명 후 스캔 또는 촬영",
             "url": null
           },
           "status": "needs_check",
           "evidence": [
             {
-              "quote": "이메일 접수: (이메일 생략)",
+              "quote": "- 이메일 접수: (이메일 생략)",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             },
             {
-              "quote": "메일명 및 파일명: [수기공모전]제목_제출자명",
+              "quote": "- 메일명 및 파일명: [수기공모전]제목_제출자명",
+              "location": "본문",
+              "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
+            },
+            {
+              "quote": "※ 신청서 및 개인정보 수집·활용 동의서는 자필 서명 후 스캔 또는 촬영하여 제출",
               "location": "본문",
               "source": "https://www.mju.ac.kr/bbs/mjukr/141/237247/artclView.do"
             }
@@ -3381,7 +3477,7 @@
           },
           "status": "needs_check",
           "evidence": [],
-          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 문의 이메일이 학교 주소가 아니라 뺌 / 문의처 부서 이름이 명시되지 않음"
+          "note": "내보내기 검사: 개인 연락처로 보이는 부분을 가림, 문의 이메일이 학교 주소가 아니라 뺌 / 문의 부서 이름은 명시되지 않음"
         }
       },
       "deadline_history": [],
@@ -3403,7 +3499,7 @@
           "url": "https://ince.mju.ac.kr/bbs/ince/679/230668/artclView.do",
           "title": "My Dream, Myongji Dream 전공선택 유튜브 경진대회",
           "posted_at": "2026-03-27",
-          "last_seen_at": "2026-11-18T23:38:24.332877+00:00"
+          "last_seen_at": "2026-11-19T00:00:37.536428+00:00"
         }
       ],
       "fields": {
@@ -3960,7 +4056,7 @@
           "url": "https://www.mju.ac.kr/bbs/scict/1491/232042/artclView.do",
           "title": "2026학년도 명지대학교 광고 공모전 안내",
           "posted_at": "2026-05-20",
-          "last_seen_at": "2026-11-18T23:06:41.769298+00:00"
+          "last_seen_at": "2026-11-19T00:06:15.326688+00:00"
         }
       ],
       "fields": {
@@ -4204,7 +4300,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/227525/artclView.do",
           "title": "[창업교육센터] 2025학년도 교내 창업스토리 PT 경진대회 공고",
           "posted_at": "2025-11-20",
-          "last_seen_at": "2026-11-18T23:00:41.994166+00:00"
+          "last_seen_at": "2026-11-19T00:04:06.428581+00:00"
         }
       ],
       "fields": {
@@ -4473,7 +4569,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/234894/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업 아이디어 경진대회 참가 안내",
           "posted_at": "2026-09-01",
-          "last_seen_at": "2026-11-18T23:00:21.888954+00:00"
+          "last_seen_at": "2026-11-19T00:03:58.427216+00:00"
         }
       ],
       "fields": {
@@ -4741,7 +4837,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/236432/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 안내",
           "posted_at": "2026-10-19",
-          "last_seen_at": "2026-11-18T23:00:15.630191+00:00"
+          "last_seen_at": "2026-11-19T00:03:55.324472+00:00"
         }
       ],
       "fields": {
@@ -5012,7 +5108,7 @@
           "url": "https://startup.mju.ac.kr/bbs/startup/565/236729/artclView.do",
           "title": "[창업교육센터] 2026학년도 교내 창업스토리 PT 경진대회 참가 모집 연장 안내",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-18T23:00:12.772162+00:00"
+          "last_seen_at": "2026-11-19T00:03:54.316928+00:00"
         }
       ],
       "fields": {
@@ -5467,7 +5563,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236172/artclView.do",
           "title": "「제13회 대학생 물환경 정책·기술 공모전」 홍보",
           "posted_at": "2026-10-08",
-          "last_seen_at": "2026-11-18T23:07:58.298006+00:00"
+          "last_seen_at": "2026-11-18T23:57:52.962688+00:00"
         }
       ],
       "fields": {
@@ -5685,7 +5781,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236278/artclView.do",
           "title": "「2026 청년정책 공모전」개최",
           "posted_at": "2026-10-13",
-          "last_seen_at": "2026-11-18T23:07:47.265615+00:00"
+          "last_seen_at": "2026-11-18T23:57:40.968154+00:00"
         }
       ],
       "fields": {
@@ -5926,7 +6022,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236568/artclView.do",
           "title": "[한국사회보장정보원] 2026 사회보장 데이터를 활용한 AI 혁신 아이디어 경진대회",
           "posted_at": "2026-10-26",
-          "last_seen_at": "2026-11-18T23:38:13.045856+00:00"
+          "last_seen_at": "2026-11-18T23:57:20.982915+00:00"
         }
       ],
       "fields": {
@@ -6141,7 +6237,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236610/artclView.do",
           "title": "[서울시설공단] 제2회 잠실 미디어아트 공모전 홍보",
           "posted_at": "2026-10-27",
-          "last_seen_at": "2026-11-18T23:08:42.942268+00:00"
+          "last_seen_at": "2026-11-18T23:57:11.108196+00:00"
         }
       ],
       "fields": {
@@ -6354,7 +6450,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236709/artclView.do",
           "title": "[한국보건복지인재원] 이런(e-Learn) 한 컷, 영상 공모전 개최",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-18T23:38:10.870952+00:00"
+          "last_seen_at": "2026-11-18T23:57:00.140406+00:00"
         }
       ],
       "fields": {
@@ -6586,7 +6682,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236710/artclView.do",
           "title": "[강원특별자치도] 가까운 강원‘1시간대컷 캠페인’영상 공모전",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-18T23:38:08.015094+00:00"
+          "last_seen_at": "2026-11-18T23:56:57.290430+00:00"
         }
       ],
       "fields": {
@@ -6758,7 +6854,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236711/artclView.do",
           "title": "[KSPO&CO] 2026년 공공데이터 활용 경진대회 개최",
           "posted_at": "2026-10-30",
-          "last_seen_at": "2026-11-18T23:38:05.934271+00:00"
+          "last_seen_at": "2026-11-18T23:56:55.249755+00:00"
         }
       ],
       "fields": {
@@ -6963,7 +7059,7 @@
           "url": "https://www.mju.ac.kr/bbs/mjukr/853/236758/artclView.do",
           "title": "[행정안전부] 2026년 재난안전 AI 데이터 활용 해커톤 공고 안내",
           "posted_at": "2026-11-02",
-          "last_seen_at": "2026-11-18T23:38:04.050484+00:00"
+          "last_seen_at": "2026-11-18T23:56:51.290755+00:00"
         }
       ],
       "fields": {
