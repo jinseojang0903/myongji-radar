@@ -1,6 +1,7 @@
 // 홈 첫 화면 레이더: 중심까지의 거리 = 마감까지 남은 날. 마감일을 모르는 대회는 점선 궤도 밖에 '?'로 둔다.
 // 훑어보기용 그림이다. 같은 정보가 아래 마감 구간 목록에 모두 있으므로 점은 Tab 순서에 넣지 않는다
 // (키보드·화면 읽기 사용자는 목록으로 같은 대회에 닿는다). 그림 전체에는 요약 이름(role="img")을 붙인다.
+// 점에 마우스를 올리거나 누르면 radar-popover.js의 안내 상자가 그 대회를 보여 준다 (#178).
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // 마감 구간 기준(일). 홈 목록의 구간(home.js)과 레이더 고리가 같은 값을 쓴다.
@@ -36,24 +37,25 @@ function radiusFor(daysLeft) {
 /**
  * 레이더 SVG를 만든다.
  * @param {{card: object, deadline: object, isUrgent: boolean, label: string}[]} items  마감 전 대회 (화면 순서대로)
- * @param {(cardId: string) => void} onPick  점을 눌렀을 때 (목록의 해당 카드로 이동)
+ * @param {{onEnter?: Function, onLeave?: Function, onPick?: Function}} [handlers]  점에 마우스가 들어옴·나감·누름.
+ *   모두 (item, 점 요소)를 받고, onPick은 누른 장치(pointerType)도 받는다 (radar-popover.js)
  * @returns {SVGSVGElement}
  */
-export function renderRadar(items, onPick) {
+export function renderRadar(items, handlers = {}) {
   const known = items.filter((item) => item.deadline.state === 'open');
   const unknown = items.filter((item) => item.deadline.state !== 'open');
 
   const blips = known.map((item) => {
     const angle = angleOf(item.card.id);
     const r = radiusFor(item.deadline.daysLeft);
-    return blip(item, Math.cos(angle) * r, Math.sin(angle) * r, item.isUrgent ? 'urgent' : 'open', onPick);
+    return blip(item, Math.cos(angle) * r, Math.sin(angle) * r, item.isUrgent ? 'urgent' : 'open', handlers);
   });
   // 궤도 밖: 아래쪽 호에 고르게 늘어놓는다
   const spread = Math.min(150, 22 * Math.max(unknown.length - 1, 1));
   const unknownBlips = unknown.map((item, index) => {
     const deg = 90 + (unknown.length === 1 ? 0 : -spread / 2 + (spread * index) / (unknown.length - 1));
     const rad = deg * (Math.PI / 180);
-    return blip(item, Math.cos(rad) * R.unknown, Math.sin(rad) * R.unknown, 'unknown', onPick);
+    return blip(item, Math.cos(rad) * R.unknown, Math.sin(rad) * R.unknown, 'unknown', handlers);
   });
 
   const ring = (r, label, cls) => svg('g', { class: `rd-ring ${cls}` },
@@ -86,13 +88,16 @@ export function renderRadar(items, onPick) {
   ...unknownBlips, ...blips);
 }
 
-function blip(item, x, y, tone, onPick) {
+function blip(item, x, y, tone, handlers) {
   const group = svg('g', { class: `rd-blip rd-blip-${tone}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` },
     svg('circle', { class: 'rd-hit', r: 18 }),
     tone === 'unknown' ? null : svg('circle', { class: 'rd-ping', r: 9 }),
     svg('circle', { class: 'rd-pip', r: tone === 'unknown' ? 10 : 6.5 }),
-    tone === 'unknown' ? svg('text', { class: 'rd-q', y: 4.5 }, '?') : null,
-    svg('title', {}, `${item.card.title} · ${item.label}`));
-  group.addEventListener('click', () => onPick(item.card.id));
+    tone === 'unknown' ? svg('text', { class: 'rd-q', y: 4.5 }, '?') : null);
+  // 브라우저 기본 말풍선(<title>)은 늦게 뜨고 글자가 작아 안내 상자로 바꿨다. 둘 다 두면 겹쳐 보인다
+  // 올림은 마우스에만 반응한다. 터치가 만드는 가짜 마우스 이벤트로 상자를 띄우면 일부 휴대폰 브라우저가 첫 탭의 click을 보내지 않는다
+  group.addEventListener('pointerenter', (event) => { if (event.pointerType === 'mouse') handlers.onEnter?.(item, group); });
+  group.addEventListener('pointerleave', (event) => { if (event.pointerType === 'mouse') handlers.onLeave?.(item, group); });
+  group.addEventListener('click', (event) => handlers.onPick?.(item, group, event.pointerType));
   return group;
 }
