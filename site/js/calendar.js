@@ -50,8 +50,9 @@ export function monthGrid(month) {
  * 카드 하나를 읽지 못해도 나머지는 올린다 (읽지 못한 카드는 failedCardIds로 알린다).
  * @param {object[]} cards  validateCardData를 통과한 카드
  * @param {Date} now  기준 시각
- * @returns {{events: {date: string, time: string|null, label: string, isPast: boolean, isVerified: boolean, daysLeft: number, cardId: string, title: string}[], failedCardIds: string[]}}
- *   events는 날짜·시각(하루 종일 일정이 뒤)·제목 순. daysLeft는 기준일에서 그 날짜까지 남은 날 수
+ * @returns {{events: {key: string, date: string, time: string|null, label: string, isPast: boolean, isVerified: boolean, daysLeft: number, cardId: string, title: string}[], failedCardIds: string[]}}
+ *   events는 날짜·시각(하루 종일 일정이 뒤)·제목 순. key는 같은 카드 안에서 일정을 구분하는 값(calendarItems의 key),
+ *   daysLeft는 기준일에서 그 날짜까지 남은 날 수
  */
 export function deadlineEvents(cards, now) {
   const today = kstDateString(now);
@@ -62,7 +63,7 @@ export function deadlineEvents(cards, now) {
       for (const item of calendarItems(card, now)) {
         if (!item.isDeadline) continue;
         events.push({
-          date: item.date, time: item.time, label: item.label, isPast: item.isPast, isVerified: item.isVerified,
+          key: item.key, date: item.date, time: item.time, label: item.label, isPast: item.isPast, isVerified: item.isVerified,
           daysLeft: daysBetween(today, item.date), cardId: card.id, title: card.title,
         });
       }
@@ -72,9 +73,9 @@ export function deadlineEvents(cards, now) {
       failedCardIds.push(String(card?.id));
     }
   }
-  const sortKey = (event) => `${event.date} ${event.time ?? '99:99'} ${event.title}`;
-  events.sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0));
-  return { events, failedCardIds };
+  const keyed = events.map((event) => ({ event, order: `${event.date} ${event.time ?? '99:99'} ${event.title}` }));
+  keyed.sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
+  return { events: keyed.map(({ event }) => event), failedCardIds };
 }
 
 /** 날짜("YYYY-MM-DD") → 그날의 일정 목록 */
@@ -87,7 +88,14 @@ export function groupByDate(events) {
   return groups;
 }
 
-/** 신청 마감일을 몰라 달력에 올리지 못한 대회 수. 홈의 "마감일 확인 필요" 구간과 같은 기준이다 */
-export function unknownDeadlineCount(cards, now) {
-  return cards.filter((card) => ['none', 'unreadable'].includes(deadlineOf(card, now).state)).length;
+/**
+ * 마감일을 확인하지 못해 달력에 하나도 올리지 못한 대회 수.
+ * 신청 마감일을 몰라도(홈의 "마감일 확인 필요") 출품 마감이 달력에 있으면 세지 않는다.
+ * @param {object[]} cards  validateCardData를 통과한 카드
+ * @param {{cardId: string}[]} events  deadlineEvents가 만든 일정
+ * @param {Date} now  기준 시각
+ */
+export function unlistedCount(cards, events, now) {
+  const listed = new Set(events.map((event) => event.cardId));
+  return cards.filter((card) => !listed.has(card.id) && ['none', 'unreadable'].includes(deadlineOf(card, now).state)).length;
 }

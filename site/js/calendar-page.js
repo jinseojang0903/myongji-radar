@@ -4,7 +4,7 @@ import { el } from './html.js';
 import { loadPage, watchPageTime, ddayElement, showConditionSummary } from './page.js';
 import { ddayLabel } from './cards.js';
 import { formatShortDate, kstDateString } from './dates.js';
-import { monthOf, shiftMonth, monthGrid, deadlineEvents, groupByDate, unknownDeadlineCount } from './calendar.js';
+import { monthOf, shiftMonth, monthGrid, deadlineEvents, groupByDate, unlistedCount } from './calendar.js';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 // 사용자가 옮겨 간 달. null이면 기준일이 있는 달 (자정을 넘기면 따라 바뀐다)
@@ -14,25 +14,38 @@ main();
 
 async function main() {
   showConditionSummary();
+  const note = document.getElementById('cal-note');
   const page = await loadPage({ errorTarget: document.getElementById('cal-body') });
   if (!page) {
-    document.getElementById('cal-note').textContent = '대회 정보를 불러오지 못했습니다.';
+    note.textContent = ''; // 이유는 loadPage가 달력 자리에 적는다
     return;
   }
   const currentMonth = () => monthOf(kstDateString(page.getNow()));
-  const render = (now = page.getNow()) => renderCalendar(page.data, now, page.isSample);
+  const draw = (now = page.getNow()) => renderCalendar(page.data, now, page.isSample);
+  // 버튼으로 다시 그릴 때는 여기서 한 번 잡아 알린다. 시간 변화로 다시 그릴 때는 watchPageTime이 잡고 다음 확인 때 다시 시도한다
+  const render = () => {
+    try {
+      draw();
+    } catch (error) {
+      console.error('달력을 그리지 못함', error);
+      note.textContent = '달력을 그리지 못했습니다. 잠시 뒤 다시 열어 주세요.';
+    }
+  };
   const move = (delta) => {
-    pickedMonth = shiftMonth(pickedMonth ?? currentMonth(), delta) ?? pickedMonth;
+    const next = shiftMonth(pickedMonth ?? currentMonth(), delta);
+    if (!next) return;
+    // 이번 달로 돌아왔으면 고정을 푼다 (자정을 넘겨 달이 바뀌면 따라가게)
+    pickedMonth = next === currentMonth() ? null : next;
     render();
   };
   document.getElementById('cal-prev').addEventListener('click', () => move(-1));
   document.getElementById('cal-next').addEventListener('click', () => move(1));
-  document.getElementById('cal-today').addEventListener('click', () => {
+  document.getElementById('cal-this-month').addEventListener('click', () => {
     pickedMonth = null;
     render();
   });
   render();
-  watchPageTime(page, render);
+  watchPageTime(page, draw);
 }
 
 function renderCalendar(data, now, isSample) {
@@ -42,10 +55,13 @@ function renderCalendar(data, now, isSample) {
   const monthEvents = events.filter((event) => monthOf(event.date) === month);
   const byDate = groupByDate(monthEvents);
 
-  document.getElementById('cal-title').textContent = `${Number(month.slice(0, 4))}년 ${Number(month.slice(5, 7))}월`;
+  // 제목은 aria-live라 글자가 바뀔 때만 넣는다 (시간 변화로 다시 그릴 때마다 읽지 않게)
+  const title = document.getElementById('cal-title');
+  const titleText = `${Number(month.slice(0, 4))}년 ${Number(month.slice(5, 7))}월`;
+  if (title.textContent !== titleText) title.textContent = titleText;
   document.getElementById('cal-body').replaceChildren(monthTable(month, today, byDate));
   renderAgenda(byDate, monthEvents.length);
-  renderNote(data, now, today, isSample, failedCardIds.length);
+  renderNote(unlistedCount(data.cards, events, now), today, isSample, failedCardIds.length);
 }
 
 function monthTable(month, today, byDate) {
@@ -63,8 +79,19 @@ function dayCell(date, weekday, month, today, byDate) {
   return el('td', { class: [!isInMonth && 'out', weekday === 0 && 'sun'].filter(Boolean).join(' ') || null, 'aria-current': isToday && 'date' },
     el('span', { class: 'cal-day' }, String(Number(date.slice(8, 10))), isToday && el('span', { class: 'cal-today' }, '오늘')),
     dayEvents.length > 0 && el('a', { class: 'cal-count', href: `#day-${date}`, 'data-tone': dayTone(dayEvents) },
-      `${dayEvents.length}건`, el('span', { class: 'sr-only' }, ` 마감, ${formatShortDate(date)} 목록으로`)),
-    dayEvents.length > 0 && el('ul', { class: 'cal-events' }, ...dayEvents.map((event) => el('li', {}, eventLink(event)))));
+      `${dayEvents.length}건`, el('span', { class: 'sr-only' }, ` 마감${TONE_WORDS[dayTone(dayEvents)]}, ${formatShortDate(date)} 목록으로`)),
+    dayEvents.length > 0 && el('ul', { class: 'cal-events' }, ...dayEvents.map((event) => el('li', { 'data-card-id': focusKey('cell', event) }, eventLink(event)))));
+}
+
+// 좁은 화면의 건수 칸은 색으로만 급함·지남을 나타내므로 화면 읽기 프로그램에는 글자로 알린다
+const TONE_WORDS = { soon: ' (7일 이내)', open: '', past: ' (지남)' };
+
+/**
+ * 같은 대회 링크가 달력 칸과 아래 목록에 한 번씩 있다 (주소가 같다). 시간 변화로 다시 그린 뒤 포커스를 되돌릴 때
+ * (page.js restoreTimeFocus) 둘을 구분하도록 자리와 일정으로 만든 값을 data-card-id에 둔다. 카드 id 자체가 아니라 포커스 범위 이름이다.
+ */
+function focusKey(place, event) {
+  return `calendar-${place}|${event.cardId}|${event.key}|${event.date}`;
 }
 
 /** 마감 색 기준은 홈의 D-day 칩과 같다: 지남 · 7일 이내 · 그 밖 */
@@ -102,18 +129,17 @@ function renderAgenda(byDate, count) {
     const dday = isAllPast ? el('span', { class: 'dday none' }, '지남') : ddayElement({ state: 'open', daysLeft: dayEvents[0].daysLeft });
     return el('li', { class: 'agenda-day', id: `day-${date}` },
       el('div', { class: 'agenda-date' }, el('b', {}, formatShortDate(date)), dday),
-      el('ul', {}, ...dayEvents.map((event) => el('li', {},
+      el('ul', {}, ...dayEvents.map((event) => el('li', { 'data-card-id': focusKey('list', event) },
         el('a', { href: `card.html?id=${encodeURIComponent(event.cardId)}` }, event.title),
         el('span', { class: 'small' }, ` ${event.label} · ${event.time ?? '시각 미기재'}${event.isPast ? ' · 지남' : ''} `),
         event.isVerified ? el('span', { class: 'badge s-human' }, '✓ 검수 완료') : el('span', { class: 'badge s-before' }, '확인 전')))));
   }));
 }
 
-function renderNote(data, now, today, isSample, failedCount) {
-  const unknownCount = unknownDeadlineCount(data.cards, now);
+function renderNote(unlisted, today, isSample, failedCount) {
   const parts = [el('span', {}, `기준일 ${formatShortDate(today)}${isSample ? ' (예시 데이터 기준)' : ''}`)];
-  if (unknownCount > 0) {
-    parts.push(el('span', {}, ` · 신청 마감일을 확인하지 못한 대회 ${unknownCount}건은 달력에 없습니다. `), el('a', { href: 'index.html#list' }, '홈 목록에서 보기'));
+  if (unlisted > 0) {
+    parts.push(el('span', {}, ` · 마감일을 확인하지 못해 달력에 올리지 못한 대회가 ${unlisted}건 있습니다. `), el('a', { href: 'index.html#list' }, '홈 목록에서 보기'));
   }
   if (failedCount > 0) parts.push(el('span', {}, ` · 표시하지 못한 대회 ${failedCount}건이 있습니다`));
   document.getElementById('cal-note').replaceChildren(...parts);

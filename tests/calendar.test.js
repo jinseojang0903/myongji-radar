@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { monthOf, shiftMonth, monthGrid, deadlineEvents, groupByDate, unknownDeadlineCount } from '../site/js/calendar.js';
+import { monthOf, shiftMonth, monthGrid, deadlineEvents, groupByDate, unlistedCount } from '../site/js/calendar.js';
 import { calendarItems } from '../site/js/ics.js';
 import { listCards } from '../site/js/cards.js';
 
@@ -96,22 +96,37 @@ test('남은 날 수·지남·검수 여부를 일정마다 알려 준다', () =
   assert.equal(groups.has('2027-01-15'), false);
 });
 
-test('마감일을 모르는 대회는 달력에 없고 건수로만 알린다 (홈의 "마감일 확인 필요"와 같은 수)', () => {
+test('마감일을 모르는 대회는 달력에 없고 건수로만 알린다', () => {
   const now = new Date('2026-11-19T10:00:00+09:00');
   const cards = [
     makeCard('known', { apply: field({ start: null, end: '2026-11-27', time_given: false }) }),
     makeCard('missing', { apply: field(null, 'missing') }),
     makeCard('empty-end', { apply: field({ start: null, end: null, time_given: false }) }),
     makeCard('unreadable', { apply: field({ start: null, end: '11월 말', time_given: false }, 'needs_check') }),
+    // 신청 마감일은 모르지만 출품 마감은 달력에 있다: "달력에 올리지 못한 대회"로 세면 안 된다
+    makeCard('submit-only', { apply: field(null, 'missing'), stages: field([{ name: '출품', end: '2026-12-20 18:00', time_given: true }]) }),
   ];
   const { events, failedCardIds } = deadlineEvents(cards, now);
-  assert.deepEqual(events.map((event) => event.cardId), ['known']);
+  assert.deepEqual(events.map((event) => [event.cardId, event.key, event.date]), [['known', 'apply', '2026-11-27'], ['submit-only', 'submit', '2026-12-20']]);
   assert.deepEqual(failedCardIds, []);
-  assert.equal(unknownDeadlineCount(cards, now), 3);
-  const home = listCards(cards, { sort: 'deadline', tags: [] }, now).items.filter(({ deadline }) => deadline.state !== 'open');
-  assert.equal(unknownDeadlineCount(cards, now), home.length);
-  assert.equal(unknownDeadlineCount(SAMPLE.cards, AT_SAMPLE),
-    listCards(SAMPLE.cards, { sort: 'deadline', tags: [] }, AT_SAMPLE).items.filter(({ deadline }) => deadline.state !== 'open').length);
+  assert.equal(unlistedCount(cards, events, now), 3);
+  // 홈의 "마감일 확인 필요"는 신청 마감 기준이라 출품만 아는 대회까지 4건이다
+  const homeUnknown = listCards(cards, { sort: 'deadline', tags: [] }, now).items.filter(({ deadline }) => deadline.state !== 'open');
+  assert.equal(homeUnknown.length, 4);
+  assert.equal(unlistedCount([], [], now), 0);
+});
+
+test('오늘과 지남은 한국 시간 기준이다 (자정 경계)', () => {
+  const cards = [
+    makeCard('d18', { apply: field({ start: null, end: '2026-11-18', time_given: false }) }),
+    makeCard('d19', { apply: field({ start: null, end: '2026-11-19', time_given: false }) }),
+  ];
+  // UTC로는 아직 11/18 15:30이지만 한국은 11/19 00:30이다
+  const justAfterMidnight = deadlineEvents(cards, new Date('2026-11-18T15:30:00Z')).events;
+  assert.deepEqual(justAfterMidnight.map((event) => [event.cardId, event.daysLeft, event.isPast]), [['d18', -1, true], ['d19', 0, false]]);
+  // 한국 11/18 23:30: 11/18 마감은 아직 그날이다
+  const justBeforeMidnight = deadlineEvents(cards, new Date('2026-11-18T14:30:00Z')).events;
+  assert.deepEqual(justBeforeMidnight.map((event) => [event.cardId, event.daysLeft, event.isPast]), [['d18', 0, false], ['d19', 1, false]]);
 });
 
 test('읽지 못한 카드가 있어도 나머지 일정은 올리고, 어떤 카드인지 알린다', () => {
