@@ -6,9 +6,12 @@ import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, show
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
+import { createRadarPopover, popoverContent } from './radar-popover.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
 const filters = { ...BASE_FILTERS, query: '' };
+// 레이더 점 안내 상자. 데이터를 읽은 뒤 만든다 (게시판 이름이 필요하다)
+let radarPopover = null;
 
 // 마감 구간. 마감일을 모르는 대회는 마지막 구간으로 따로 빼서 마감이 확실한 대회와 섞이지 않게 한다
 const LANES = [
@@ -36,6 +39,7 @@ async function main() {
   const { data, rejected, isSample } = page;
   renderTagChips();
   renderBoards(data.boards);
+  radarPopover = createRadarPopover((item) => popoverContent(item, data.boards));
   document.getElementById('scope-date').textContent = `명지대 공개 게시판 ${data.boards.length}곳을 매일 살펴봅니다`;
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
@@ -128,8 +132,10 @@ function renderList(data, now, rejectedCount, isSample) {
   const radarItems = items.map(({ card, deadline }) => ({
     card, deadline, isUrgent: laneOf(deadline) === 'week', label: deadline.state === 'open' ? ddayLabel(deadline).text : '마감일 확인 필요',
   }));
+  // 다시 그리면 점이 새로 만들어지므로 떠 있던 안내 상자는 닫는다
+  radarPopover.hide();
   try {
-    document.getElementById('radar').replaceChildren(renderRadar(radarItems, focusCard));
+    document.getElementById('radar').replaceChildren(renderRadar(radarItems, radarPopover.handlers), radarPopover.element);
   } catch (error) {
     // 레이더는 보조 그림이라, 그리지 못해도 같은 정보가 있는 목록은 계속 그린다
     console.error('레이더를 그리지 못함', error);
@@ -169,18 +175,6 @@ function renderList(data, now, rejectedCount, isSample) {
     document.getElementById('list-status').textContent += ` · 표시하지 못한 ${failedCount}건이 있습니다`;
   }
   list.replaceChildren(...lanes);
-}
-
-// 레이더 점을 누르면 목록의 그 카드로 옮겨 가 포커스를 준다 (키보드 사용자는 목록에서 바로 닿는다)
-function focusCard(cardId) {
-  const target = document.querySelector(`[data-card-id="${CSS.escape(cardId)}"]`);
-  if (!target) return;
-  // CSS의 scroll-behavior는 여기서 준 옵션을 이기지 못해 동작 줄이기 설정을 직접 확인한다
-  const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  target.scrollIntoView({ behavior: isReducedMotion ? 'auto' : 'smooth', block: 'center' });
-  target.focus({ preventScroll: true });
-  target.classList.add('flash');
-  setTimeout(() => target.classList.remove('flash'), 1400);
 }
 
 function renderItem(card, deadline, boards, index) {
