@@ -290,11 +290,13 @@ function seeded(seed) {
 }
 
 test('겹치지 않는 점은 제자리에 둔다 (혼자 있을 때와 같은 자리)', () => {
-  const dots = [{ id: 'contest-a', radius: 30 }, { id: 'contest-q', radius: 90 }, { id: 'festival-2026', radius: 150 }];
+  // 반지름은 같고 각도가 서로 먼 네 점 (0도, -65도, 101도, -131도)
+  const dots = ['pt-9', 'festival-2026', 'hackathon-7', 'idea-3'].map((id) => ({ id, radius: 80 }));
+  const alone = dots.map((dot) => layoutBlips([dot])[0]);
+  assert.ok(closestPair(alone) >= BLIP_GAP * 2, `이 시험의 전제: 원래 자리가 서로 떨어져 있다 (${closestPair(alone).toFixed(1)})`);
   const together = layoutBlips(dots);
-  assert.ok(closestPair(dots.map((dot) => layoutBlips([dot])[0])) >= BLIP_GAP, '이 시험의 전제: 원래 자리가 서로 떨어져 있다');
   dots.forEach((dot, index) => {
-    assert.deepEqual(together[index], layoutBlips([dot])[0], dot.id);
+    assert.deepEqual(together[index], alone[index], dot.id);
     assert.ok(Math.abs(radiusOf(together[index]) - dot.radius) < 1e-9, `${dot.id}: 반지름`);
   });
   assert.deepEqual(layoutBlips([]), []);
@@ -340,10 +342,29 @@ test('오늘 마감이 여러 건이면 중심 근처에서 거리를 조금 옮
   const dots = Array.from({ length: 6 }, (_, index) => ({ id: `today-${index}`, radius: 14 }));
   const spots = layoutBlips(dots);
   assert.ok(closestPair(spots) >= BLIP_GAP - 1e-9, `가장 가까운 두 점 ${closestPair(spots).toFixed(2)}`);
-  assert.ok(spots.every((spot) => radiusOf(spot) >= 14 - 1e-9 && radiusOf(spot) <= 14 + 24 + 1e-9), '7일 이내 구간을 벗어나지 않는다');
-  assert.ok(spots.filter((spot) => Math.abs(radiusOf(spot) - 14) < 1e-9).length >= 1, '적어도 하나는 제 거리에 있다');
+  assert.ok(spots.every((spot) => radiusOf(spot) >= 14 - 1e-9 && radiusOf(spot) <= 14 + 24 + 1e-9), '거리 이동은 한도 안');
+  assert.equal(spots.filter((spot) => Math.abs(radiusOf(spot) - 14) < 1e-9).length, 2, '반지름 14의 원에는 두 점까지만 남고 나머지는 거리를 옮긴다');
   // id가 같은 카드 두 장이 들어와도 떼어 놓는다
   assert.ok(closestPair(layoutBlips([{ id: 'same', radius: 80 }, { id: 'same', radius: 80 }])) >= BLIP_GAP - 1e-9);
+});
+
+test('거리를 옮기더라도 그 점의 마감 구간 고리는 넘지 않는다', () => {
+  // D-6쯤(반지름 52)에 12건이 몰린 경우. 7일 고리(58)를 넘으면 30일 이내 구간처럼 보인다
+  const week = Array.from({ length: 12 }, (_, index) => ({ id: `week-${index}`, radius: 52, minRadius: 14, maxRadius: 58 }));
+  const weekSpots = layoutBlips(week);
+  assert.ok(closestPair(weekSpots) >= BLIP_GAP - 1e-9, `가장 가까운 두 점 ${closestPair(weekSpots).toFixed(2)}`);
+  assert.ok(weekSpots.every((spot) => radiusOf(spot) <= 58 + 1e-9 && radiusOf(spot) >= 14 - 1e-9), '7일 고리 안에 머문다');
+  assert.ok(weekSpots.some((spot) => radiusOf(spot) < 52 - 1e-9), '바깥으로 못 가는 만큼 안쪽으로 옮긴 점이 있다 (이 시험이 이동을 실제로 일으킨다)');
+
+  // 범위를 주지 않으면 같은 입력이 고리를 넘는다: 위 단언이 범위 덕분임을 보인다
+  const free = layoutBlips(week.map(({ id, radius }) => ({ id, radius })));
+  assert.ok(free.some((spot) => radiusOf(spot) > 58 + 1e-9));
+
+  // 30일 이내 구간의 안쪽 끝(반지름 58~)에 몰려도 7일 고리 안으로 들어가지 않는다
+  const month = Array.from({ length: 16 }, (_, index) => ({ id: `month-${index}`, radius: 60, minRadius: 58, maxRadius: 112 }));
+  const monthSpots = layoutBlips(month);
+  assert.ok(closestPair(monthSpots) >= BLIP_GAP - 1e-9);
+  assert.ok(monthSpots.every((spot) => radiusOf(spot) >= 58 - 1e-9 && radiusOf(spot) <= 112 + 1e-9));
 });
 
 test('자리가 끝내 없으면 겹치더라도 모든 점을 그린다', () => {

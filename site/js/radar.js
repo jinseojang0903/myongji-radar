@@ -15,7 +15,8 @@ const MIN_RADIUS = 14;
 const MAX_RADIUS = R.outer - 6;
 // 점 사이 최소 거리. 누르는 영역(반지름 18)이 옆 점의 동그라미(반지름 6.5)를 덮지 않는 거리(24.5)보다 조금 넓게
 export const BLIP_GAP = 26;
-// 원을 따라 옮겨도 자리가 없을 때 반지름을 옮기는 간격과 한도 (한도 24는 7일 이내 구간에서 약 4일에 해당한다)
+// 원을 따라 옮겨도 자리가 없을 때 반지름을 옮기는 간격과 한도. 한도 24는 7일 이내 구간에서 약 4일, 30일 이내 구간에서 약 10일이다.
+// 옮기더라도 그 점의 마감 구간(7일 이내 · 30일 이내 · 그 뒤)의 고리는 넘지 않는다 (radiusBand)
 const RADIUS_STEP = 4;
 const MAX_RADIUS_SHIFT = 24;
 
@@ -43,13 +44,23 @@ function radiusFor(daysLeft) {
   return Math.min(MAX_RADIUS, R.month + ((daysLeft - MONTH_DAYS) / 60) * (R.outer - R.month));
 }
 
+/** 남은 날 → 그 점이 머물 반지름 범위. 고리를 넘으면 다른 마감 구간처럼 보이므로 자기 구간 안에서만 옮긴다 */
+function radiusBand(daysLeft) {
+  if (daysLeft <= WEEK_DAYS) return { minRadius: MIN_RADIUS, maxRadius: R.week };
+  if (daysLeft <= MONTH_DAYS) return { minRadius: R.week, maxRadius: R.month };
+  return { minRadius: R.month, maxRadius: MAX_RADIUS };
+}
+
 /**
  * 점들이 서로 겹치지 않게 자리를 정한다 (#184). 남은 날이 비슷한 대회의 각도가 우연히 가까우면 점이 겹쳐,
  * 아래에 깔린 점은 올리거나 누를 수 없었다.
  * - 먼저 같은 반지름(남은 날)의 원을 따라 각도만 옮긴다. "중심까지의 거리 = 남은 날"을 지키려는 것이다.
- * - 원이 작아 자리가 없으면(마감 임박) 반지름을 조금씩 옮긴다. 정확한 날짜는 안내 상자와 목록에 있다.
+ * - 원이 작아 자리가 없으면(마감 임박) 반지름을 조금씩 옮긴다. 이때도 점마다 준 범위(minRadius~maxRadius)는 넘지 않는다.
+ *   정확한 날짜는 안내 상자와 목록에 있다.
  * - 카드 id 순으로 놓는다. 화면의 정렬 순서가 바뀌어도 같은 대회 묶음이면 늘 같은 자리에 찍힌다.
- * @param {{id: string, radius: number}[]} dots  점마다 카드 id와 남은 날로 정한 반지름
+ *   (화면은 카드 id가 겹쳐 들어올 수 있다고 본다. 같은 id끼리는 넘어온 순서로 놓고 서로 떼어 놓는다)
+ * @param {{id: string, radius: number, minRadius?: number, maxRadius?: number}[]} dots
+ *   점마다 카드 id, 남은 날로 정한 반지름, 옮길 수 있는 반지름 범위(없으면 마감일이 있는 점 전체 범위)
  * @param {number} [gap]  점 사이 최소 거리
  * @returns {{x: number, y: number}[]} dots와 같은 순서의 자리. 끝내 자리가 없으면 겹치더라도 원래 자리에 둔다
  */
@@ -64,13 +75,13 @@ export function layoutBlips(dots, gap = BLIP_GAP) {
   return spots;
 }
 
-function findSpot({ id, radius }, placed, gap) {
+function findSpot({ id, radius, minRadius = MIN_RADIUS, maxRadius = MAX_RADIUS }, placed, gap) {
   const base = angleOf(id);
   const isFree = (x, y) => placed.every((other) => Math.hypot(other.x - x, other.y - y) >= gap);
   // 반지름: 제자리, 그다음 바깥·안쪽으로 번갈아 조금씩
   for (let shift = 0; shift <= MAX_RADIUS_SHIFT; shift += RADIUS_STEP) {
     for (const r of shift === 0 ? [radius] : [radius + shift, radius - shift]) {
-      if (r < MIN_RADIUS || r > MAX_RADIUS) continue;
+      if (r < minRadius || r > maxRadius) continue;
       // 각도: 제자리, 그다음 양쪽으로 반 간격씩 반 바퀴까지
       const step = gap / (2 * r);
       for (let turn = 0; turn * step <= Math.PI; turn += 1) {
@@ -97,7 +108,9 @@ export function renderRadar(items, handlers = {}) {
   const known = items.filter((item) => item.deadline.state === 'open');
   const unknown = items.filter((item) => item.deadline.state !== 'open');
 
-  const spots = layoutBlips(known.map((item) => ({ id: item.card.id, radius: radiusFor(item.deadline.daysLeft) })));
+  const spots = layoutBlips(known.map((item) => ({
+    id: item.card.id, radius: radiusFor(item.deadline.daysLeft), ...radiusBand(item.deadline.daysLeft),
+  })));
   const blips = known.map((item, index) => blip(item, spots[index].x, spots[index].y, item.isUrgent ? 'urgent' : 'open', handlers));
   // 궤도 밖: 아래쪽 호에 고르게 늘어놓는다
   const spread = Math.min(150, 22 * Math.max(unknown.length - 1, 1));
