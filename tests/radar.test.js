@@ -193,6 +193,49 @@ test('상자 안 링크에 포커스가 있으면 벗어나도 닫지 않는다'
   assert.equal(view.shown, null);
 });
 
+test('포커스가 상자를 떠나면, 마우스도 떠나 있을 때 닫힌다', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = fakeView();
+  const popover = createPopoverController(view);
+  // 링크를 새 탭으로 열어 포커스가 상자에 남은 채 마우스가 떠난 경우
+  popover.enter(item('a'), 'blip-a');
+  popover.pick(item('a'), 'blip-a', 'mouse');
+  popover.leave(item('a'));
+  popover.boxEnter();
+  view.focusInside = true;
+  popover.boxLeave();
+  t.mock.timers.tick(HIDE_DELAY_MS * 2);
+  assert.equal(view.shown?.id, 'a', '포커스가 있는 동안은 남는다');
+  view.focusInside = false;
+  popover.focusLeave();
+  t.mock.timers.tick(HIDE_DELAY_MS - 1);
+  assert.equal(view.shown?.id, 'a');
+  t.mock.timers.tick(1);
+  assert.equal(view.shown, null, '포커스까지 떠나면 닫힌다');
+
+  // 마우스가 아직 상자 위에 있으면 포커스가 떠나도 닫지 않는다
+  popover.enter(item('a'), 'blip-a');
+  popover.pick(item('a'), 'blip-a', 'mouse');
+  popover.leave(item('a'));
+  popover.boxEnter();
+  popover.focusLeave();
+  t.mock.timers.tick(HIDE_DELAY_MS * 2);
+  assert.equal(view.shown?.id, 'a');
+  // 마우스가 점 위에 있을 때도 마찬가지
+  popover.boxLeave();
+  popover.enter(item('a'), 'blip-a');
+  popover.focusLeave();
+  t.mock.timers.tick(HIDE_DELAY_MS * 2);
+  assert.equal(view.shown?.id, 'a');
+
+  // 터치로 잡아 둔 상자는 포커스가 떠나도 닫지 않는다 (바깥을 눌러 닫는다)
+  popover.dismiss();
+  popover.pick(item('b'), 'blip-b', 'touch');
+  popover.focusLeave();
+  t.mock.timers.tick(HIDE_DELAY_MS * 2);
+  assert.equal(view.shown?.id, 'b');
+});
+
 test('다시 그리며 닫을 때 예약된 닫기도 함께 지운다', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const view = fakeView();

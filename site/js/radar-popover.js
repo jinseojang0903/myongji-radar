@@ -32,13 +32,16 @@ export function isTouchPointer(pointerType) {
  */
 export function popoverPosition(anchor, size, bounds, { gap = GAP, slackTop = 0, slackBottom = 0 } = {}) {
   const left = Math.max(0, Math.min(anchor.x - size.width / 2, bounds.width - size.width));
-  const minTop = 0 - Math.max(0, slackTop); // 단항 음수(-0)가 결과에 섞이지 않게 뺄셈으로
-  const maxTop = Math.max(minTop, bounds.height + Math.max(0, slackBottom) - size.height);
-  const roomAbove = anchor.y - gap - minTop;
-  const roomBelow = maxTop + size.height - anchor.y - gap;
+  // 상자가 쓸 수 있는 위·아래 끝 (레이더 칸 왼쪽 위 기준)
+  const topLimit = 0 - Math.max(0, slackTop); // 단항 음수(-0)가 결과에 섞이지 않게 뺄셈으로
+  const bottomLimit = bounds.height + Math.max(0, slackBottom);
+  const roomAbove = anchor.y - gap - topLimit;
+  const roomBelow = bottomLimit - anchor.y - gap;
   const isAbove = roomAbove >= size.height || (roomBelow < size.height && roomAbove >= roomBelow);
   const wanted = isAbove ? anchor.y - gap - size.height : anchor.y + gap;
-  return { left: Math.round(left), top: Math.round(Math.min(maxTop, Math.max(minTop, wanted))), placement: isAbove ? 'above' : 'below' };
+  // 상자가 쓸 수 있는 높이보다 크면 위 끝에 맞춘다 (제목이 먼저 보이게)
+  const maxTop = Math.max(topLimit, bottomLimit - size.height);
+  return { left: Math.round(left), top: Math.round(Math.min(maxTop, Math.max(topLimit, wanted))), placement: isAbove ? 'above' : 'below' };
 }
 
 /**
@@ -59,12 +62,15 @@ export function pickAction(active, cardId, pointerType) {
  * 안내 상자의 상태(미리보기 · 잡아 둠 · 닫힘)를 다룬다. 화면은 view가 그리므로 화면 없이 시험할 수 있다.
  * @param {{render: (item: object, blip: object, isHeld: boolean) => void, clear: (blip: object) => void, hasFocus: () => boolean}} view
  *   render: 상자를 그 점 옆에 그린다. clear: 상자를 지우고 그 점의 강조를 푼다. hasFocus: 키보드 포커스가 상자 안에 있는지
- * @returns {{enter: Function, leave: Function, pick: Function, boxEnter: Function, boxLeave: Function, dismiss: Function, current: () => object|null}}
+ * @returns {{enter: Function, leave: Function, pick: Function, boxEnter: Function, boxLeave: Function, focusLeave: Function, dismiss: Function, current: () => object|null}}
  */
 export function createPopoverController(view) {
   // 지금 떠 있는 상자. isHeld: 눌러서 잡아 둠, isTouch: 터치로 잡아 둠(벗어나도 닫지 않는다)
   let active = null;
   let hideTimer = null;
+  // 마우스가 지금 떠 있는 상자의 점 위·상자 위에 있는지 (포커스가 상자를 떠날 때 닫을지 정한다)
+  let isOverBlip = false;
+  let isOverBox = false;
 
   const cancelHide = () => {
     clearTimeout(hideTimer);
@@ -72,6 +78,8 @@ export function createPopoverController(view) {
   };
   const dismiss = () => {
     cancelHide();
+    isOverBlip = false;
+    isOverBox = false;
     if (!active) return;
     const { blip } = active;
     active = null;
@@ -81,20 +89,28 @@ export function createPopoverController(view) {
     cancelHide();
     hideTimer = setTimeout(() => {
       hideTimer = null;
-      // 상자 안 링크에 포커스가 있으면 닫지 않는다 (닫으면 포커스가 문서 처음으로 돌아간다). Esc나 바깥 누름으로 닫는다
+      // 상자 안 링크에 포커스가 있으면 닫지 않는다 (닫으면 포커스가 문서 처음으로 돌아간다).
+      // 포커스가 상자를 떠나면 focusLeave가 다시 닫기를 예약한다
       if (!view.hasFocus()) dismiss();
     }, HIDE_DELAY_MS);
   };
   const show = (item, blip, isHeld, isTouch) => {
     cancelHide();
     if (active && active.blip !== blip) view.clear(active.blip);
+    // 레이더를 그리지 못해 상자가 화면에 없으면 view.render가 아무것도 그리지 않는다. 그때는 점도 없어 여기까지 오지 않는다
     active = { id: item.card.id, isHeld, isTouch, blip };
+    isOverBox = false;
     view.render(item, blip, isHeld);
+  };
+  // 마우스로 잡아 둔 상자는 마우스와 포커스가 모두 떠나면 닫는다
+  const closeIfLeft = () => {
+    if (active?.isHeld && !active.isTouch && !isOverBlip && !isOverBox) scheduleHide();
   };
 
   return {
     /** 마우스가 점에 들어옴 */
     enter(item, blip) {
+      isOverBlip = true;
       // 잡아 둔 점으로 돌아오면 그대로 둔다. 다른 점이면 그 점의 미리보기로 바꾼다
       if (active?.isHeld && active.id === item.card.id) cancelHide();
       else show(item, blip, false, false);
@@ -102,21 +118,32 @@ export function createPopoverController(view) {
     /** 마우스가 점에서 나감 */
     leave(item) {
       if (!active || active.id !== item.card.id) return;
+      isOverBlip = false;
       if (!active.isHeld) dismiss();
-      else if (!active.isTouch) scheduleHide();
+      else closeIfLeft();
     },
     /** 점을 누름 */
     pick(item, blip, pointerType) {
       const action = pickAction(active, item.card.id, pointerType);
       if (action === 'hide') dismiss();
-      else if (action === 'hold') show(item, blip, true, isTouchPointer(pointerType));
+      else if (action === 'hold') {
+        const isTouch = isTouchPointer(pointerType);
+        isOverBlip = !isTouch; // 마우스로 눌렀다면 마우스가 그 점 위에 있다
+        show(item, blip, true, isTouch);
+      }
     },
     /** 마우스가 상자에 들어옴 (잡아 둔 상자만 마우스를 받는다) */
-    boxEnter: cancelHide,
+    boxEnter() {
+      isOverBox = true;
+      cancelHide();
+    },
     /** 마우스가 상자에서 나감 */
     boxLeave() {
-      if (active?.isHeld && !active.isTouch) scheduleHide();
+      isOverBox = false;
+      closeIfLeft();
     },
+    /** 키보드 포커스가 상자 밖으로 나감 */
+    focusLeave: closeIfLeft,
     /** 바깥 누름 · Esc · 창 폭 변경 · 다시 그리기: 바로 닫는다 */
     dismiss,
     current: () => active,
@@ -189,6 +216,9 @@ export function createRadarPopover(describe) {
 
   box.addEventListener('mouseenter', controller.boxEnter);
   box.addEventListener('mouseleave', controller.boxLeave);
+  box.addEventListener('focusout', (event) => {
+    if (!(event.relatedTarget instanceof Node) || !box.contains(event.relatedTarget)) controller.focusLeave();
+  });
   // 상자 밖을 누르면 닫는다. 점을 누른 것은 onPick이 처리한다
   document.addEventListener('pointerdown', (event) => {
     const target = event.target;
