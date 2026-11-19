@@ -95,8 +95,9 @@ function blip(item, x, y, tone, handlers) {
     svg('circle', { class: 'rd-pip', r: tone === 'unknown' ? 10 : 6.5 }),
     tone === 'unknown' ? svg('text', { class: 'rd-q', y: 4.5 }, '?') : null);
   // 브라우저 기본 말풍선(<title>)은 늦게 뜨고 글자가 작아 안내 상자로 바꿨다. 둘 다 두면 겹쳐 보인다
-  group.addEventListener('mouseenter', () => handlers.onEnter?.(item, group));
-  group.addEventListener('mouseleave', () => handlers.onLeave?.(item, group));
+  // 올림은 마우스에만 반응한다. 터치가 만드는 가짜 마우스 이벤트로 상자를 띄우면 일부 휴대폰 브라우저가 첫 탭의 click을 보내지 않는다
+  group.addEventListener('pointerenter', (event) => { if (event.pointerType === 'mouse') handlers.onEnter?.(item, group); });
+  group.addEventListener('pointerleave', (event) => { if (event.pointerType === 'mouse') handlers.onLeave?.(item, group); });
   group.addEventListener('click', (event) => handlers.onPick?.(item, group, event.pointerType));
   return group;
 }

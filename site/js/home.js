@@ -10,8 +10,9 @@ import { createRadarPopover, popoverContent } from './radar-popover.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
 const filters = { ...BASE_FILTERS, query: '' };
-// 레이더 점 안내 상자. 데이터를 읽은 뒤 만든다 (게시판 이름이 필요하다)
-let radarPopover = null;
+// 레이더 점 안내 상자 (화면당 하나). 게시판 이름은 데이터를 읽은 뒤 채운다
+let boardList = [];
+const radarPopover = createRadarPopover((item) => popoverContent(item, boardList));
 
 // 마감 구간. 마감일을 모르는 대회는 마지막 구간으로 따로 빼서 마감이 확실한 대회와 섞이지 않게 한다
 const LANES = [
@@ -39,7 +40,7 @@ async function main() {
   const { data, rejected, isSample } = page;
   renderTagChips();
   renderBoards(data.boards);
-  radarPopover = createRadarPopover((item) => popoverContent(item, data.boards));
+  boardList = data.boards;
   document.getElementById('scope-date').textContent = `명지대 공개 게시판 ${data.boards.length}곳을 매일 살펴봅니다`;
   // 게시판은 목록 아래 게시판 목록에서 빠질 뿐이므로 카드 건수에 섞지 않는다
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
