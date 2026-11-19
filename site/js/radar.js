@@ -10,8 +10,17 @@ export const WEEK_DAYS = 7;
 export const MONTH_DAYS = 30;
 // 반지름: 7일 고리 · 30일 고리 · 바깥(30일 뒤) · 궤도 밖(마감일 확인 필요)
 const R = { week: 58, month: 112, outer: 172, unknown: 192 };
+// 마감일이 있는 점이 놓이는 반지름의 범위 (오늘 마감 ~ 가장 먼 마감)
+const MIN_RADIUS = 14;
+const MAX_RADIUS = R.outer - 6;
+// 점 사이 최소 거리. 누르는 영역(반지름 18)이 옆 점의 동그라미(반지름 6.5)를 덮지 않는 거리(24.5)보다 조금 넓게
+export const BLIP_GAP = 26;
+// 원을 따라 옮겨도 자리가 없을 때 반지름을 옮기는 간격과 한도 (한도 24는 7일 이내 구간에서 약 4일에 해당한다)
+const RADIUS_STEP = 4;
+const MAX_RADIUS_SHIFT = 24;
 
-// 점의 각도는 카드 id로 정한다. 순번으로 정하면 검색·정렬을 바꿀 때마다 점이 통째로 움직인다
+// 점의 각도는 카드 id로 정한다. 순번으로 정하면 검색·정렬을 바꿀 때마다 점이 통째로 움직인다.
+// 다른 점과 겹칠 때만 layoutBlips가 이 각도에서 조금 옮긴다
 function angleOf(cardId) {
   let hash = 0;
   for (const char of cardId) hash = (hash * 31 + char.codePointAt(0)) >>> 0;
@@ -29,9 +38,52 @@ function svg(tag, attrs = {}, ...children) {
 
 /** 남은 날 → 반지름. 구간마다 따로 늘려 7일 이내가 넓게 보이게 한다 */
 function radiusFor(daysLeft) {
-  if (daysLeft <= WEEK_DAYS) return 14 + (daysLeft / WEEK_DAYS) * (R.week - 14);
+  if (daysLeft <= WEEK_DAYS) return MIN_RADIUS + (daysLeft / WEEK_DAYS) * (R.week - MIN_RADIUS);
   if (daysLeft <= MONTH_DAYS) return R.week + ((daysLeft - WEEK_DAYS) / (MONTH_DAYS - WEEK_DAYS)) * (R.month - R.week);
-  return Math.min(R.outer - 6, R.month + ((daysLeft - MONTH_DAYS) / 60) * (R.outer - R.month));
+  return Math.min(MAX_RADIUS, R.month + ((daysLeft - MONTH_DAYS) / 60) * (R.outer - R.month));
+}
+
+/**
+ * 점들이 서로 겹치지 않게 자리를 정한다 (#184). 남은 날이 비슷한 대회의 각도가 우연히 가까우면 점이 겹쳐,
+ * 아래에 깔린 점은 올리거나 누를 수 없었다.
+ * - 먼저 같은 반지름(남은 날)의 원을 따라 각도만 옮긴다. "중심까지의 거리 = 남은 날"을 지키려는 것이다.
+ * - 원이 작아 자리가 없으면(마감 임박) 반지름을 조금씩 옮긴다. 정확한 날짜는 안내 상자와 목록에 있다.
+ * - 카드 id 순으로 놓는다. 화면의 정렬 순서가 바뀌어도 같은 대회 묶음이면 늘 같은 자리에 찍힌다.
+ * @param {{id: string, radius: number}[]} dots  점마다 카드 id와 남은 날로 정한 반지름
+ * @param {number} [gap]  점 사이 최소 거리
+ * @returns {{x: number, y: number}[]} dots와 같은 순서의 자리. 끝내 자리가 없으면 겹치더라도 원래 자리에 둔다
+ */
+export function layoutBlips(dots, gap = BLIP_GAP) {
+  const order = dots.map((_, index) => index).sort((a, b) => (dots[a].id < dots[b].id ? -1 : dots[a].id > dots[b].id ? 1 : a - b));
+  const placed = [];
+  const spots = new Array(dots.length);
+  for (const index of order) {
+    spots[index] = findSpot(dots[index], placed, gap);
+    placed.push(spots[index]);
+  }
+  return spots;
+}
+
+function findSpot({ id, radius }, placed, gap) {
+  const base = angleOf(id);
+  const isFree = (x, y) => placed.every((other) => Math.hypot(other.x - x, other.y - y) >= gap);
+  // 반지름: 제자리, 그다음 바깥·안쪽으로 번갈아 조금씩
+  for (let shift = 0; shift <= MAX_RADIUS_SHIFT; shift += RADIUS_STEP) {
+    for (const r of shift === 0 ? [radius] : [radius + shift, radius - shift]) {
+      if (r < MIN_RADIUS || r > MAX_RADIUS) continue;
+      // 각도: 제자리, 그다음 양쪽으로 반 간격씩 반 바퀴까지
+      const step = gap / (2 * r);
+      for (let turn = 0; turn * step <= Math.PI; turn += 1) {
+        for (const side of turn === 0 ? [1] : [1, -1]) {
+          const angle = base + side * turn * step;
+          const x = Math.cos(angle) * r;
+          const y = Math.sin(angle) * r;
+          if (isFree(x, y)) return { x, y };
+        }
+      }
+    }
+  }
+  return { x: Math.cos(base) * radius, y: Math.sin(base) * radius };
 }
 
 /**
@@ -45,11 +97,8 @@ export function renderRadar(items, handlers = {}) {
   const known = items.filter((item) => item.deadline.state === 'open');
   const unknown = items.filter((item) => item.deadline.state !== 'open');
 
-  const blips = known.map((item) => {
-    const angle = angleOf(item.card.id);
-    const r = radiusFor(item.deadline.daysLeft);
-    return blip(item, Math.cos(angle) * r, Math.sin(angle) * r, item.isUrgent ? 'urgent' : 'open', handlers);
-  });
+  const spots = layoutBlips(known.map((item) => ({ id: item.card.id, radius: radiusFor(item.deadline.daysLeft) })));
+  const blips = known.map((item, index) => blip(item, spots[index].x, spots[index].y, item.isUrgent ? 'urgent' : 'open', handlers));
   // 궤도 밖: 아래쪽 호에 고르게 늘어놓는다
   const spread = Math.min(150, 22 * Math.max(unknown.length - 1, 1));
   const unknownBlips = unknown.map((item, index) => {
