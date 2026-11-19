@@ -58,6 +58,10 @@ members = [
   {source_id = "mju_general", external_id = "mjukr/141/236454"},
   {source_id = "mju_innovation", external_id = "innovation/56/236472"},
   {source_id = "mju_general", external_id = "mjukr/141/236755"},
+  # 11/19 추가 (#187): 원문 대조 뒤 팀장 확인. 첫 공지(236432, 마감 10/30)와 연장 공지(236729·236818, 마감 11/4)
+  {source_id = "mju_startup", external_id = "startup/565/236432"},
+  {source_id = "mju_startup", external_id = "startup/565/236729"},
+  {source_id = "mju_innovation", external_id = "innovation/56/236818"},
 ]
 
 [[groups]]
