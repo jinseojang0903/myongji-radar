@@ -447,6 +447,32 @@ class PipelineTests(unittest.TestCase):
         self.assertNotEqual(_comparable("team", {"max": 1, "individual_ok": True}),
                             _comparable("team", {"max": True, "individual_ok": 1}), "True와 1은 다르다")
 
+    def test_poster_deadline_cross_check_is_visible_without_upgrading_verification(self):
+        primary = fields_copy()
+        primary["apply"]["evidence"][0]["quote"] = "신청 기간: 2026.10.01. ~ 10.21. 15:00"
+        def checked(field_mutation=None, *, same_model=False, warnings=()):
+            secondary = copy.deepcopy(primary)
+            if field_mutation:
+                field_mutation(secondary["apply"])
+            data = self.cross_data(primary, secondary, warnings=warnings)
+            data["bundles"][0]["meta"]["extract_model"] = "claude-sonnet-test" if same_model else "claude-opus-test"
+            verified, _ = verify_bundles(data, {URL: original()})
+            return self.card(verified)[0]["fields"]["apply"]
+        item = checked()
+        self.assertEqual(item["status"], "needs_check")
+        self.assertIs(item["image_cross_checked"], True)
+        self.assertIs(item["reviewable"], True)
+        self.assertIs(checked(warnings=["포스터의 일정은 바뀔 수 있음"])["image_cross_checked"], True)
+        for field in (
+            checked(lambda a: a["value"]["end"].update(time="16:00")),
+            checked(lambda a: a["value"]["end"].update(year_inferred=True)),
+            checked(lambda a: a["evidence"][0].update(file="다른 포스터.png")),
+            checked(lambda a: a["evidence"][0].update(quote="결과발표 일정만 기록")),
+            checked(same_model=True),
+            checked(warnings=["지시문 의심"]),
+        ):
+            self.assertNotIn("image_cross_checked", field)
+
     def test_cross_check_is_skipped_on_injection_warnings_or_failed_evidence(self):
         fields = fields_copy()
         data, _ = verify_bundles(self.cross_data(fields, copy.deepcopy(fields), warnings=["지시문 의심"]), {URL: original()})

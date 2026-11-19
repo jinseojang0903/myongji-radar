@@ -68,6 +68,9 @@ function findCardProblem(card) {
   for (const [name, field] of Object.entries(card.fields)) {
     if (!field || !FIELD_STATUSES.has(field.status)) return `${name}의 status가 계약 값이 아님`;
     if (!Array.isArray(field.evidence)) return `${name}의 evidence가 배열이 아님`;
+    if (field.image_cross_checked !== undefined && (name !== 'apply' || field.status !== 'needs_check' ||
+        field.image_cross_checked !== true || field.conflicts || !field.evidence.length ||
+        field.evidence.some((item) => item?.location !== '이미지'))) return '포스터 교차 확인 표시의 형식이 다름';
     if (field.conflicts !== undefined) {
       if (!KEY_FIELDS.includes(name) || field.status !== 'needs_check' || field.reviewable === true ||
           !Array.isArray(field.conflicts) || field.conflicts.length < 2 || field.conflicts.length > 5) {

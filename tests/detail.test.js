@@ -29,6 +29,20 @@ test('항목 상태 배지: 핵심 항목은 사람 대조 전이면 "확인 전
   assert.deepEqual(fieldStatusBadge('mileage', 'missing'), { kind: 'missing', text: '정보 없음' });
 });
 
+test('포스터 마감 교차 확인은 상세에 표시하고 원문 확인 상태를 유지한다', () => {
+  const card = structuredClone(SAMPLE.cards[0]);
+  const apply = card.fields.apply;
+  apply.status = 'needs_check';
+  apply.image_cross_checked = true;
+  apply.evidence = [{ quote: '신청 마감 11.20.', location: '이미지', source: card.sources[0].url }];
+  assert.equal(validateCardData({ ...SAMPLE, cards: [card] }).data.cards.length, 1);
+  const row = fieldRows(card, SAMPLE.boards).find((item) => item.name === 'apply');
+  assert.equal(row.status, 'needs_check');
+  assert.equal(row.badge.text, 'AI 교차 확인 · 원문 확인 필요');
+  apply.status = 'human_verified';
+  assert.equal(validateCardData({ ...SAMPLE, cards: [card] }).data.cards.length, 0);
+});
+
 test('항목 값 글: 시각이 없으면 채우지 않고 "시각 미기재"', () => {
   assert.equal(fieldValueText('apply', { start: '2026-09-14', end: '2026-10-23', time_given: false }), '9/14(월) ~ 10/23(금) (시각 미기재)');
   assert.equal(fieldValueText('apply', { start: null, end: '2026-10-21 15:00', time_given: true }), '~ 10/21(수) 15:00');

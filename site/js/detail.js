@@ -108,7 +108,9 @@ export function fieldRows(card, boards) {
       label,
       text: status === 'missing' ? null : fieldValueText(name, field?.value),
       status,
-      badge: fieldStatusBadge(name, status),
+      badge: name === 'apply' && status === 'needs_check' && field?.image_cross_checked === true
+        ? { kind: 'need', text: 'AI 교차 확인 · 원문 확인 필요' }
+        : fieldStatusBadge(name, status),
       note: typeof field?.note === 'string' && field.note !== '' ? field.note : null,
       evidence,
       isConflict: status === 'needs_check' && (field?.conflicts?.length ?? 0) > 1,

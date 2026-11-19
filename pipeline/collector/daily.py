@@ -239,6 +239,8 @@ def run_daily(data_dir, config, rules, *, clock=current_time, run_timeout=RUN_TI
                                             "--max-new", str(publishing.max_new)]
                             if publishing.cross_model:
                                 publish_args += ["--cross-model", publishing.cross_model]
+                            if publishing.cross_image_apply_only:
+                                publish_args.append("--cross-image-apply-only")
                             if publishing.images:
                                 publish_args.append("--images")
                             if publishing.push:

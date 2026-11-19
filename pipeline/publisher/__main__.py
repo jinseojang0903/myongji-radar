@@ -113,6 +113,8 @@ def publish(args) -> int:
                 extract_argv.append("--use-env-account")
             if args.cross_model:
                 extract_argv += ["--cross-model", args.cross_model]
+            if args.cross_image_apply_only:
+                extract_argv.append("--cross-image-apply-only")
             if args.images:
                 extract_argv.append("--images")
             run_stage("extract", extract_main, extract_argv, log)
@@ -207,6 +209,8 @@ def parse_args(argv=None):
                         help="교차 검증 모델 (#15, 예: sonnet). 주 모델과 달라야 한다. 호출이 두 배가 되므로 하루 상한을 함께 본다")
     parser.add_argument("--images", action="store_true",
                         help="포스터 이미지도 AI에 넣는다 (python -m extractor daily --images. 이미지 근거는 사람 확인)")
+    parser.add_argument("--cross-image-apply-only", action="store_true",
+                        help="교차 모델은 포스터만으로 읽은 신청 마감 후보를 최대 3건 확인")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data", help="수집 데이터 폴더 (site/ 밖)")
     parser.add_argument("--out", type=Path, default=SITE / "data" / "cards.json", help="사이트 카드 파일")
     parser.add_argument("--claude", default="claude", help="claude 실행 파일 (기본: PATH의 claude)")

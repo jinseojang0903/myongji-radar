@@ -34,7 +34,7 @@ const MAX_MODEL_LABEL = 40;
 const CARD_FIELDS = new Set(['apply', 'stages', 'campus', 'grades', 'enrollment', 'team', 'deliverables',
   'benefits', 'mileage', 'how_to_apply', 'contact']);
 const KNOWN_KEYS = new Set([...CARD_FIELDS, 'id', 'title', 'organizer', 'scope', 'sources', 'fields', 'deadline_history',
-  'meta', 'board_id', 'url', 'posted_at', 'last_seen_at', 'value', 'status', 'evidence', 'conflicts', 'note', 'reviewable', 'quote', 'location',
+  'meta', 'board_id', 'url', 'posted_at', 'last_seen_at', 'value', 'status', 'evidence', 'conflicts', 'note', 'reviewable', 'image_cross_checked', 'quote', 'location',
   'file', 'source', 'start', 'end', 'time_given', 'name', 'tags', 'text', 'area', 'points', 'dept', 'email', 'phone',
   'min', 'max', 'individual_ok', 'allowed', 'excluded', 'field', 'old', 'new', 'old_source', 'new_source',
   'checked_at', 'prompt_version', 'extract_model', 'cross_model', 'boards', 'list_url']);

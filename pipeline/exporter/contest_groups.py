@@ -133,6 +133,7 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
         if disputed:
             # 검수자는 최신 공지 근거만 보고 대조하게 되므로 사람 검수로 올릴 수 있다는 표시를 지운다 (#121)
             item.pop("reviewable", None)
+            item.pop("image_cross_checked", None)
             if item.get("status") != "missing":
                 required_notes[name] = [DIFFERENT_NOTE if differs else UNCERTAIN_NOTE]
         if item.get("status") in LOWERABLE and disputed:
@@ -150,6 +151,7 @@ def _merge(group_id: str, present: list[dict]) -> tuple[dict, list[str]]:
             item = merged["fields"][name]
             item["status"] = "needs_check"
             item.pop("reviewable", None)
+            item.pop("image_cross_checked", None)
             item["conflicts"] = variants[:MAX_CONFLICT_VALUES]
             required_notes[name] = [DIFFERENT_NOTE]
             if len(variants) > MAX_CONFLICT_VALUES:
@@ -202,6 +204,7 @@ def _bound_public_text(card: dict, required_notes: dict) -> None:
         for variant in item.get("conflicts", []):
             variant["evidence"] = [e for e in variant["evidence"] if e in item["evidence"]]
         if candidates[name] and not item["evidence"]:
+            item.pop("image_cross_checked", None)
             required_notes.setdefault(name, []).append(QUOTE_BUDGET_NOTE)
             if item.get("status") in LOWERABLE:
                 item["status"] = "needs_check"
