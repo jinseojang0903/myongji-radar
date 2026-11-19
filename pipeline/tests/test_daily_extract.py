@@ -219,6 +219,24 @@ class DailyExtractTests(unittest.TestCase):
         self.assertIn("images-v1", daily.expected_inputs({"title": "AI 경진대회 모집", "images": notice["images"]}, True))
         self.assertNotIn("images-v1", daily.expected_inputs({"title": "AI 경진대회 모집", "images": notice["images"]}, False))
 
+    def test_budget_skip_preserves_same_version_image_result_but_not_a_changed_image(self):
+        image = {"url": "https://test.mju.ac.kr/poster.jpg", "sha256": "a" * 64,
+                 "download_status": "skipped", "download_reason": "run_bytes"}
+        notice = {"version_id": 1, "title": "공모전 모집", "body_text": "", "attachments": [], "images": [image]}
+        entry = {"version_id": 1, "model": "opus", "prompt_version": daily.PROMPT_VERSION,
+                 "prompt_fingerprint": "same", "input_hash": daily.content_hash(notice),
+                 "inputs": daily.INPUTS + [daily.IMAGES_INPUT],
+                 "attachment_input_hash": daily.EMPTY_ATTACHMENT_HASH}
+        def current(use_images=True, attachment_hash=daily.EMPTY_ATTACHMENT_HASH):
+            return daily.is_current(entry, notice, "opus", "same", use_images, attachment_hash=attachment_hash)
+        self.assertTrue(current())
+        self.assertFalse(current(use_images=False))
+        self.assertFalse(current(attachment_hash="changed"))
+        image["download_reason"] = "url_policy"
+        self.assertFalse(current(), "영구 차단은 이번 실행 예산으로 놓친 경우와 다르다")
+        image.update(download_reason="run_bytes", sha256="b" * 64)
+        self.assertFalse(current(), "파일이 달라진 경우 옛 값을 현재 값으로 취급하지 않는다")
+
     def test_missing_image_file_is_reported_and_not_retried_every_day(self):
         record = store(self.folder, PNG)
         (self.folder / record["local_path"]).unlink()  # 기록은 있는데 파일이 없다
