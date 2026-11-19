@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 from collector.asset_text import attachment_names, attachment_texts
+from collector.assets import RUN_BUDGET_REASONS
 from collector.config import load_sources
 from collector.poster_recovery import missing_deadline_urls
 from collector.repository import Repository, content_hash
@@ -178,10 +179,19 @@ def same_failure_attachment_input(record: dict, notice: dict, digest: str) -> bo
 def is_current(entry: dict | None, notice: dict, model: str, fingerprint: str, use_images: bool = False,
                *, attachment_hash: str) -> bool:
     """같은 판·같은 입력(내용 해시)을 같은 모델·같은 프롬프트로 뽑은 결과인지 (아니면 다시 부를 대상)."""
-    return (is_same_version(entry, notice) and entry.get("input_hash") == content_hash(notice) and entry.get("model") == model
+    if not (is_same_version(entry, notice) and entry.get("input_hash") == content_hash(notice) and entry.get("model") == model
             and entry.get("prompt_version") == PROMPT_VERSION and entry.get("prompt_fingerprint") == fingerprint
-            and entry.get("inputs") == expected_inputs(notice, use_images)
-            and same_attachment_input(entry, notice, attachment_hash))
+            and same_attachment_input(entry, notice, attachment_hash)):
+        return False
+    inputs = expected_inputs(notice, use_images)
+    if entry.get("inputs") == inputs:
+        return True
+    # 예산 때문에 이미지 확인이 밀려도 같은 판에서 이미 추출한 결과를 글만 넣은 결과로 덮지 않는다.
+    # 원문·파일 해시가 바뀌거나 이미지 설정을 끄면 기존 재추출 규칙을 따른다.
+    return (use_images and inputs == INPUTS and entry.get("inputs") == INPUTS + [IMAGES_INPUT]
+            and not is_result_notice(str(notice.get("title") or ""))
+            and any(image.get("download_reason") in RUN_BUDGET_REASONS and image.get("sha256")
+                    for image in notice.get("images", [])))
 
 
 def bundle_of(card_id: str, notice: dict, entry: dict, cross: dict | None = None) -> dict:
