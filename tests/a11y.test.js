@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 const CSS = readFileSync(new URL('../site/css/style.css', import.meta.url), 'utf8');
 const LOG_PAGE = readFileSync(new URL('../site/js/log-page.js', import.meta.url), 'utf8');
-const PAGES = ['index.html', 'recommend.html', 'card.html', 'log.html'];
+const PAGES = ['index.html', 'recommend.html', 'card.html', 'calendar.html', 'log.html'];
 
 const COLORS = Object.fromEntries([...CSS.match(/:root\s*{([^}]*)}/)[1].matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g)]
   .map(([, name, hex]) => [name, hex]));
@@ -40,6 +40,7 @@ const TEXT_PAIRS = [
   ['muted', 'ev-bg', '근거 안 인용'], ['blue', 'ev-bg', '근거 안 링크'], ['text', 'hl', '근거 강조'],
   ['text', 'note-bg', '문의 초안'], ['sub', 'note-bg', '문의 초안 보조 글자'], ['blue', 'note-bg', '안내 상자 안 링크'],
   ['warn', 'card', '확인 필요 안내 글자'], ['sub', 'warn-bg', '안내 상자 보조 글자'], ['sub', 'muted-bg', '회색 상자 보조 글자'],
+  ['text', 'blue-soft', '달력 일정'], ['text', 'no-bg', '달력 7일 이내 일정'], ['no', 'bg', '달력 일요일'], ['muted', 'bg', '달력 앞뒤 달 날짜'],
 ];
 
 test('글자와 배경의 대비가 4.5:1 이상이다', () => {
@@ -69,7 +70,7 @@ test('입력창·칩·버튼 경계가 흰 배경과 3:1 이상이다', () => {
   assert.ok(contrast('input-line', 'card') >= 3, `--input-line / --card = ${contrast('input-line', 'card').toFixed(2)}:1`);
 });
 
-test('네 화면 모두 언어·제목·확대 허용·랜드마크·이름 붙은 메뉴가 있다', () => {
+test('다섯 화면 모두 언어·제목·확대 허용·랜드마크·이름 붙은 메뉴가 있다', () => {
   for (const page of PAGES) {
     const html = readFileSync(new URL(`../site/${page}`, import.meta.url), 'utf8');
     assert.match(html, /<html lang="ko">/, page);
@@ -79,6 +80,8 @@ test('네 화면 모두 언어·제목·확대 허용·랜드마크·이름 붙�
     assert.match(html, /<main[\s>]/, page);
     assert.match(html, /<nav aria-label="[^"]+">/, page);
     assert.equal((html.match(/aria-current="page"/g) || []).length, page === 'card.html' ? 0 : 1, `${page}: 지금 화면 표시`);
+    assert.deepEqual([...html.match(/<nav[\s\S]*?<\/nav>/)[0].matchAll(/href="([^"]+)"/g)].map(([, href]) => href),
+      ['index.html', 'recommend.html', 'calendar.html', 'log.html'], `${page}: 메뉴 순서가 화면마다 같다`);
     // HTML에 직접 쓴 입력만 본다 (JS가 만드는 체크박스는 label 안에 있다)
     for (const [, id] of html.matchAll(/<input[^>]*\sid="([^"]+)"/g)) {
       assert.match(html, new RegExp(`<label[^>]*for="${id}"`), `${page}: 입력 ${id}의 라벨`);
