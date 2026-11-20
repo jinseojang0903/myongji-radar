@@ -11,8 +11,8 @@ import { calendarItems } from '../site/js/ics.js';
 const SAMPLE = JSON.parse(readFileSync(new URL('../site/data/cards.sample.json', import.meta.url), 'utf8'));
 const STUDENT = { campus: '자연', grade: 2, is_transfer: false, enrollment: '재학', participation: '개인', period: null, deliverables: [] };
 const CLEANUPS = new WeakMap();
-function watch(page, render) {
-  CLEANUPS.get(page).push(watchPageTime(page, render));
+function watch(page, render, options) {
+  CLEANUPS.get(page).push(watchPageTime(page, render, options));
 }
 
 async function fixture(t, { now = '2026-11-17T09:59:00+09:00', sample = false, fallback = false,
@@ -213,6 +213,38 @@ for (const mode of ['링크 유지', '버튼 유지', '카드 제거', '버튼 �
     if (!keeps) assert.equal(status.tabIndex, -1);
   });
 }
+
+test('자동 렌더의 포커스 복원: 달력은 포커스 둔 일정이 사라지면 "이 달의 마감" 제목으로 옮긴다 (#183)', async (t) => {
+  const { page, document } = await fixture(t);
+  let focused;
+  const heading = { focus: () => { focused = 'h-agenda'; } };
+  const cell = { dataset: { cardId: 'calendar-cell|test-card|apply|2026-11-17' } };
+  const active = { tagName: 'A', isConnected: true, closest: () => cell, getAttribute: () => 'card.html?id=test-card' };
+  document.activeElement = active;
+  document.querySelectorAll = () => []; // 달이 바뀌어 그 일정이 화면에 없다
+  document.getElementById = (id) => id === 'h-agenda' ? heading : null; // 달력에는 홈·추천의 안내 자리가 없다
+  watch(page, () => { active.isConnected = false; });
+  t.mock.timers.tick(60001);
+  assert.equal(focused, 'h-agenda');
+  assert.equal(heading.tabIndex, -1);
+});
+
+test('첫 그리기가 실패한 화면은 날짜·마감이 그대로여도 성공할 때까지 다시 그린다 (#183)', async (t) => {
+  // 마감을 며칠 뒤로 둔다: 시험하는 몇 분 동안 날짜·마감 상태가 바뀌지 않아야 "그대로여도 다시 그린다"를 볼 수 있다
+  const { page } = await fixture(t, { end: '2026-11-20 10:00' });
+  const errors = t.mock.method(console, 'error', () => {});
+  let attempts = 0;
+  watch(page, () => { if (++attempts < 3) throw new Error('PRIVATE_ERROR'); }, { isDrawn: false });
+  assert.equal(attempts, 1);
+  t.mock.timers.tick(60001);
+  assert.equal(attempts, 2);
+  t.mock.timers.tick(60000);
+  assert.equal(attempts, 3);
+  assert.equal(errors.mock.callCount(), 1);
+  assert.ok(!JSON.stringify(errors.mock.calls).includes('PRIVATE_ERROR'));
+  t.mock.timers.tick(60000);
+  assert.equal(attempts, 3);
+});
 
 test('처음 기준 계산만 실패해도 즉시 복구하고 다음 분 갱신을 계속한다', async (t) => {
   const { page } = await fixture(t);

@@ -26,9 +26,11 @@ async function main() {
   const render = () => {
     try {
       draw();
+      return true;
     } catch (error) {
       console.error('달력을 그리지 못함', error);
       note.textContent = '달력을 그리지 못했습니다. 잠시 뒤 다시 열어 주세요.';
+      return false;
     }
   };
   const move = (delta) => {
@@ -44,8 +46,9 @@ async function main() {
     pickedMonth = null;
     render();
   });
-  render();
-  watchPageTime(page, draw);
+  // 첫 그리기가 실패했으면 날짜·마감이 그대로여도 다시 그리게 알린다 (#183)
+  const isDrawn = render();
+  watchPageTime(page, draw, { isDrawn });
 }
 
 function renderCalendar(data, now, isSample) {
