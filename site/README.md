@@ -6,6 +6,7 @@
 
 - 주소: **https://myongji-radar-site.vercel.app/** (Vercel 프로젝트 `myongji-radar-site`, 팀 jinseo's projects, #45)
 - 설정: Root Directory `site`, Framework Preset Other, 빌드 명령 없음. `site/` 밖의 파일(pipeline·eval·docs)은 공개되지 않는다 (2026-11-06 확인: `pipeline/README.md`·`docs/api-contract.md` 등 404).
+- 응답 헤더 (`vercel.json`, #183): 모든 경로에 `Content-Security-Policy: frame-ancestors 'none'`과 `X-Frame-Options: DENY`를 건다. 다른 사이트가 이 사이트를 프레임에 넣어 누르게 하는 것을 브라우저가 막는다. `frame-ancestors`는 페이지의 meta CSP로는 걸 수 없다. `js/page.js`·`js/log-page.js`의 `window.top` 검사는 Vercel 밖(로컬 서버 등)에서 열릴 때를 위해 그대로 둔다. 배포 뒤 확인: `curl -sI`로 `/`, `/card.html`, `/js/page.js`, `/data/cards.json`과 없는 경로 하나의 응답에 두 헤더가 있는지 본다 (없는 경로의 404 응답에도 걸리는지는 아직 확인하지 않았다).
 - `main`에 커밋이 들어오면 자동 배포된다. 작성자가 누구든 배포된다: 저장소를 공개로 바꾼 뒤(#64) 팀원 커밋도 배포되는 것을 확인했다 (2026-11-14 운영 PC의 카드 갱신 커밋 `c1e1b40`, 작성자 김경민, Vercel "Deployment has completed").
   - 공개 전에는 Vercel 무료(Hobby) 팀 + 비공개 저장소라, Vercel 팀 멤버가 아닌 사람의 커밋은 배포가 "Blocked"됐다.
 - 2026-11-14부터 운영 PC가 공개한 실제 카드(`data/cards.json`)를 보여 준다. 파일이 없으면(404) 예시 데이터로 돌아가고 상단에 예시 안내가 뜬다. 생성 시각이 36시간을 넘으면 "오래된 정보" 경고가 뜬다.
