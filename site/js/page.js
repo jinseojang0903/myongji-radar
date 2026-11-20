@@ -51,8 +51,13 @@ export async function loadPage({ errorTarget, bannerTarget = document.getElement
  * 열린 화면의 시간 판정을 갱신한다. 날짜·마감·일정·경고가 바뀐 경우에만 다시 그린다.
  * 계약의 마감 시각은 분 단위라 매 분 경계 직후 확인한다. 36시간 경고는 초·밀리초도 보존한다.
  * 숨긴 탭에서는 타이머를 멈추고 탭 복귀·창 포커스·뒤로 가기 복원 시 즉시 확인한다.
+ * 첫 그리기가 실패한 화면은 isDrawn: false로 알린다. 그러면 날짜·마감이 그대로여도 보이는 탭이면 곧바로(숨긴 탭이면 복귀할 때), 그 뒤로는 성공할 때까지 매 분 다시 그린다 (#183).
+ * @param {{data: object, getNow: function(): Date, isSample: boolean}} page loadPage가 돌려준 값
+ * @param {function(Date): void} render 실패하면 예외를 던진다 (여기서 잡고 다음 확인 때 다시 부른다)
+ * @param {{isDrawn?: boolean}} [options]
+ * @returns {function(): void} 타이머와 이벤트 등록을 푸는 함수
  */
-export function watchPageTime(page, render) {
+export function watchPageTime(page, render, { isDrawn = true } = {}) {
   if (page.isSample) return () => {}; // 예시는 generated_at 기준을 유지한다.
   const key = (now) => JSON.stringify([
     kstDateString(now), bannerText(page.data, now, false),
@@ -66,8 +71,11 @@ export function watchPageTime(page, render) {
     if (!reported) console.error('화면의 시간 정보를 갱신하지 못했습니다. 다음 확인 때 다시 시도합니다.');
     reported = true;
   };
-  try { previous = key(page.getNow()); }
-  catch { reportError(); }
+  // 아직 그려지지 않은 화면은 기준 상태를 비워 둔다. 첫 확인이 "바뀜"으로 보고 다시 그린다.
+  if (isDrawn) {
+    try { previous = key(page.getNow()); }
+    catch { reportError(); }
+  }
   let timer;
   const pause = () => clearTimeout(timer);
   const refresh = () => {
@@ -113,6 +121,9 @@ function renderTimeChange(render, now) {
   finally { restoreTimeFocus(active, cardId); }
 }
 
+// 포커스를 둔 요소가 다시 그린 화면에 없을 때 옮겨 갈 자리. 화면마다 하나씩 있다: 홈 · 맞춤 추천 · 달력(#183)
+const FOCUS_FALLBACK_IDS = ['list-status', 'result-heading', 'h-agenda'];
+
 function restoreTimeFocus(active, cardId) {
   if (!active || active.isConnected) return;
   const scope = cardId
@@ -124,8 +135,8 @@ function restoreTimeFocus(active, cardId) {
       : node.textContent === active.textContent));
   if (match) match.focus({ preventScroll: true });
   else {
-    const status = document.getElementById('list-status') ?? document.getElementById('result-heading');
-    if (status) { status.tabIndex = -1; status.focus({ preventScroll: true }); }
+    const fallback = FOCUS_FALLBACK_IDS.map((id) => document.getElementById(id)).find(Boolean);
+    if (fallback) { fallback.tabIndex = -1; fallback.focus({ preventScroll: true }); }
   }
 }
 
