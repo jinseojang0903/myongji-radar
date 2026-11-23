@@ -16,9 +16,9 @@ const radarPopover = createRadarPopover((item) => popoverContent(item, boardList
 
 // 마감 구간. 마감일을 모르는 대회는 마지막 구간으로 따로 빼서 마감이 확실한 대회와 섞이지 않게 한다
 const LANES = [
-  { id: 'week', title: '이번 주 마감', hint: '7일 이내' },
-  { id: 'month', title: '이번 달 마감', hint: '30일 이내' },
-  { id: 'later', title: '여유 있음', hint: '30일 뒤' },
+  { id: 'week', title: `${WEEK_DAYS}일 이내 마감` },
+  { id: 'month', title: `${WEEK_DAYS + 1}~${MONTH_DAYS}일 남은 마감` },
+  { id: 'later', title: `${MONTH_DAYS + 1}일 이상 남은 마감` },
   { id: 'unknown', title: '마감일 확인 필요', hint: '공지에서 마감일을 찾지 못했거나 읽지 못했습니다. 신청할 수 있는지 원문에서 먼저 확인하세요.' },
 ];
 
@@ -62,7 +62,7 @@ function renderStats(data, now) {
     el('dt', {}, label), el('dd', {}, String(value), el('small', {}, unit)));
   document.getElementById('hero-stats').replaceChildren(
     stat('마감일이 있는 대회', knownCount, '건'),
-    stat('7일 안에 마감', urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
+    stat(`${WEEK_DAYS}일 이내 마감`, urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
     stat('마감일 확인 필요', items.length - knownCount, '건', 'unknown'));
 }
 
@@ -169,7 +169,7 @@ function renderList(data, now, rejectedCount, isSample) {
     return el('section', { class: `lane lane-${lane.id}`, 'aria-labelledby': `lane-${lane.id}` },
       el('div', { class: 'lane-head' },
         el('h2', { id: `lane-${lane.id}` }, lane.title, el('span', { class: 'lane-count' }, `${laneItems.length}건`)),
-        el('p', { class: 'small' }, lane.hint)),
+        lane.hint ? el('p', { class: 'small' }, lane.hint) : null),
       el('div', { class: 'list' }, ...cards));
   }).filter(Boolean);
   if (failedCount > 0) {

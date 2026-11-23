@@ -8,7 +8,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // 7일은 cards.js의 "7일 이내 마감" 필터(URGENT_DAYS)와 같은 기준이다
 export const WEEK_DAYS = 7;
 export const MONTH_DAYS = 30;
-// 반지름: 7일 고리 · 30일 고리 · 바깥(30일 뒤) · 궤도 밖(마감일 확인 필요)
+// 반지름: 7일 고리 · 30일 고리 · 바깥(31일 이상) · 궤도 밖(마감일 확인 필요)
 const R = { week: 58, month: 112, outer: 172, unknown: 192 };
 // 마감일이 있는 점이 놓이는 반지름의 범위 (오늘 마감 ~ 가장 먼 마감)
 const MIN_RADIUS = 14;
@@ -137,7 +137,7 @@ export function renderRadar(items, handlers = {}) {
       svg('stop', { offset: '100%', 'stop-color': '#3ee6c1', 'stop-opacity': '.35' }))),
   svg('circle', { r: R.outer, fill: 'url(#rd-glow)' }),
   ring(R.unknown, '궤도 밖 · 마감일 ?', 'rd-ring-unknown'),
-  ring(R.outer, '30일 뒤', 'rd-ring-outer'),
+  ring(R.outer, `${MONTH_DAYS + 1}일 이상`, 'rd-ring-outer'),
   ring(R.month, '30일', 'rd-ring-month'),
   ring(R.week, '7일', 'rd-ring-week'),
   svg('line', { class: 'rd-axis', x1: -R.outer, y1: 0, x2: R.outer, y2: 0 }),
