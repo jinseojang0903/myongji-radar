@@ -2,7 +2,7 @@
 // 계산은 detail.js·ics.js(Node 테스트), 여기서는 그리기와 버튼만 다룬다. 글자는 모두 el()/textContent로 넣는다.
 import { el, externalLink } from './html.js';
 import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary } from './page.js';
-import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
+import { deadlineOf, formatDeadline, organizerLine, resolveCard } from './cards.js';
 import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
@@ -30,8 +30,9 @@ async function main() {
   const page = await loadPage({ errorTarget: container });
   if (!page) return;
   const { data, rejected } = page;
-  const id = new URLSearchParams(window.location.search).get('id');
-  const card = data.cards.find((item) => item.id === id);
+  const address = new URL(window.location.href);
+  const id = address.searchParams.get('id');
+  const card = resolveCard(data.cards, id);
   if (!card) {
     const isRejected = rejected.some((item) => item.id === id);
     container.replaceChildren(el('section', { class: 'panel' },
@@ -41,6 +42,10 @@ async function main() {
         : '주소가 바뀌었거나 목록에서 빠진 대회입니다.'),
       el('a', { class: 'btn', href: 'index.html' }, '홈으로')));
     return;
+  }
+  if (card.id !== id) {
+    address.searchParams.set('id', card.id);
+    window.history.replaceState(window.history.state, '', address);
   }
   document.title = `명지레이더 · ${card.title}`;
   const conditions = readSavedConditions();

@@ -3,6 +3,7 @@
 
 import { isBeforeApplyStart, KEY_FIELDS } from './rules.js';
 import { parseContractDate, toKstInstant, kstDateString, daysBetween, formatShortDate, formatKstDateTime } from './dates.js';
+import { safeUrl } from './html.js';
 
 export const DELIVERABLE_TAGS = ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가', '기타'];
 const FIELD_STATUSES = new Set(['ai', 'auto_verified', 'needs_check', 'human_verified', 'missing']);
@@ -14,6 +15,27 @@ const HOUR_MS = 3600 * 1000;
 // 카드 id: 주소(card.html?id=)에 그대로 들어가므로 계약 1절의 형식만 받는다
 const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const POSTED_AT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function sourceCardId(source) {
+  const url = safeUrl(source?.url);
+  if (!url || typeof source.board_id !== 'string') return null;
+  const { hostname, pathname } = new URL(url);
+  if (hostname !== 'mju.ac.kr' && !hostname.endsWith('.mju.ac.kr')) return null;
+  // K2Web 수집기의 external_id와 extractor.daily.card_id_of를 현재 카드에 남은 출처에서 복원한다.
+  const article = /\/bbs\/([^/]+)\/(\d+)\/(\d+)\/artclView\.do$/.exec(pathname);
+  if (!article) return null;
+  return [source.board_id, ...article.slice(1)].join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '').slice(0, 64).replace(/-+$/g, '');
+}
+
+/** 현재 ID를 우선한다. 옛 공지가 현재 공개 카드 한 장에만 있으면 그 카드로 연결한다. */
+export function resolveCard(cards, id) {
+  if (typeof id !== 'string' || !CARD_ID_PATTERN.test(id)) return null;
+  const direct = cards.find((card) => card.id === id);
+  if (direct) return direct;
+  const matches = cards.filter((card) => card.sources.some((source) => sourceCardId(source) === id));
+  return matches.length === 1 ? matches[0] : null;
+}
 
 /**
  * 읽어 온 JSON의 형식을 경계에서 한 번 검사한다. 카드·게시판 단위로 걸러, 일부가 틀려도 화면 전체가 멈추지 않게 한다.

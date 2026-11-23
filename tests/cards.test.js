@@ -3,9 +3,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline, upcomingApplication,
+  DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline, upcomingApplication, resolveCard,
   cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames, bannerText, STALE_HOURS, organizerLine, emptyListMessage,
 } from '../site/js/cards.js';
+
+test('옛 공지 ID는 해당 출처를 가진 공개 카드 한 장에만 연결한다', () => {
+  const source = { board_id: 'mju-ctl', url: 'https://ctl.mju.ac.kr/bbs/ctl/792/235972/artclView.do?layout=unknown' };
+  const merged = { id: 'ai-literacy-2026', sources: [source] };
+  const id = 'mju-ctl-ctl-792-235972';
+  assert.equal(resolveCard([merged], id), merged);
+  const direct = { id, sources: [source] };
+  assert.equal(resolveCard([merged, direct], id), direct);
+  assert.equal(resolveCard([merged, { ...merged, id: 'other' }], id), null);
+  assert.equal(resolveCard([merged], 'unknown'), null);
+  assert.equal(resolveCard([merged], '../bad'), null);
+  const foreign = { ...merged, sources: [{ ...source, url: source.url.replace('ctl.mju.ac.kr', 'forms.gle') }] };
+  assert.equal(resolveCard([foreign], id), null);
+});
 
 test('접수 예정은 한국 시간 시작 직전까지만 표시하고 마감된 대회에는 붙이지 않는다', () => {
   const card = { fields: { apply: { status: 'ai', value: { start: '2026-11-25 09:30', end: '2026-12-01' } } } };
