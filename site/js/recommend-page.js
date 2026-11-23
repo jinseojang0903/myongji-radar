@@ -8,6 +8,7 @@ import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
 import { inquiryDraft } from './detail.js';
+import { savedCardButton, watchSavedCards } from './saved-cards.js';
 import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW, resultAnnouncement } from './recommend.js';
 
 // 칩 묶음: [조건 이름, 보이는 이름, [값, 칩 글자]]. 한 묶음에서 하나만 고르고, 다시 누르면 고르지 않은 상태(null)
@@ -54,11 +55,13 @@ async function main() {
   // 게시판은 형식 검사에서 빠져도 카드 건수와 상관없다 (홈과 같은 기준)
   const rejectedCardCount = rejected.filter((item) => !item.id.startsWith('board:')).length;
   const saveStatus = document.getElementById('save-status');
+  const drawResults = (now = page.getNow()) => renderResults(data.cards, now, rejectedCardCount, data.boards, !page.isSample);
+  if (!page.isSample) watchSavedCards();
 
   const render = () => {
     renderChips();
     renderParsed();
-    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
+    drawResults();
     showConditionSummary(state.conditions);
   };
   // shouldSave=false: 화면에만 반영 (주소로 받은 문장은 학생이 칩·버튼을 누르기 전까지 저장하지 않는다)
@@ -76,7 +79,7 @@ async function main() {
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
   const readTitleQuery = () => {
     state.titleQuery = clipTitleQuery(titleInput.value);
-    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
+    drawResults();
   };
   // 버튼으로 바꿀 때만 입력칸에 쓴다
   const setTitleQuery = (text) => {
@@ -127,7 +130,7 @@ async function main() {
   // 주소로 받은 문장이 공백뿐이거나 해석에 실패하면 interpret가 그리지 않아 결과가 "불러오는 중…"으로 남는다
   if (!hasRenderedResults) render();
   isReadyToAnnounce = true;
-  watchPageTime(page, (now) => renderResults(data.cards, now, rejectedCardCount, data.boards));
+  watchPageTime(page, drawResults);
 }
 
 // 주소의 #q= (또는 예전 ?q=)를 읽고 주소에서 지운다. 200자로 자른다
@@ -250,7 +253,7 @@ function announceResults(message) {
   resultAnnounceTimer = setTimeout(() => announce(document.getElementById('result-status'), message), RESULT_ANNOUNCE_DELAY_MS);
 }
 
-function renderResults(cards, now, rejectedCount, boards) {
+function renderResults(cards, now, rejectedCount, boards, canSave) {
   hasRenderedResults = true;
   const recommended = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
   const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommended;
@@ -279,11 +282,11 @@ function renderResults(cards, now, rejectedCount, boards) {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
       el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
-      ...groups[result].map((item) => renderItem(item, boards)));
+      ...groups[result].map((item) => renderItem(item, boards, canSave)));
   }));
 }
 
-function renderItem({ card, judged, deadline, summary }, boards) {
+function renderItem({ card, judged, deadline, summary }, boards, canSave) {
   const view = RESULT_VIEW[judged.result];
   const change = latestDeadlineChange(card);
   const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions, boards) : null;
@@ -311,6 +314,7 @@ function renderItem({ card, judged, deadline, summary }, boards) {
       ...badgeElements(card),
       hasUnverifiedFail(judged) ? el('span', { class: 'small' }, '팀이 원문과 대조하기 전 정보입니다') : null,
       copyButton, status,
+      canSave ? savedCardButton(card) : null,
       el('a', { class: copyButton ? 'btn' : 'btn spacer', href: `card.html?id=${encodeURIComponent(card.id)}` }, '카드 보기')));
 }
 

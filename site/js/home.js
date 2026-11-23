@@ -7,6 +7,7 @@ import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
 import { createRadarPopover, popoverContent } from './radar-popover.js';
+import { listSavedCards, readSavedCardIds, savedCardButton, watchSavedCards } from './saved-cards.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
 const filters = { ...BASE_FILTERS, query: '' };
@@ -35,6 +36,7 @@ async function main() {
   const page = await loadPage({ errorTarget: document.getElementById('card-list') });
   if (!page) {
     document.getElementById('summary-line').replaceChildren('대회 정보를 불러오지 못했습니다.');
+    document.getElementById('saved-contest-list').replaceChildren(el('p', { class: 'small' }, '관심 대회 정보를 불러오지 못했습니다.'));
     return;
   }
   const { data, rejected, isSample } = page;
@@ -50,7 +52,34 @@ async function main() {
   };
   bindFilters(render);
   render();
-  watchPageTime(page, render);
+  if (isSample) {
+    document.getElementById('saved-contest-list').replaceChildren(el('p', { class: 'small' }, '실제 대회 정보를 불러오면 관심 대회를 볼 수 있습니다.'));
+  } else {
+    renderSavedList(data.cards, readSavedCardIds(), page.getNow());
+    watchSavedCards((ids) => renderSavedList(data.cards, ids, page.getNow()));
+  }
+  watchPageTime(page, (now) => {
+    render(now);
+    if (!isSample) renderSavedList(data.cards, readSavedCardIds(), now);
+  });
+}
+
+function renderSavedList(cards, ids, now) {
+  const list = document.getElementById('saved-contest-list');
+  const focusedId = list.contains(document.activeElement) ? document.activeElement.dataset.savedCard : null;
+  const items = listSavedCards(cards, ids, now);
+  const rows = items.map(({ card, deadline }) => el('li', { class: 'row saved-contest' },
+    el('a', { href: `card.html?id=${encodeURIComponent(card.id)}` }, card.title),
+    ddayElement(deadline), savedCardButton(card)));
+  const missing = ids.size - items.length;
+  list.replaceChildren(
+    rows.length ? el('ul', { class: 'saved-contest-list' }, ...rows)
+      : el('p', { class: 'empty' }, '다시 보고 싶은 대회의 관심 대회 버튼을 눌러 저장하세요.'),
+    missing > 0 ? el('p', { class: 'small' }, `현재 목록에서 빠진 관심 대회 ${missing}건`) : null);
+  if (focusedId) {
+    const next = [...list.querySelectorAll('[data-saved-card]')].find((button) => button.dataset.savedCard === focusedId);
+    (next ?? document.getElementById('h-saved')).focus({ preventScroll: true });
+  }
 }
 
 // 첫 화면 숫자: 필터와 상관없이 전체 기준. "마감 전 대회" 하나로 세면 마감일을 모르는 대회까지 신청 중처럼 보여 나눈다
@@ -156,7 +185,7 @@ function renderList(data, now, rejectedCount, isSample) {
     if (laneItems.length === 0) return null;
     const cards = laneItems.flatMap(({ card, deadline }) => {
       try {
-        const element = renderItem(card, deadline, data.boards, index);
+        const element = renderItem(card, deadline, data.boards, index, !isSample);
         index += 1;
         return [element];
       } catch (error) {
@@ -178,7 +207,7 @@ function renderList(data, now, rejectedCount, isSample) {
   list.replaceChildren(...lanes);
 }
 
-function renderItem(card, deadline, boards, index) {
+function renderItem(card, deadline, boards, index, canSave) {
   const change = latestDeadlineChange(card);
   const summary = summaryLine(card, deadline);
   // 카드 전체가 링크라 이름이 제목·배지·요약까지 길게 읽혔다. 이름은 제목과 D-day로 하고, 제목을 h3로 두어
@@ -206,10 +235,10 @@ function renderItem(card, deadline, boards, index) {
     summary && el('span', { class: 'reason' }, summary),
   );
   // 원문 링크는 카드 링크 안에 넣을 수 없어(링크 안 링크) 카드 아래에 붙인다
-  if (!source) return el('div', { class: 'item-wrap' }, item);
-  const link = externalLink(source.url, `원문 공지 · ${source.boardName} ↗`);
-  link.classList.add('item-source');
-  return el('div', { class: 'item-wrap' }, item, link);
+  const link = source ? externalLink(source.url, `원문 공지 · ${source.boardName} ↗`) : null;
+  link?.classList.add('item-source');
+  return el('div', { class: 'item-wrap' }, item, link,
+    canSave ? el('div', { class: 'item-save' }, savedCardButton(card)) : null);
 }
 
 function renderBoards(boards) {

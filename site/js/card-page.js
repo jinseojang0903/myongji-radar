@@ -8,6 +8,7 @@ import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
 import { fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName } from './ics.js';
+import { savedCardButton, watchSavedCards } from './saved-cards.js';
 
 const BADGE_CLASS = { human: 's-human', auto: 's-auto', before: 's-before', need: 's-need', missing: 's-missing' };
 const RESULT_VIEW = {
@@ -47,6 +48,10 @@ async function main() {
   showConditionSummary(conditions);
 
   const header = renderHeader(card, page.getNow(), conditions);
+  if (!page.isSample) {
+    header.querySelector('.head-main').append(savedCardButton(card));
+    watchSavedCards();
+  }
   const calendar = renderCalendar(card, page.getNow);
   container.replaceChildren(
     header,
