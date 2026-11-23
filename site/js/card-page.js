@@ -6,7 +6,7 @@ import { deadlineOf, formatDeadline, organizerLine } from './cards.js';
 import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
-import { fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
+import { fieldRows, sourceLinks, spreadText, applicationAction, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName } from './ics.js';
 
 const BADGE_CLASS = { human: 's-human', auto: 's-auto', before: 's-before', need: 's-need', missing: 's-missing' };
@@ -60,6 +60,13 @@ async function main() {
   watchPageTime(page, (now) => {
     const fresh = renderHeader(card, now, conditions);
     header.querySelector('.deadline-tile').replaceChildren(...fresh.querySelector('.deadline-tile').childNodes);
+    const action = header.querySelector('.apply-action');
+    const nextAction = fresh.querySelector('.apply-action');
+    if (!action.isEqualNode(nextAction)) {
+      const hadFocus = action.contains(document.activeElement);
+      action.replaceWith(nextAction);
+      if (hadFocus) nextAction.querySelector('a')?.focus({ preventScroll: true });
+    }
     if (hasJudgedConditions(conditions)) header.querySelector('.judgment').replaceWith(fresh.querySelector('.judgment'));
     calendar.refresh(now);
   });
@@ -75,13 +82,18 @@ function renderHeader(card, now, conditions) {
   const deadline = deadlineOf(card, now);
   const deadlineText = formatDeadline(deadline);
   const byline = organizerLine(card);
+  const action = applicationAction(card, deadline, now);
+  const actionLink = action ? externalLink(action.url, action.label) : null;
+  actionLink?.classList.add('btn', 'primary');
   const section = el('section', { class: 'panel detail-head', 'aria-labelledby': 'h-card' },
     el('div', { class: 'head-main' },
       el('h1', { id: 'h-card' }, card.title),
       byline ? el('p', { class: 'lead' }, byline) : null,
       el('div', { class: 'row' },
         ...badgeElements(card),
-        ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag)))),
+        ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag))),
+      el('div', { class: 'row apply-action', hidden: !action },
+        actionLink, action?.host ? el('span', { class: 'small' }, action.host) : null)),
     // 마감은 이 화면에서 가장 먼저 보여야 하는 정보라 따로 크게 둔다
     el('div', { class: 'deadline-tile' },
       ddayElement(deadline),
@@ -114,7 +126,6 @@ const KEY_FIELD_SET = new Set(KEY_FIELDS);
 
 function renderFields(card, boards) {
   const rows = fieldRows(card, boards);
-  const link = applyLink(card);
   const sources = sourceLinks(card, boards);
   const spread = spreadText(card, boards);
   const checkedAt = parseContractDate(card.meta?.checked_at);
@@ -122,9 +133,9 @@ function renderFields(card, boards) {
     el('h2', { id: 'h-fields' }, '대회 카드'),
     el('h3', { class: 'group-title key' }, '지원 판단 항목'),
     el('p', { class: 'small group-help' }, '신청기간·캠퍼스·학년·학적·팀 인원은 팀이 원문과 대조해야 "검수 완료"가 됩니다. 왼쪽 점선·노란 띠는 아직 확인하지 않은 값입니다.'),
-    fieldTable(rows.filter((row) => KEY_FIELD_SET.has(row.name)), '지원 판단 항목: 값, 확인 상태, 근거', link),
+    fieldTable(rows.filter((row) => KEY_FIELD_SET.has(row.name)), '지원 판단 항목: 값, 확인 상태, 근거'),
     el('h3', { class: 'group-title' }, '대회 정보'),
-    fieldTable(rows.filter((row) => !KEY_FIELD_SET.has(row.name)), '대회 정보: 값, 확인 상태, 근거', link),
+    fieldTable(rows.filter((row) => !KEY_FIELD_SET.has(row.name)), '대회 정보: 값, 확인 상태, 근거'),
     el('div', { class: 'row stack-top source-links' }, ...sources.map((source, index) => {
       const text = `원문 공지 보기 (${source.boardName}${source.postedAt ? ` ${formatShortDate(source.postedAt)}` : ''})`;
       const anchor = externalLink(source.url, text);
@@ -139,10 +150,10 @@ function renderFields(card, boards) {
 
 // 좁은 화면에서는 CSS가 표를 display:block으로 펼친다. 그러면 일부 브라우저가 표 구조를 화면 읽기에 넘기지 않아
 // 표 탐색을 잃으므로 역할을 명시한다 (#104). 행·칸 역할은 renderFieldRow에서 단다. 넓은 화면에서는 기본 역할과 같아 해가 없다
-function fieldTable(rows, caption, link) {
+function fieldTable(rows, caption) {
   return el('table', { class: 'fields', role: 'table' },
     el('caption', { class: 'sr-only' }, caption),
-    el('tbody', { role: 'rowgroup' }, ...rows.map((row) => renderFieldRow(row, row.name === 'how_to_apply' ? link : null))));
+    el('tbody', { role: 'rowgroup' }, ...rows.map(renderFieldRow)));
 }
 
 // 값 옆 띠: 원문 확인 필요(노란 띠), 확인 전 핵심 항목(점선), 검수 완료(초록). 글자 배지와 함께 보여 색만으로 구분하지 않는다
@@ -152,14 +163,13 @@ function trustOf(row) {
   return row.badge.kind === 'before' && KEY_FIELD_SET.has(row.name) ? 'before' : null;
 }
 
-function renderFieldRow(row, link) {
+function renderFieldRow(row) {
   const evidenceId = `ev-${row.name}`;
   const valueCell = el('td', { role: 'cell' },
     // 정보 충돌이어도 정리한 값은 보여 주고, 출처별 근거를 바로 펼친다 (화면설계.md 4절 "정보 충돌")
     row.isConflict ? el('div', {}, el('b', {}, '정보 충돌: 출처마다 다르게 적혀 있습니다')) : null,
     row.text ?? el('span', { class: 'missing' }, row.status === 'missing' ? '공지에 없음' : '표시할 수 없는 값'),
-    row.note ? el('div', { class: row.status === 'needs_check' ? 'field-note need' : 'field-note' }, row.note) : null,
-    link ? el('div', { class: 'stack-top' }, externalLink(link.url, '신청 페이지 열기'), el('span', { class: 'small' }, ` (${link.host})`)) : null);
+    row.note ? el('div', { class: row.status === 'needs_check' ? 'field-note need' : 'field-note' }, row.note) : null);
 
   const statusCell = el('td', { class: 'st', role: 'cell' }, el('span', { class: `badge ${BADGE_CLASS[row.badge.kind]}` }, row.badge.text));
   if (row.evidence.length > 0 || row.isConflict) {

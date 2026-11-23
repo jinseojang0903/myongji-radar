@@ -1,7 +1,7 @@
 // 카드 상세 화면 계산 (#25). DOM을 쓰지 않아 Node로 테스트한다. 그리기는 card-page.js.
 // 형식은 docs/api-contract.md 1절, 표시 규칙은 docs/ui/화면설계.md 4절.
 
-import { KEY_FIELDS } from './rules.js';
+import { isBeforeApplyStart, KEY_FIELDS } from './rules.js';
 import { teamText, deliverableTags } from './cards.js';
 import { parseContractDate, formatShortDate } from './dates.js';
 import { safeUrl, stripInvisible } from './html.js';
@@ -177,6 +177,18 @@ export function spreadText(card, boards) {
 export function applyLink(card) {
   const url = safeUrl(card.fields?.how_to_apply?.value?.url);
   return url ? { url, host: new URL(url).hostname } : null;
+}
+
+export function applicationAction(card, deadline, now) {
+  if (deadline.state === 'open' && !isBeforeApplyStart(card.fields?.apply?.value, now)) {
+    const link = applyLink(card);
+    if (link) return { ...link, label: '신청 페이지 열기' };
+  }
+  for (const source of card.sources) {
+    const url = safeUrl(source.url);
+    if (url) return { url, label: deadline.state === 'closed' ? '원문 공지 보기' : '원문에서 신청 방법 확인' };
+  }
+  return null;
 }
 
 /**

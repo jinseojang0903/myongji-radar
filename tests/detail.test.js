@@ -3,9 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { validateCardData } from '../site/js/cards.js';
+import { deadlineOf, validateCardData } from '../site/js/cards.js';
 import {
-  FIELD_LABELS, fieldStatusBadge, fieldValueText, fieldRows, sourceLinks, spreadText, applyLink, deadlineHistory, inquiryDraft, withParticle,
+  FIELD_LABELS, fieldStatusBadge, fieldValueText, fieldRows, sourceLinks, spreadText, applyLink, applicationAction, deadlineHistory, inquiryDraft, withParticle,
 } from '../site/js/detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName, stageLabel } from '../site/js/ics.js';
 import {
@@ -106,6 +106,20 @@ test('신청 링크는 호스트명을 함께 준다 (#21 보안 리뷰: 폼 주
   const card = cardById('evc-13-nature');
   card.fields.how_to_apply.value.url = 'https://evil.example/forms';
   assert.equal(applyLink(card), null);
+});
+
+test('상세 상단에서 접수 중이면 신청 링크를, 접수 전·후나 링크가 없으면 원문을 안내한다', () => {
+  const card = cardById('evc-13-nature');
+  card.fields.apply = { status: 'ai', value: { start: '2026-10-10', end: '2026-10-20' } };
+  const actionAt = (now) => applicationAction(card, deadlineOf(card, now), now);
+  const source = { url: card.sources[0].url, label: '원문에서 신청 방법 확인' };
+  assert.deepEqual(actionAt(AT_SAMPLE), { ...applyLink(card), label: '신청 페이지 열기' });
+  assert.deepEqual(actionAt(new Date('2026-10-09T12:00:00+09:00')), source);
+  assert.deepEqual(actionAt(new Date('2026-10-21T12:00:00+09:00')), { ...source, label: '원문 공지 보기' });
+  card.fields.how_to_apply.value.url = null;
+  assert.deepEqual(actionAt(AT_SAMPLE), source);
+  card.sources[0].url = 'https://example.com/';
+  assert.equal(actionAt(AT_SAMPLE), null);
 });
 
 test('마감 변경 이력: 이전 값·새 값·출처 공지·확인 일시', () => {
