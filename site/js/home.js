@@ -2,14 +2,14 @@
 // 마감 계산·필터·정렬은 cards.js(listCards)를 그대로 쓰고, 이 파일은 묶어서 그리기만 한다.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage, ddayLabel } from './cards.js';
-import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary, bindScopeFilter } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
 import { createRadarPopover, popoverContent } from './radar-popover.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
-const filters = { ...BASE_FILTERS, query: '' };
+const filters = { ...BASE_FILTERS, query: '', scope: '' };
 // 레이더 점 안내 상자 (화면당 하나). 게시판 이름은 데이터를 읽은 뒤 채운다
 let boardList = [];
 const radarPopover = createRadarPopover((item) => popoverContent(item, boardList));
@@ -74,6 +74,10 @@ function renderTagChips() {
 }
 
 function bindFilters(onChange) {
+  bindScopeFilter((scope) => {
+    filters.scope = scope;
+    onChange();
+  });
   document.getElementById('home-search').addEventListener('input', (event) => {
     filters.query = event.target.value;
     onChange();
