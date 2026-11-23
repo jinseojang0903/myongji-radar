@@ -12,7 +12,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { validateCardData, deadlineOf, STALE_HOURS } from '../site/js/cards.js';
+import { validateCardData, deadlineOf, upcomingApplication, STALE_HOURS } from '../site/js/cards.js';
 
 export const DEFAULT_BASE = 'https://myongji-radar-site.vercel.app';
 const PAGES = ['/', '/recommend.html', '/card.html', '/calendar.html', '/log.html', '/data/log.json'];
@@ -194,13 +194,14 @@ function walk(value, path, visit) {
 function summarize(data, now, ageHours) {
   const statuses = {};
   const models = {};
-  const deadlines = { open: 0, closed: 0, none: 0, unreadable: 0 };
+  const deadlines = { open: 0, upcoming: 0, closed: 0, none: 0, unreadable: 0 };
   for (const card of data.cards) {
     for (const field of Object.values(card.fields)) statuses[field.status] = (statuses[field.status] ?? 0) + 1;
     const raw = card.meta?.extract_model;
     const model = typeof raw === 'string' && raw !== '' ? [...raw].slice(0, MAX_MODEL_LABEL).join('') : '(없음)';
     models[model] = (models[model] ?? 0) + 1;
-    deadlines[deadlineOf(card, now).state] += 1;
+    const deadline = deadlineOf(card, now);
+    deadlines[upcomingApplication(card, deadline, now) ? 'upcoming' : deadline.state] += 1;
   }
   return { cards: data.cards.length, boards: data.boards.length, ageHours: Math.round(ageHours * 10) / 10, deadlines, statuses, models };
 }
@@ -271,10 +272,10 @@ export async function main(argv, { now = new Date(), fetchImpl = fetch, loadImpl
 
     if (summary) {
       log(`카드 ${summary.cards}장 · 게시판 ${summary.boards}개 · 생성 ${summary.ageHours}시간 전`);
-      log(`마감: 접수 중 ${summary.deadlines.open} · 마감 ${summary.deadlines.closed} · 마감일 없음 ${summary.deadlines.none} · 읽을 수 없음 ${summary.deadlines.unreadable}`);
+      log(`마감: 접수 중 ${summary.deadlines.open} · 접수 예정 ${summary.deadlines.upcoming} · 마감 ${summary.deadlines.closed} · 마감일 없음 ${summary.deadlines.none} · 읽을 수 없음 ${summary.deadlines.unreadable}`);
       log(`항목 상태: ${JSON.stringify(summary.statuses)}`);
       log(`추출 모델: ${JSON.stringify(summary.models)}`);
-      if (summary.deadlines.open === 0) warnings.push('접수 중인 카드가 0장 (홈 목록이 비어 보임)');
+      if (summary.deadlines.open === 0) warnings.push('접수 중인 카드가 0장');
     }
     for (const text of warnings) log(`경고: ${text}`);
     for (const text of failures) log(`실패: ${text}`);

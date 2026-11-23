@@ -1,7 +1,7 @@
 // 홈 화면 (#21): 레이더 첫 화면, 검색·필터, 마감 구간별 대회 목록, 기준일·게시판 목록.
 // 마감 계산·필터·정렬은 cards.js(listCards)를 그대로 쓰고, 이 파일은 묶어서 그리기만 한다.
 import { el, externalLink } from './html.js';
-import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage, ddayLabel } from './cards.js';
+import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage, ddayLabel, upcomingApplication } from './cards.js';
 import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
@@ -53,17 +53,23 @@ async function main() {
   watchPageTime(page, render);
 }
 
-// 첫 화면 숫자: 필터와 상관없이 전체 기준. "마감 전 대회" 하나로 세면 마감일을 모르는 대회까지 신청 중처럼 보여 나눈다
+// 첫 화면 숫자는 필터와 상관없이 전체 기준으로 센다.
 function renderStats(data, now) {
   const { items } = listCards(data.cards, BASE_FILTERS, now);
-  const knownCount = items.filter(({ deadline }) => deadline.state === 'open').length;
+  let upcomingCount = 0;
+  let openCount = 0;
+  for (const { card, deadline } of items) {
+    if (upcomingApplication(card, deadline, now)) upcomingCount += 1;
+    else if (deadline.state === 'open') openCount += 1;
+  }
   const urgentCount = items.filter(({ deadline }) => laneOf(deadline) === 'week').length;
   const stat = (label, value, unit, extraClass = '') => el('div', { class: ['stat', extraClass].filter(Boolean).join(' ') },
     el('dt', {}, label), el('dd', {}, String(value), el('small', {}, unit)));
   document.getElementById('hero-stats').replaceChildren(
-    stat('마감일이 있는 대회', knownCount, '건'),
+    stat('접수 중', openCount, '건'),
+    stat('접수 예정', upcomingCount, '건'),
     stat('7일 안에 마감', urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
-    stat('마감일 확인 필요', items.length - knownCount, '건', 'unknown'));
+    stat('마감일 확인 필요', items.length - openCount - upcomingCount, '건', 'unknown'));
 }
 
 function renderTagChips() {
@@ -130,9 +136,11 @@ function renderList(data, now, rejectedCount, isSample) {
   document.getElementById('list-status').textContent = notes.join(' · ');
 
   const list = document.getElementById('card-list');
-  const radarItems = items.map(({ card, deadline }) => ({
-    card, deadline, isUrgent: laneOf(deadline) === 'week', label: deadline.state === 'open' ? ddayLabel(deadline).text : '마감일 확인 필요',
-  }));
+  const radarItems = items.map(({ card, deadline }) => {
+    const opening = upcomingApplication(card, deadline, now);
+    return { card, deadline, opening, isUrgent: laneOf(deadline) === 'week',
+      label: opening ?? (deadline.state === 'open' ? ddayLabel(deadline).text : '마감일 확인 필요') };
+  });
   // 다시 그리면 점이 새로 만들어지므로 떠 있던 안내 상자는 닫는다
   radarPopover.hide();
   try {
@@ -156,7 +164,7 @@ function renderList(data, now, rejectedCount, isSample) {
     if (laneItems.length === 0) return null;
     const cards = laneItems.flatMap(({ card, deadline }) => {
       try {
-        const element = renderItem(card, deadline, data.boards, index);
+        const element = renderItem(card, deadline, data.boards, index, upcomingApplication(card, deadline, now));
         index += 1;
         return [element];
       } catch (error) {
@@ -178,7 +186,7 @@ function renderList(data, now, rejectedCount, isSample) {
   list.replaceChildren(...lanes);
 }
 
-function renderItem(card, deadline, boards, index) {
+function renderItem(card, deadline, boards, index, opening) {
   const change = latestDeadlineChange(card);
   const summary = summaryLine(card, deadline);
   // 카드 전체가 링크라 이름이 제목·배지·요약까지 길게 읽혔다. 이름은 제목과 D-day로 하고, 제목을 h3로 두어
@@ -187,16 +195,18 @@ function renderItem(card, deadline, boards, index) {
   const ddayId = `card-dday-${index}`;
   const dday = ddayElement(deadline, 'spacer');
   dday.id = ddayId;
+  const openingId = opening ? `card-opening-${index}` : null;
   // "마감일 없음"은 상시 모집처럼 읽혀서 홈에서는 확인이 필요하다고 쓴다.
   // 화면에는 레이더와 같은 '?'를 보이고, 카드 이름(aria-labelledby)으로는 '마감일 확인 필요'를 읽힌다
   if (deadline.state !== 'open') {
     dday.replaceChildren(el('span', { 'aria-hidden': 'true' }, '마감일 ?'), el('span', { class: 'sr-only' }, '마감일 확인 필요'));
   }
   const source = sourceLinks(card, boards).find((link) => link.url);
-  const item = el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'data-deadline': deadlineTone(deadline), 'data-card-id': card.id, 'aria-labelledby': `${titleId} ${ddayId}` },
+  const item = el('a', { class: 'item', href: `card.html?id=${encodeURIComponent(card.id)}`, 'data-deadline': deadlineTone(deadline), 'data-card-id': card.id, 'aria-labelledby': [titleId, openingId, ddayId].filter(Boolean).join(' ') },
     el('div', { class: 'row' },
       el('h3', { class: 'title', id: titleId }, card.title),
       dday),
+    opening ? el('span', { class: 'badge s-before', id: openingId }, opening) : null,
     el('span', { class: 'org' }, [card.organizer, card.scope, boardNames(card, boards).join(', ')].filter(Boolean).join(' · ')),
     el('div', { class: 'row' },
       ...deliverableTags(card).map((tag) => el('span', { class: 'tag' }, tag)),

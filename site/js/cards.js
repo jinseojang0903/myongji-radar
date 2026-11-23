@@ -1,7 +1,7 @@
 // 카드 데이터 다루기 (화면 없이 계산만). 형식은 docs/api-contract.md 1절.
 // 홈(#21)·추천(#24)·상세(#25)가 같이 쓴다. DOM을 쓰지 않으므로 Node 테스트로 검사한다.
 
-import { KEY_FIELDS } from './rules.js';
+import { isBeforeApplyStart, KEY_FIELDS } from './rules.js';
 import { parseContractDate, toKstInstant, kstDateString, daysBetween, formatShortDate, formatKstDateTime } from './dates.js';
 
 export const DELIVERABLE_TAGS = ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가', '기타'];
@@ -158,6 +158,14 @@ export function formatDeadline(deadline) {
   if (!deadline.endDate) return null;
   const date = formatShortDate(deadline.endDate);
   return deadline.endTime ? `${date} ${deadline.endTime}` : `${date} (시각 미기재)`;
+}
+
+/** 접수 시작 전이면 한국 날짜·시각을 보여 준다. 마감이 지난 카드는 마감을 우선한다. */
+export function upcomingApplication(card, deadline, now) {
+  const apply = card.fields?.apply;
+  if (deadline.state === 'closed' || apply?.status === 'missing' || !isBeforeApplyStart(apply?.value, now)) return null;
+  const { date, time } = parseContractDate(apply.value.start);
+  return `접수 예정 · ${formatShortDate(date)}${time ? ` ${time}` : ''}부터`;
 }
 
 /**

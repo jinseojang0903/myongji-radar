@@ -3,9 +3,24 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline,
+  DELIVERABLE_TAGS, validateCardData, referenceDate, deadlineOf, ddayLabel, formatDeadline, upcomingApplication,
   cardBadges, latestDeadlineChange, summaryLine, listCards, boardNames, bannerText, STALE_HOURS, organizerLine, emptyListMessage,
 } from '../site/js/cards.js';
+
+test('접수 예정은 한국 시간 시작 직전까지만 표시하고 마감된 대회에는 붙이지 않는다', () => {
+  const card = { fields: { apply: { status: 'ai', value: { start: '2026-11-25 09:30', end: '2026-12-01' } } } };
+  const labelAt = (iso) => {
+    const now = new Date(iso);
+    return upcomingApplication(card, deadlineOf(card, now), now);
+  };
+  assert.equal(labelAt('2026-11-25T00:29:59Z'), '접수 예정 · 11/25(수) 09:30부터');
+  assert.equal(labelAt('2026-11-25T00:30:00Z'), null);
+  card.fields.apply.value.start = '2026-11-25';
+  assert.equal(labelAt('2026-11-24T14:59:59Z'), '접수 예정 · 11/25(수)부터');
+  assert.equal(labelAt('2026-11-24T15:00:00Z'), null);
+  card.fields.apply.value.end = '2026-11-22';
+  assert.equal(labelAt('2026-11-24T14:59:59Z'), null);
+});
 
 test('빈 목록 안내는 이유를 나눈다: 모은 대회 없음 / 모두 마감 / 필터 때문 (#104)', () => {
   const filtered = '필터를 줄여 보세요.';

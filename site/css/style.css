@@ -87,7 +87,7 @@ h3 { letter-spacing: -0.02em; }
 .hero .btn.ghost { background: rgba(255, 255, 255, .06); color: var(--on-dark); border-color: rgba(255, 255, 255, .45); }
 .hero .btn.ghost:hover { background: rgba(255, 255, 255, .14); }
 /* 숫자 칸: 한 덩어리 계기판처럼 붙여 둔다 */
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 4px 0 0; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .14); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 4px 0 0; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .14); }
 .stat { background: rgba(5, 13, 34, .62); padding: 14px 16px 12px; }
 .stat dt { font-size: 13px; color: var(--scope-sub); font-weight: 600; }
 .stat dd { margin: 4px 0 0; font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--signal); }
@@ -402,6 +402,7 @@ a.cal-event:hover { text-decoration: underline; }
   .hero { padding: 28px 20px 24px; border-radius: 22px; }
   .hero h1 { font-size: 30px; }
   .scope-figure { max-width: 340px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat { padding: 10px 10px; }
   .lane-unknown { padding: 12px; }
   .stat dd { font-size: 24px; }
