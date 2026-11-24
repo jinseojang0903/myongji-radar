@@ -7,7 +7,7 @@ import { deadlineOf, validateCardData } from '../site/js/cards.js';
 import {
   FIELD_LABELS, fieldStatusBadge, fieldValueText, fieldRows, sourceLinks, spreadText, applyLink, applicationAction, deadlineHistory, inquiryDraft, withParticle,
 } from '../site/js/detail.js';
-import { calendarItems, calendarItemText, buildIcs, icsFileName, stageLabel } from '../site/js/ics.js';
+import { calendarItems, calendarItemText, buildIcs, icsFileName, stageLabel, nextContestSchedule } from '../site/js/ics.js';
 import {
   CONDITIONS_STORAGE_KEY, normalizeConditions, readSavedConditions, saveConditions, describeConditions, hasJudgedConditions,
 } from '../site/js/conditions.js';
@@ -16,6 +16,18 @@ const SAMPLE = validateCardData(JSON.parse(readFileSync(new URL('../site/data/ca
 const AT_SAMPLE = new Date(SAMPLE.generated_at); // 2026-10-15 06:00 KST
 const cardById = (id) => structuredClone(SAMPLE.cards.find((card) => card.id === id));
 const STUDENT = { campus: '자연', grade: 2, is_transfer: false, enrollment: '재학', participation: '개인', deliverables: [], period: null, unknown_terms: [] };
+
+test('다음 일정은 신청과 지난 일정을 빼고 남은 단계 중 가장 이른 날짜를 사용한다', () => {
+  const card = { fields: { stages: { status: 'ai', value: [
+    { name: '본선', end: '2026-10-20', time_given: false },
+    { name: '신청', end: '2026-10-15', time_given: false },
+    { name: '출품', end: '2026-10-20 09:00', time_given: true },
+    { name: '예선', end: '2026-10-14', time_given: false },
+  ] } } };
+  assert.equal(nextContestSchedule(card, AT_SAMPLE).label, '작품 출품 마감');
+  assert.equal(nextContestSchedule(card, new Date('2026-10-20T09:01:00+09:00')).label, '본선');
+  assert.equal(nextContestSchedule(card, new Date('2026-10-21T00:00:00+09:00')), null);
+});
 
 // ---- 항목 표 ----
 

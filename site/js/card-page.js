@@ -7,7 +7,7 @@ import { judgeCard, KEY_FIELDS } from './rules.js';
 import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
 import { fieldRows, sourceLinks, spreadText, applicationAction, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
-import { calendarItems, calendarItemText, buildIcs, icsFileName } from './ics.js';
+import { calendarItems, calendarItemText, buildIcs, icsFileName, nextContestSchedule } from './ics.js';
 import { migrateSavedCardIds, readSavedCardIds, savedCardButton, watchSavedCards } from './saved-cards.js';
 
 const BADGE_CLASS = { human: 's-human', auto: 's-auto', before: 's-before', need: 's-need', missing: 's-missing' };
@@ -74,6 +74,7 @@ async function main() {
   watchPageTime(page, (now) => {
     const fresh = renderHeader(card, now, conditions);
     header.querySelector('.deadline-tile').replaceChildren(...fresh.querySelector('.deadline-tile').childNodes);
+    header.querySelector('.next-schedule').replaceWith(fresh.querySelector('.next-schedule'));
     const action = header.querySelector('.apply-action');
     const nextAction = fresh.querySelector('.apply-action');
     if (!action.isEqualNode(nextAction)) {
@@ -106,6 +107,7 @@ function renderHeader(card, now, conditions) {
   const deadline = deadlineOf(card, now);
   const deadlineText = formatDeadline(deadline);
   const byline = organizerLine(card);
+  const next = nextContestSchedule(card, now);
   const action = applicationAction(card, deadline, now);
   const actionLink = action ? externalLink(action.url, action.label) : null;
   actionLink?.classList.add('btn');
@@ -117,6 +119,11 @@ function renderHeader(card, now, conditions) {
       el('div', { class: 'row' },
         ...badgeElements(card),
         ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag))),
+      el('p', { class: 'small next-schedule', hidden: !next }, next ? [
+        el('strong', {}, `다음 일정 · ${next.label}`),
+        ` ${formatShortDate(next.date)}${next.time ? ` ${next.time}` : ' (시각 미기재)'}`,
+        next.isVerified ? null : el('span', { class: 'badge s-before' }, '원문 확인 필요'),
+      ] : null),
       el('div', { class: 'row apply-action', hidden: !action },
         actionLink, action?.host ? el('span', { class: 'small' }, action.host) : null,
         action?.badge ? el('span', { class: `badge ${BADGE_CLASS[action.badge.kind]}` }, action.badge.text) : null)),

@@ -237,6 +237,7 @@ a.item > .row:first-child { align-items: flex-start; flex-wrap: nowrap; }
 .detail-head { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px 24px; padding: 28px; }
 .detail-head > .head-main { display: grid; gap: 10px; }
 .apply-action[hidden] { display: none; }
+.next-schedule .badge { margin-inline-start: 8px; }
 .detail-head h1 { font-size: 32px; }
 .deadline-tile { display: grid; justify-items: center; align-content: center; gap: 6px; min-width: 168px; padding: 18px 20px; border-radius: 18px; background: var(--ev-bg); border: 1px solid var(--line); text-align: center; }
 .deadline-tile .dday { font-size: 30px; padding: 6px 16px; border-radius: 14px; }
