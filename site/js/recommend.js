@@ -179,17 +179,21 @@ function compareDeadline(a, b) {
  * @param {number} [limit]  보여 줄 사유 수
  */
 export function reasonSummary(judged, limit = 3) {
+  return reasonSummaryItems(judged, limit).map(({ text }) => text).join(' · ');
+}
+
+export function reasonSummaryItems(judged, limit = 3) {
   if (judged.result === 'eligible') {
     const ok = judged.reasons.filter((reason) => reason.outcome === 'ok').slice(0, limit);
-    return ok.length > 0 ? ok.map((reason) => `${reason.message} ✓`).join(' · ') : '조건이 모두 맞습니다';
+    return ok.length > 0 ? ok.map((reason) => ({ field: reason.field, text: `${reason.message} ✓` })) : [{ text: '조건이 모두 맞습니다' }];
   }
   const deciding = judged.reasons.filter((reason) => reason.outcome !== 'ok').slice(0, limit);
   return deciding.map((reason) => {
     // 근거 문장은 목록에서는 60자까지 (전체는 카드 상세에서)
     const shortQuote = typeof reason.quote === 'string' && [...reason.quote].length > 60 ? `${[...reason.quote].slice(0, 60).join('')}…` : reason.quote;
     const quote = reason.outcome === 'fail' && shortQuote ? ` · 근거: "${shortQuote}"` : '';
-    return `${reason.message}${quote}`;
-  }).join(' · ');
+    return { field: reason.field, text: `${reason.message}${quote}` };
+  });
 }
 
 /** 판정 사유 중 확인 전 근거로 "불가"가 나온 것이 있는지 ("확인 전 정보" 표시용, 계약 3절) */

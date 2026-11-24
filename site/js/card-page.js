@@ -69,6 +69,8 @@ async function main() {
         calendar.element,
         renderInquiry(card, conditions, data.boards))),
   );
+  showRequestedField();
+  window.addEventListener('hashchange', showRequestedField);
   watchPageTime(page, (now) => {
     const fresh = renderHeader(card, now, conditions);
     header.querySelector('.deadline-tile').replaceChildren(...fresh.querySelector('.deadline-tile').childNodes);
@@ -82,6 +84,16 @@ async function main() {
     if (hasJudgedConditions(conditions)) header.querySelector('.judgment').replaceWith(fresh.querySelector('.judgment'));
     calendar.refresh(now);
   });
+}
+
+function showRequestedField() {
+  const id = window.location.hash.slice(1);
+  if (!id.startsWith('field-')) return;
+  const row = document.getElementById(id);
+  if (!row || row.tagName !== 'TR') return;
+  row.querySelector('button[aria-expanded="false"]')?.click();
+  row.scrollIntoView({ block: 'nearest' });
+  row.focus({ preventScroll: true });
 }
 
 // 마감 타일에 날짜를 못 쓸 때: 공지에 없음과 형식을 못 읽음을 나눈다 (마감일이 있는 대회를 "없음"으로 안내하지 않게)
@@ -213,7 +225,7 @@ function renderFieldRow(row) {
     // 펼친 뒤 Tab·화면 읽기로 나아가면 근거와 "원문 보기"를 지나쳐 다음 행으로 간다 (#104)
     valueCell.append(el('div', {}, button), evidence);
   }
-  const tr = el('tr', { role: 'row' }, el('th', { scope: 'row', role: 'rowheader' }, row.label), valueCell, statusCell);
+  const tr = el('tr', { role: 'row', id: `field-${row.name}`, tabindex: '-1' }, el('th', { scope: 'row', role: 'rowheader' }, row.label), valueCell, statusCell);
   const trust = trustOf(row);
   if (trust) tr.dataset.trust = trust;
   return tr;

@@ -9,7 +9,8 @@ import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './p
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
 import { inquiryDraft } from './detail.js';
 import { migrateSavedCardIds, readSavedCardIds, savedCardButton, watchSavedCards } from './saved-cards.js';
-import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW, resultAnnouncement } from './recommend.js';
+import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW, resultAnnouncement, reasonSummaryItems } from './recommend.js';
+import { KEY_FIELDS } from './rules.js';
 
 // 칩 묶음: [조건 이름, 보이는 이름, [값, 칩 글자]]. 한 묶음에서 하나만 고르고, 다시 누르면 고르지 않은 상태(null)
 const CHIP_GROUPS = [
@@ -314,10 +315,12 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
   }));
 }
 
-function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) {
+function renderItem({ card, judged, deadline }, boards, now, savedIds) {
   const view = RESULT_VIEW[judged.result];
   const opening = upcomingApplication(card, deadline, now);
   const change = latestDeadlineChange(card);
+  const href = `card.html?id=${encodeURIComponent(card.id)}`;
+  const reasons = reasonSummaryItems(judged);
   const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions, boards) : null;
   // 복사 안내 영역은 복사 버튼이 있을 때만 (안내 영역이 카드마다 생기지 않게)
   const status = draft ? el('span', { class: 'small', role: 'status' }) : null;
@@ -337,7 +340,8 @@ function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) 
       el('span', { class: 'title' }, card.title),
       ddayElement(deadline, 'spacer')),
     opening ? el('span', { class: 'badge s-before' }, opening) : null,
-    summary ? el('span', { class: 'reason' }, summary) : null,
+    reasons.length > 0 ? el('div', { class: 'reason' }, ...reasons.map(({ field, text }, index) =>
+      el('span', {}, index > 0 ? ' · ' : null, KEY_FIELDS.includes(field) ? el('a', { href: `${href}#field-${field}` }, text) : text))) : null,
     change ? el('p', { class: 'notice' }, `⚠ 마감 변경: ${shortDate(change.old)} → ${shortDate(change.new)}`) : null,
     el('div', { class: 'row' },
       ...deliverableTags(card).map((tag) => el('span', { class: 'tag' }, tag)),
@@ -345,7 +349,7 @@ function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) 
       hasUnverifiedFail(judged) ? el('span', { class: 'small' }, '팀이 원문과 대조하기 전 정보입니다') : null,
       copyButton, status,
       savedIds ? savedCardButton(card, savedIds.has(card.id)) : null,
-      el('a', { class: copyButton ? 'btn' : 'btn spacer', href: `card.html?id=${encodeURIComponent(card.id)}` }, '카드 보기')));
+      el('a', { class: copyButton ? 'btn' : 'btn spacer', href }, '카드 보기')));
 }
 
 function shortDate(value) {
