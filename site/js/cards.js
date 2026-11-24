@@ -1,8 +1,9 @@
 // 카드 데이터 다루기 (화면 없이 계산만). 형식은 docs/api-contract.md 1절.
 // 홈(#21)·추천(#24)·상세(#25)가 같이 쓴다. DOM을 쓰지 않으므로 Node 테스트로 검사한다.
 
-import { KEY_FIELDS } from './rules.js';
+import { isBeforeApplyStart, KEY_FIELDS } from './rules.js';
 import { parseContractDate, toKstInstant, kstDateString, daysBetween, formatShortDate, formatKstDateTime } from './dates.js';
+import { safeUrl } from './html.js';
 
 export const DELIVERABLE_TAGS = ['기획서·제안서', '영상', '에세이·수기', '코드·개발', '발표', '디자인', '현장 참가', '기타'];
 const FIELD_STATUSES = new Set(['ai', 'auto_verified', 'needs_check', 'human_verified', 'missing']);
@@ -14,6 +15,27 @@ const HOUR_MS = 3600 * 1000;
 // 카드 id: 주소(card.html?id=)에 그대로 들어가므로 계약 1절의 형식만 받는다
 const CARD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const POSTED_AT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function sourceCardId(source) {
+  const url = safeUrl(source?.url);
+  if (!url || typeof source.board_id !== 'string') return null;
+  const { hostname, pathname } = new URL(url);
+  if (hostname !== 'mju.ac.kr' && !hostname.endsWith('.mju.ac.kr')) return null;
+  // K2Web 수집기의 external_id와 extractor.daily.card_id_of를 현재 카드에 남은 출처에서 복원한다.
+  const article = /\/bbs\/([^/]+)\/(\d+)\/(\d+)\/artclView\.do$/.exec(pathname);
+  if (!article) return null;
+  return [source.board_id, ...article.slice(1)].join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '').slice(0, 64).replace(/-+$/g, '');
+}
+
+/** 현재 ID를 우선한다. 옛 공지가 현재 공개 카드 한 장에만 있으면 그 카드로 연결한다. */
+export function resolveCard(cards, id) {
+  if (typeof id !== 'string' || !CARD_ID_PATTERN.test(id)) return null;
+  const direct = cards.find((card) => card.id === id);
+  if (direct) return direct;
+  const matches = cards.filter((card) => card.sources.some((source) => sourceCardId(source) === id));
+  return matches.length === 1 ? matches[0] : null;
+}
 
 /**
  * 읽어 온 JSON의 형식을 경계에서 한 번 검사한다. 카드·게시판 단위로 걸러, 일부가 틀려도 화면 전체가 멈추지 않게 한다.
@@ -160,6 +182,16 @@ export function formatDeadline(deadline) {
   return deadline.endTime ? `${date} ${deadline.endTime}` : `${date} (시각 미기재)`;
 }
 
+/** 접수 시작 전이면 한국 날짜·시각을 보여 준다. 마감이 지난 카드는 마감을 우선한다. */
+export function upcomingApplication(card, deadline, now) {
+  const apply = card.fields?.apply;
+  if (deadline.state === 'closed' || apply?.status === 'missing' || !isBeforeApplyStart(apply?.value, now)) return null;
+  const { date, time } = parseContractDate(apply.value.start);
+  if (deadline.endDate && (date > deadline.endDate || (date === deadline.endDate && time && deadline.endTime && time > deadline.endTime))) return null;
+  const trust = apply.status === 'human_verified' ? '' : ' (원문 확인 필요)';
+  return `접수 예정 · ${formatShortDate(date)}${time ? ` ${time}` : ''}부터${trust}`;
+}
+
 /**
  * 카드 단위 배지 (docs/ui/화면설계.md 4절 "카드 단위 배지").
  * - 핵심 항목이 모두 human_verified → "✓ 검수 완료" 하나
@@ -253,7 +285,7 @@ export function boardNames(card, boards) {
 /**
  * 홈 목록: 마감 지난 대회를 빼고, 필터·정렬을 적용한다.
  * @param {object[]} cards
- * @param {{sort?: 'deadline'|'newest', urgentOnly?: boolean, changedOnly?: boolean, tags?: string[], campus?: '인문'|'자연'|null}} filters
+ * @param {{sort?: 'deadline'|'newest', urgentOnly?: boolean, changedOnly?: boolean, tags?: string[], campus?: '인문'|'자연'|null, scope?: ''|'교내'|'외부'}} filters
  *   tags: 하나라도 맞으면 보여 줌. campus: 그 캠퍼스를 제외하는 대회만 숨김 (캠퍼스 조건이 없거나 애매하면 보여 줌)
  * @returns {{items: {card: object, deadline: object}[], closedCount: number}}
  */
@@ -262,7 +294,8 @@ export function listCards(cards, filters, now) {
   const notClosed = withDeadline.filter((item) => item.deadline.state !== 'closed');
   const tags = filters.tags ?? [];
   const items = notClosed.filter(({ card, deadline }) => {
-    if (filters.urgentOnly && !(deadline.state === 'open' && deadline.daysLeft <= URGENT_DAYS)) return false;
+    if (filters.scope && card.scope !== filters.scope) return false;
+    if (filters.urgentOnly && !(deadline.state === 'open' && deadline.daysLeft <= URGENT_DAYS && !upcomingApplication(card, deadline, now))) return false;
     if (filters.changedOnly && !latestDeadlineChange(card)) return false;
     if (tags.length > 0 && !deliverableTags(card).some((tag) => tags.includes(tag))) return false;
     if (filters.campus && excludesCampus(card, filters.campus)) return false;

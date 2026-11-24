@@ -19,7 +19,6 @@
       <a href="index.html">홈</a>
       <a href="recommend.html" aria-current="page">맞춤 추천</a>
       <a href="calendar.html">달력</a>
-      <a href="index.html#saved-contests">관심 대회</a>
       <a href="log.html">제작 기록</a>
     </nav>
     <span class="cond" id="cond-summary">내 조건: 아직 고르지 않음</span>
@@ -46,6 +45,14 @@
       <button type="button" class="btn" id="title-clear" aria-label="제목 검색 지우기">지우기</button>
     </div>
     <div class="row">
+      <span class="small filter-label" id="f-scope">대회 구분</span>
+      <div class="chips" role="group" aria-labelledby="f-scope">
+        <button type="button" class="chip" data-contest-scope="" aria-pressed="true">전체</button>
+        <button type="button" class="chip" data-contest-scope="교내" aria-pressed="false">교내</button>
+        <button type="button" class="chip" data-contest-scope="외부" aria-pressed="false">외부</button>
+      </div>
+    </div>
+    <div class="row">
       <span class="small">고른 조건은 이 기기의 브라우저에만 저장되고 서버로 보내지 않습니다.</span>
       <button type="button" class="btn" id="clear-saved">저장된 조건 지우기</button>
       <span class="small" id="save-status" role="status"></span>
@@ -53,6 +60,7 @@
   </section>
 
   <section class="panel" aria-labelledby="result-heading">
+    <a href="index.html#saved-contests">관심 대회 보기</a>
     <div class="row"><h2 id="result-heading">불러오는 중…</h2><span class="small spacer" id="result-meta"></span></div>
     <p class="sr-only" id="result-status" role="status"></p>
     <div class="result-list" id="result-list"></div>

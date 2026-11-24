@@ -1,4 +1,4 @@
-import { deadlineOf } from './cards.js';
+import { deadlineOf, resolveCard } from './cards.js';
 import { el } from './html.js';
 
 export const SAVED_CARDS_KEY = 'myongji-radar.saved-cards.v1';
@@ -27,15 +27,41 @@ export function readSavedCardIds(storage) {
 
 export function toggleSavedCard(id, storage) {
   if (!validId(id)) return false;
+  return updateSavedIds((ids) => {
+    if (!ids.delete(id)) ids.add(id);
+  }, storage);
+}
+
+function updateSavedIds(update, storage) {
   try {
     storage ??= globalThis.localStorage;
     const ids = readIds(storage);
-    if (!ids.delete(id)) ids.add(id);
-    storage.setItem(SAVED_CARDS_KEY, JSON.stringify([...ids]));
+    const original = JSON.stringify([...ids]);
+    update(ids);
+    const next = JSON.stringify([...ids]);
+    if (next !== original) storage.setItem(SAVED_CARDS_KEY, next);
     return true;
   } catch {
     return false;
   }
+}
+
+export function migrateSavedCardIds(cards, storage) {
+  return updateSavedIds((ids) => {
+    for (const id of [...ids]) {
+      const current = resolveCard(cards, id);
+      if (current && current.id !== id) {
+        ids.delete(id);
+        ids.add(current.id);
+      }
+    }
+  }, storage);
+}
+
+export function removeUnavailableSavedCards(cards, storage) {
+  return updateSavedIds((ids) => {
+    for (const id of ids) if (!resolveCard(cards, id)) ids.delete(id);
+  }, storage);
 }
 
 export function listSavedCards(cards, ids, now) {
@@ -45,11 +71,11 @@ export function listSavedCards(cards, ids, now) {
   return items.sort((a, b) => sortKey(a.deadline).localeCompare(sortKey(b.deadline)) || a.card.title.localeCompare(b.card.title, 'ko'));
 }
 
-export function savedCardButton(card) {
+export function savedCardButton(card, isSaved) {
   const status = el('span', { class: 'small', role: 'status', hidden: true });
   const button = el('button', {
     type: 'button', class: 'btn saved-card-toggle', 'data-saved-card': card.id,
-    'aria-pressed': String(readSavedCardIds().has(card.id)), 'aria-label': `관심 대회 · ${card.title}`,
+    'aria-pressed': String(isSaved), 'aria-label': `관심 대회 · ${card.title}`,
   }, '관심 대회');
   button.addEventListener('click', () => {
     if (!toggleSavedCard(card.id)) {
@@ -59,9 +85,13 @@ export function savedCardButton(card) {
     }
     status.hidden = true;
     status.textContent = '';
-    window.dispatchEvent(new Event(CHANGE_EVENT));
+    notifySavedCards();
   });
   return el('div', { class: 'row' }, button, status);
+}
+
+export function notifySavedCards() {
+  window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
 export function watchSavedCards(onChange = () => {}) {

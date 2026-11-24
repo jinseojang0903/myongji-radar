@@ -44,7 +44,7 @@ header { background: var(--navy); color: var(--on-dark); position: sticky; top: 
 .bar { max-width: 1180px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
 .logo { display: inline-flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: var(--on-dark); text-decoration: none; }
 .logo img { display: block; width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
-nav { display: flex; flex-wrap: wrap; gap: 4px; }
+nav { display: flex; gap: 4px; }
 nav a { color: var(--on-dark); text-decoration: none; padding: 7px 14px; border-radius: 999px; opacity: .8; font-size: 15px; font-weight: 600; transition: background .15s, opacity .15s; }
 nav a:hover { opacity: 1; background: rgba(255, 255, 255, .08); }
 nav a[aria-current="page"] { opacity: 1; font-weight: 800; background: rgba(255, 255, 255, .16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
@@ -87,7 +87,7 @@ h3 { letter-spacing: -0.02em; }
 .hero .btn.ghost { background: rgba(255, 255, 255, .06); color: var(--on-dark); border-color: rgba(255, 255, 255, .45); }
 .hero .btn.ghost:hover { background: rgba(255, 255, 255, .14); }
 /* 숫자 칸: 한 덩어리 계기판처럼 붙여 둔다 */
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 4px 0 0; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .14); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 4px 0 0; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .14); }
 .stat { background: rgba(5, 13, 34, .62); padding: 14px 16px 12px; }
 .stat dt { font-size: 13px; color: var(--scope-sub); font-weight: 600; }
 .stat dd { margin: 4px 0 0; font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--signal); }
@@ -193,7 +193,9 @@ h3 { letter-spacing: -0.02em; }
 .item-wrap :focus-visible { outline-offset: -3px; }
 .item-source { display: flex; align-items: center; min-height: 44px; padding: 0 20px 0 26px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; text-decoration: none; }
 .item-source:hover { text-decoration: underline; background: var(--blue-soft); }
-.item-save { padding: 8px 20px 10px 26px; border-top: 1px solid var(--line); }
+.item-actions { border-top: 1px solid var(--line); padding-right: 12px; }
+.item-actions .item-source { flex: 1 1 auto; border-top: 0; padding-right: 8px; }
+.item-actions .saved-card-toggle { margin-left: 12px; }
 .saved-card-toggle[aria-pressed="true"]::before { content: "✓ " / ""; }
 .saved-card-toggle[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
 .saved-contest-list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
@@ -234,6 +236,7 @@ a.item > .row:first-child { align-items: flex-start; flex-wrap: nowrap; }
 /* ── 카드 상세 ─────────────────────────────────────────── */
 .detail-head { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px 24px; padding: 28px; }
 .detail-head > .head-main { display: grid; gap: 10px; }
+.apply-action[hidden] { display: none; }
 .detail-head h1 { font-size: 32px; }
 .deadline-tile { display: grid; justify-items: center; align-content: center; gap: 6px; min-width: 168px; padding: 18px 20px; border-radius: 18px; background: var(--ev-bg); border: 1px solid var(--line); text-align: center; }
 .deadline-tile .dday { font-size: 30px; padding: 6px 16px; border-radius: 14px; }
@@ -408,6 +411,7 @@ a.cal-event:hover { text-decoration: underline; }
   .hero { padding: 28px 20px 24px; border-radius: 22px; }
   .hero h1 { font-size: 30px; }
   .scope-figure { max-width: 340px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat { padding: 10px 10px; }
   .lane-unknown { padding: 12px; }
   .stat dd { font-size: 24px; }

@@ -81,7 +81,7 @@ test('다섯 화면 모두 언어·제목·확대 허용·랜드마크·이름 �
     assert.match(html, /<nav aria-label="[^"]+">/, page);
     assert.equal((html.match(/aria-current="page"/g) || []).length, page === 'card.html' ? 0 : 1, `${page}: 지금 화면 표시`);
     assert.deepEqual([...html.match(/<nav[\s\S]*?<\/nav>/)[0].matchAll(/href="([^"]+)"/g)].map(([, href]) => href),
-      ['index.html', 'recommend.html', 'calendar.html', 'index.html#saved-contests', 'log.html'], `${page}: 메뉴 순서가 화면마다 같다`);
+      ['index.html', 'recommend.html', 'calendar.html', 'log.html'], `${page}: 메뉴 순서가 화면마다 같다`);
     // HTML에 직접 쓴 입력만 본다 (JS가 만드는 체크박스는 label 안에 있다)
     for (const [, id] of html.matchAll(/<input[^>]*\sid="([^"]+)"/g)) {
       assert.match(html, new RegExp(`<label[^>]*for="${id}"`), `${page}: 입력 ${id}의 라벨`);
@@ -132,7 +132,7 @@ test('오류 화면에도 제목이 있고, 마감 변경의 옛·새 날짜를 
   assert.match(LOG_PAGE, /replaceChildren\(el\('h1', \{ class: 'sr-only' \}, '제작 기록'\), el\('p', \{ class: 'error' \}/);
   assert.match(CARD_PAGE, /'이전 마감: '\), el\('span', \{ class: 'old' \}/);
   assert.match(CARD_PAGE, /'바뀐 마감: '\), el\('b'/);
-  assert.match(HOME, /el\('a', \{ class: 'item', href: [^\n]*'aria-labelledby': `\$\{titleId\} \$\{ddayId\}` \}/);
+  assert.match(HOME, /el\('a', \{ class: 'item', href: [^\n]*'aria-labelledby': \[titleId, openingId, ddayId\]\.filter\(Boolean\)\.join\(' '\) \}/);
   assert.match(HOME, /const titleId = `card-title-\$\{index\}`/, '카드 id가 겹쳐도 제목 id는 겹치지 않게 순번으로');
   assert.match(HOME, /dday\.id = ddayId/);
   assert.match(HOME, /el\('h3', \{ class: 'title', id: titleId \}, card\.title\)/);
