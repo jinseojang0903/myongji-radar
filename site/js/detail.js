@@ -180,13 +180,13 @@ export function applyLink(card) {
 }
 
 export function applicationAction(card, deadline, now) {
-  if (deadline.state === 'open' && !isBeforeApplyStart(card.fields?.apply?.value, now)) {
+  if (deadline.state !== 'closed' && !isBeforeApplyStart(card.fields?.apply?.value, now)) {
     const link = applyLink(card);
-    if (link) return { ...link, label: '신청 페이지 열기' };
+    if (link) return { ...link, label: '신청 페이지 열기', badge: fieldStatusBadge('how_to_apply', card.fields.how_to_apply.status) };
   }
   for (const source of card.sources) {
     const url = safeUrl(source.url);
-    if (url) return { url, label: deadline.state === 'closed' ? '원문 공지 보기' : '원문에서 신청 방법 확인' };
+    if (url) return { url, host: new URL(url).hostname, label: deadline.state === 'closed' ? '원문 공지 보기' : '원문에서 신청 방법 확인' };
   }
   return null;
 }

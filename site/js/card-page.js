@@ -84,7 +84,8 @@ function renderHeader(card, now, conditions) {
   const byline = organizerLine(card);
   const action = applicationAction(card, deadline, now);
   const actionLink = action ? externalLink(action.url, action.label) : null;
-  actionLink?.classList.add('btn', 'primary');
+  actionLink?.classList.add('btn');
+  if (actionLink && (!action.badge || action.badge.kind === 'human')) actionLink.classList.add('primary');
   const section = el('section', { class: 'panel detail-head', 'aria-labelledby': 'h-card' },
     el('div', { class: 'head-main' },
       el('h1', { id: 'h-card' }, card.title),
@@ -93,7 +94,8 @@ function renderHeader(card, now, conditions) {
         ...badgeElements(card),
         ...deliverableBadges(card).map((tag) => el('span', { class: 'tag' }, tag))),
       el('div', { class: 'row apply-action', hidden: !action },
-        actionLink, action?.host ? el('span', { class: 'small' }, action.host) : null)),
+        actionLink, action?.host ? el('span', { class: 'small' }, action.host) : null,
+        action?.badge ? el('span', { class: `badge ${BADGE_CLASS[action.badge.kind]}` }, action.badge.text) : null)),
     // 마감은 이 화면에서 가장 먼저 보여야 하는 정보라 따로 크게 둔다
     el('div', { class: 'deadline-tile' },
       ddayElement(deadline),

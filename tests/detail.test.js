@@ -112,10 +112,15 @@ test('상세 상단에서 접수 중이면 신청 링크를, 접수 전·후나 
   const card = cardById('evc-13-nature');
   card.fields.apply = { status: 'ai', value: { start: '2026-10-10', end: '2026-10-20' } };
   const actionAt = (now) => applicationAction(card, deadlineOf(card, now), now);
-  const source = { url: card.sources[0].url, label: '원문에서 신청 방법 확인' };
-  assert.deepEqual(actionAt(AT_SAMPLE), { ...applyLink(card), label: '신청 페이지 열기' });
+  const source = { url: card.sources[0].url, host: new URL(card.sources[0].url).hostname, label: '원문에서 신청 방법 확인' };
+  const direct = { ...applyLink(card), label: '신청 페이지 열기', badge: fieldStatusBadge('how_to_apply', card.fields.how_to_apply.status) };
+  assert.deepEqual(actionAt(AT_SAMPLE), direct);
   assert.deepEqual(actionAt(new Date('2026-10-09T12:00:00+09:00')), source);
   assert.deepEqual(actionAt(new Date('2026-10-21T12:00:00+09:00')), { ...source, label: '원문 공지 보기' });
+  card.fields.apply.value.end = null;
+  assert.deepEqual(actionAt(AT_SAMPLE), direct);
+  card.fields.apply.value.end = '읽을 수 없는 날짜';
+  assert.deepEqual(actionAt(AT_SAMPLE), direct);
   card.fields.how_to_apply.value.url = null;
   assert.deepEqual(actionAt(AT_SAMPLE), source);
   card.sources[0].url = 'https://example.com/';
