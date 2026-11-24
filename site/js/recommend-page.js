@@ -23,7 +23,7 @@ const CHIP_GROUPS = [
 const FIELD_NAMES = { campus: '캠퍼스', grade: '학년', is_transfer: '편입', enrollment: '학적', participation: '참가', period: '마감', deliverables: '제출물' };
 
 // titleQuery: 제목 검색칸의 말. 조건이 아니라 목록 필터이고, 문장처럼 저장하지 않는다 (계약 5절 "제목 검색")
-const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '', scope: '' };
+const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '', scope: '', result: '' };
 // "이해하지 못한 표현"의 "제목에서 찾기"가 부른다. 데이터를 받은 뒤 main()이 채운다
 let searchTitle = () => {};
 
@@ -92,7 +92,11 @@ async function main() {
   titleInput.addEventListener('input', readTitleQuery);
   bindScopeFilter((scope) => {
     state.scope = scope;
-    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
+    drawResults();
+  });
+  document.getElementById('result-filter').addEventListener('change', (event) => {
+    state.result = event.target.value;
+    drawResults();
   });
   // 데이터를 받기 전에 친 검색어도 첫 그리기에 쓴다
   state.titleQuery = clipTitleQuery(titleInput.value);
@@ -266,6 +270,11 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
   const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, scopeFilteredCount, skippedCount, total } = recommended;
   const periodEnd = periodEndDate(state.conditions.period, now);
   const isSearching = state.titleQuery.trim() !== '';
+  const labelOf = (result) => RESULT_VIEW[result].text.replace(/^\P{L}+/u, '');
+  const resultFilter = document.getElementById('result-filter');
+  resultFilter.replaceChildren(el('option', { value: '' }, `전체 ${total}건`),
+    ...RESULT_ORDER.map((result) => el('option', { value: result }, `${labelOf(result)} ${groups[result].length}건`)));
+  resultFilter.value = state.result;
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
   document.getElementById('result-meta').textContent = [
     isSearching ? `제목에 "${state.titleQuery.trim()}"이(가) 없는 ${titleFilteredCount}건 숨김` : null,
@@ -286,9 +295,15 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
     announceResults(resultAnnouncement(recommended, message));
     return;
   }
-  announceResults(resultAnnouncement(recommended, ''));
+  const visibleResults = state.result ? [state.result] : RESULT_ORDER;
+  const visibleCount = state.result ? groups[state.result].length : total;
+  announceResults(state.result ? `${labelOf(state.result)} ${visibleCount}건` : resultAnnouncement(recommended, ''));
+  if (visibleCount === 0) {
+    list.replaceChildren(el('p', { class: 'empty' }, '선택한 판정에 해당하는 대회가 없습니다.'));
+    return;
+  }
   const savedIds = canSave ? readSavedCardIds() : null;
-  list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {
+  list.replaceChildren(...visibleResults.filter((result) => groups[result].length > 0).map((result) => {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
       el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
