@@ -2,7 +2,7 @@
 // 계산은 recommend.js·parser.js·rules.js(Node 테스트), 여기서는 그리기와 버튼만. 글자는 모두 el()/textContent로 넣는다.
 // 입력 문장과 "이해하지 못한 표현"은 저장하지도 보내지도 않는다 (이름·학번이 들어 있을 수 있음, 계약 5절).
 import { el } from './html.js';
-import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary, bindScopeFilter } from './page.js';
 import { latestDeadlineChange, deliverableTags, emptyListMessage, upcomingApplication } from './cards.js';
 import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
@@ -22,7 +22,7 @@ const CHIP_GROUPS = [
 const FIELD_NAMES = { campus: '캠퍼스', grade: '학년', is_transfer: '편입', enrollment: '학적', participation: '참가', period: '마감', deliverables: '제출물' };
 
 // titleQuery: 제목 검색칸의 말. 조건이 아니라 목록 필터이고, 문장처럼 저장하지 않는다 (계약 5절 "제목 검색")
-const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '' };
+const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '', scope: '' };
 // "이해하지 못한 표현"의 "제목에서 찾기"가 부른다. 데이터를 받은 뒤 main()이 채운다
 let searchTitle = () => {};
 
@@ -84,6 +84,10 @@ async function main() {
     readTitleQuery();
   };
   titleInput.addEventListener('input', readTitleQuery);
+  bindScopeFilter((scope) => {
+    state.scope = scope;
+    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
+  });
   // 데이터를 받기 전에 친 검색어도 첫 그리기에 쓴다
   state.titleQuery = clipTitleQuery(titleInput.value);
   document.getElementById('title-clear').addEventListener('click', () => {
@@ -252,13 +256,14 @@ function announceResults(message) {
 
 function renderResults(cards, now, rejectedCount, boards) {
   hasRenderedResults = true;
-  const recommended = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery });
-  const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, skippedCount, total } = recommended;
+  const recommended = recommendCards(cards, state.conditions, now, { titleQuery: state.titleQuery, scope: state.scope });
+  const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, scopeFilteredCount, skippedCount, total } = recommended;
   const periodEnd = periodEndDate(state.conditions.period, now);
   const isSearching = state.titleQuery.trim() !== '';
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
   document.getElementById('result-meta').textContent = [
     isSearching ? `제목에 "${state.titleQuery.trim()}"이(가) 없는 ${titleFilteredCount}건 숨김` : null,
+    scopeFilteredCount > 0 ? `${state.scope} 구분에 맞지 않는 ${scopeFilteredCount}건 숨김` : null,
     periodEnd ? `마감 ${formatShortDate(periodEnd)}까지` : null,
     filteredCount > 0 ? `제출물·마감 조건으로 ${filteredCount}건 숨김${undatedCount > 0 ? ` (그중 마감일이 없거나 읽을 수 없는 ${undatedCount}건)` : ''}` : null,
     closedCount > 0 ? `마감 지난 대회 ${closedCount}건 제외` : null,
@@ -267,7 +272,8 @@ function renderResults(cards, now, rejectedCount, boards) {
 
   const list = document.getElementById('result-list');
   if (total === 0) {
-    const message = emptyListMessage({ cardCount: cards.length, closedCount, skippedCount, rejectedCount }, isSearching
+    const message = emptyListMessage({ cardCount: cards.length, closedCount, skippedCount, rejectedCount }, state.scope
+      ? '조건에 맞는 대회가 없습니다. 대회 구분을 전체로 바꾸거나 다른 필터를 풀어 보세요.' : isSearching
       ? '제목 검색과 조건에 맞는 마감 전 대회가 없습니다. 검색어를 바꾸거나 제출물·마감 조건을 풀어 보세요.'
       : '조건에 맞는 마감 전 대회가 없습니다. 제출물·마감 조건을 풀어 보세요.');
     list.replaceChildren(el('p', { class: 'empty' }, message));

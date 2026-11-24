@@ -2,27 +2,29 @@
 // 마감 계산·필터·정렬은 cards.js(listCards)를 그대로 쓰고, 이 파일은 묶어서 그리기만 한다.
 import { el, externalLink } from './html.js';
 import { DELIVERABLE_TAGS, listCards, latestDeadlineChange, summaryLine, deliverableTags, boardNames, emptyListMessage, ddayLabel, upcomingApplication } from './cards.js';
-import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary } from './page.js';
+import { loadPage, watchPageTime, badgeElements, ddayElement, deadlineTone, showConditionSummary, bindScopeFilter } from './page.js';
 import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
 import { createRadarPopover, popoverContent } from './radar-popover.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
-const filters = { ...BASE_FILTERS, query: '' };
+const filters = { ...BASE_FILTERS, query: '', scope: '' };
 // 레이더 점 안내 상자 (화면당 하나). 게시판 이름은 데이터를 읽은 뒤 채운다
 let boardList = [];
 const radarPopover = createRadarPopover((item) => popoverContent(item, boardList));
 
 // 마감 구간. 마감일을 모르는 대회는 마지막 구간으로 따로 빼서 마감이 확실한 대회와 섞이지 않게 한다
 const LANES = [
-  { id: 'week', title: '이번 주 마감', hint: '7일 이내' },
-  { id: 'month', title: '이번 달 마감', hint: '30일 이내' },
-  { id: 'later', title: '여유 있음', hint: '30일 뒤' },
+  { id: 'week', title: `${WEEK_DAYS}일 이내 마감` },
+  { id: 'month', title: `${WEEK_DAYS + 1}~${MONTH_DAYS}일 남은 마감` },
+  { id: 'later', title: `${MONTH_DAYS + 1}일 이상 남은 마감` },
+  { id: 'upcoming', title: '접수 예정' },
   { id: 'unknown', title: '마감일 확인 필요', hint: '공지에서 마감일을 찾지 못했거나 읽지 못했습니다. 신청할 수 있는지 원문에서 먼저 확인하세요.' },
 ];
 
-function laneOf(deadline) {
+function laneOf(deadline, opening) {
+  if (opening) return 'upcoming';
   if (deadline.state !== 'open') return 'unknown';
   if (deadline.daysLeft <= WEEK_DAYS) return 'week';
   return deadline.daysLeft <= MONTH_DAYS ? 'month' : 'later';
@@ -58,17 +60,19 @@ function renderStats(data, now) {
   const { items } = listCards(data.cards, BASE_FILTERS, now);
   let upcomingCount = 0;
   let openCount = 0;
+  let urgentCount = 0;
   for (const { card, deadline } of items) {
-    if (upcomingApplication(card, deadline, now)) upcomingCount += 1;
+    const lane = laneOf(deadline, upcomingApplication(card, deadline, now));
+    if (lane === 'upcoming') upcomingCount += 1;
     else if (deadline.state === 'open') openCount += 1;
+    if (lane === 'week') urgentCount += 1;
   }
-  const urgentCount = items.filter(({ deadline }) => laneOf(deadline) === 'week').length;
   const stat = (label, value, unit, extraClass = '') => el('div', { class: ['stat', extraClass].filter(Boolean).join(' ') },
     el('dt', {}, label), el('dd', {}, String(value), el('small', {}, unit)));
   document.getElementById('hero-stats').replaceChildren(
     stat('접수 중', openCount, '건'),
     stat('접수 예정', upcomingCount, '건'),
-    stat('7일 안에 마감', urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
+    stat(`${WEEK_DAYS}일 이내 마감`, urgentCount, '건', urgentCount > 0 ? 'hot' : ''),
     stat('마감일 확인 필요', items.length - openCount - upcomingCount, '건', 'unknown'));
 }
 
@@ -80,6 +84,10 @@ function renderTagChips() {
 }
 
 function bindFilters(onChange) {
+  bindScopeFilter((scope) => {
+    filters.scope = scope;
+    onChange();
+  });
   document.getElementById('home-search').addEventListener('input', (event) => {
     filters.query = event.target.value;
     onChange();
@@ -138,7 +146,8 @@ function renderList(data, now, rejectedCount, isSample) {
   const list = document.getElementById('card-list');
   const radarItems = items.map(({ card, deadline }) => {
     const opening = upcomingApplication(card, deadline, now);
-    return { card, deadline, opening, isUrgent: laneOf(deadline) === 'week',
+    const lane = laneOf(deadline, opening);
+    return { card, deadline, opening, lane, isUrgent: lane === 'week',
       label: opening ?? (deadline.state === 'open' ? ddayLabel(deadline).text : '마감일 확인 필요') };
   });
   // 다시 그리면 점이 새로 만들어지므로 떠 있던 안내 상자는 닫는다
@@ -160,11 +169,11 @@ function renderList(data, now, rejectedCount, isSample) {
   let failedCount = 0;
   let index = 0;
   const lanes = LANES.map((lane) => {
-    const laneItems = items.filter(({ deadline }) => laneOf(deadline) === lane.id);
+    const laneItems = radarItems.filter((item) => item.lane === lane.id);
     if (laneItems.length === 0) return null;
-    const cards = laneItems.flatMap(({ card, deadline }) => {
+    const cards = laneItems.flatMap(({ card, deadline, opening }) => {
       try {
-        const element = renderItem(card, deadline, data.boards, index, upcomingApplication(card, deadline, now));
+        const element = renderItem(card, deadline, data.boards, index, opening);
         index += 1;
         return [element];
       } catch (error) {
@@ -177,7 +186,7 @@ function renderList(data, now, rejectedCount, isSample) {
     return el('section', { class: `lane lane-${lane.id}`, 'aria-labelledby': `lane-${lane.id}` },
       el('div', { class: 'lane-head' },
         el('h2', { id: `lane-${lane.id}` }, lane.title, el('span', { class: 'lane-count' }, `${laneItems.length}건`)),
-        el('p', { class: 'small' }, lane.hint)),
+        lane.hint ? el('p', { class: 'small' }, lane.hint) : null),
       el('div', { class: 'list' }, ...cards));
   }).filter(Boolean);
   if (failedCount > 0) {

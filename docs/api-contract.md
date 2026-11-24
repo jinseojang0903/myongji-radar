@@ -74,6 +74,8 @@ AI 추출 캐시와 모델 실패 기록은 `input_hash`(기존 원문 해시)�
 **Change:** `{ "field": "apply_end", "old": "2026-09-30", "new": "2026-10-23", "old_source": url, "new_source": url, "checked_at": "YYYY-MM-DD" }`
 
 **같은 대회 묶음 (#16):** 사람이 같은 회차라고 확인한 공지 묶음(`pipeline/config/contest_groups.toml`)만 카드 한 장으로 합친다. 제목이 비슷하다고 묶지 않는다. 공지마다 검증기·내보내기를 거친 카드를 만든 뒤 합친다(`pipeline/exporter/contest_groups.py`).
+
+- 옛 카드 주소는 현재 ID를 먼저 찾고, 없으면 각 카드의 명지대 K2Web 출처로 원래 ID(`게시판 ID + 글 URL의 게시판명/게시판 번호/글 번호`, `extractor.daily.card_id_of`와 같은 정규화)를 복원한다. 공개 카드 한 장에만 일치할 때 주소를 현재 ID로 갱신한다.
 - `id`는 묶음 id(예: `history-video-5`), `sources`는 구성 카드의 출처 전부(첫 번째가 최신).
 - "가장 최근 공지"는 게시일, 같은 날이면 게시판 글 번호(`.../<번호>/artclView.do`, 학교 게시판이 올린 순서로 매김)가 큰 쪽이다.
 - 값·근거·`meta`는 가장 최근 공지 카드의 것을 쓴다. 그 카드에서 `missing`인 항목만 앞 공지 카드의 항목을 통째로 쓴다(근거의 `source`도 그 공지). 단 신청 마감이 공지마다 다르면 `stages`는 채우지 않는다(옛 신청 마감이 캘린더에 들어가지 않게). 채운 뒤 카드당 근거·note 합계 상한을 넘으면 채운 항목을 되돌린다. `organizer`·`scope`가 `null`이면 앞 공지에서 확인한 값을 쓴다.

@@ -22,7 +22,7 @@ test('옛 공지 ID는 해당 출처를 가진 공개 카드 한 장에만 연�
 });
 
 test('접수 예정은 한국 시간 시작 직전까지만 표시하고 마감된 대회에는 붙이지 않는다', () => {
-  const card = { fields: { apply: { status: 'ai', value: { start: '2026-11-25 09:30', end: '2026-12-01' } } } };
+  const card = { fields: { apply: { status: 'human_verified', value: { start: '2026-11-25 09:30', end: '2026-12-01' } } } };
   const labelAt = (iso) => {
     const now = new Date(iso);
     return upcomingApplication(card, deadlineOf(card, now), now);
@@ -32,6 +32,11 @@ test('접수 예정은 한국 시간 시작 직전까지만 표시하고 마감�
   card.fields.apply.value.start = '2026-11-25';
   assert.equal(labelAt('2026-11-24T14:59:59Z'), '접수 예정 · 11/25(수)부터');
   assert.equal(labelAt('2026-11-24T15:00:00Z'), null);
+  card.fields.apply.status = 'ai';
+  assert.match(labelAt('2026-11-24T14:59:59Z'), /원문 확인 필요/);
+  assert.equal(listCards([card], { urgentOnly: true }, new Date('2026-11-24T14:59:59Z')).items.length, 0);
+  card.fields.apply.value.end = '2026-11-24';
+  assert.equal(labelAt('2026-11-24T14:59:59Z'), null, '시작이 마감보다 늦으면 접수 예정으로 표시하지 않음');
   card.fields.apply.value.end = '2026-11-22';
   assert.equal(labelAt('2026-11-24T14:59:59Z'), null);
 });
@@ -271,6 +276,15 @@ test.describe('목록 필터와 정렬', () => {
     assert.deepEqual(list({ campus: '인문' }), ['ai-literacy-2026', 'history-video-5', 'abix-hackathon-2026']);
     const unclear = makeCard({ campus: field(['인문'], 'needs_check') });
     assert.equal(listCards([unclear], { campus: '자연' }, AT_SAMPLE).items.length, 1);
+  });
+
+  test('교내·외부는 기존 캠퍼스 및 제출물 필터와 함께 적용하고 구분 없는 대회는 전체에서만 보인다', () => {
+    const scopes = { 'evc-13-nature': '교내', 'history-video-5': '외부', 'abix-hackathon-2026': '교내' };
+    const cards = SAMPLE.cards.map((card) => ({ ...card, scope: scopes[card.id] ?? null }));
+    const filtered = (filters) => listCards(cards, filters, AT_SAMPLE).items.map(({ card }) => card.id);
+    assert.equal(filtered({ scope: '' }).length, 4);
+    assert.deepEqual(filtered({ scope: '교내', tags: ['영상'] }), ['evc-13-nature']);
+    assert.deepEqual(filtered({ scope: '외부', tags: ['영상'], campus: '자연' }), ['history-video-5']);
   });
 
   test('마감 지난 대회는 빼고 건수를 센다', () => {

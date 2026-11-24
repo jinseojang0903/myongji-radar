@@ -275,7 +275,7 @@ export async function main(argv, { now = new Date(), fetchImpl = fetch, loadImpl
       log(`마감: 접수 중 ${summary.deadlines.open} · 접수 예정 ${summary.deadlines.upcoming} · 마감 ${summary.deadlines.closed} · 마감일 없음 ${summary.deadlines.none} · 읽을 수 없음 ${summary.deadlines.unreadable}`);
       log(`항목 상태: ${JSON.stringify(summary.statuses)}`);
       log(`추출 모델: ${JSON.stringify(summary.models)}`);
-      if (summary.deadlines.open === 0) warnings.push('접수 중인 카드가 0장');
+      if (summary.deadlines.open === 0) warnings.push(summary.deadlines.upcoming > 0 ? '접수 중인 카드가 0장' : '접수 중인 카드가 0장 (홈 목록이 비어 보임)');
     }
     for (const text of warnings) log(`경고: ${text}`);
     for (const text of failures) log(`실패: ${text}`);

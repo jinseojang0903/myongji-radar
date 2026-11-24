@@ -187,7 +187,9 @@ export function upcomingApplication(card, deadline, now) {
   const apply = card.fields?.apply;
   if (deadline.state === 'closed' || apply?.status === 'missing' || !isBeforeApplyStart(apply?.value, now)) return null;
   const { date, time } = parseContractDate(apply.value.start);
-  return `접수 예정 · ${formatShortDate(date)}${time ? ` ${time}` : ''}부터`;
+  if (deadline.endDate && (date > deadline.endDate || (date === deadline.endDate && time && deadline.endTime && time > deadline.endTime))) return null;
+  const trust = apply.status === 'human_verified' ? '' : ' (원문 확인 필요)';
+  return `접수 예정 · ${formatShortDate(date)}${time ? ` ${time}` : ''}부터${trust}`;
 }
 
 /**
@@ -283,7 +285,7 @@ export function boardNames(card, boards) {
 /**
  * 홈 목록: 마감 지난 대회를 빼고, 필터·정렬을 적용한다.
  * @param {object[]} cards
- * @param {{sort?: 'deadline'|'newest', urgentOnly?: boolean, changedOnly?: boolean, tags?: string[], campus?: '인문'|'자연'|null}} filters
+ * @param {{sort?: 'deadline'|'newest', urgentOnly?: boolean, changedOnly?: boolean, tags?: string[], campus?: '인문'|'자연'|null, scope?: ''|'교내'|'외부'}} filters
  *   tags: 하나라도 맞으면 보여 줌. campus: 그 캠퍼스를 제외하는 대회만 숨김 (캠퍼스 조건이 없거나 애매하면 보여 줌)
  * @returns {{items: {card: object, deadline: object}[], closedCount: number}}
  */
@@ -292,7 +294,8 @@ export function listCards(cards, filters, now) {
   const notClosed = withDeadline.filter((item) => item.deadline.state !== 'closed');
   const tags = filters.tags ?? [];
   const items = notClosed.filter(({ card, deadline }) => {
-    if (filters.urgentOnly && !(deadline.state === 'open' && deadline.daysLeft <= URGENT_DAYS)) return false;
+    if (filters.scope && card.scope !== filters.scope) return false;
+    if (filters.urgentOnly && !(deadline.state === 'open' && deadline.daysLeft <= URGENT_DAYS && !upcomingApplication(card, deadline, now))) return false;
     if (filters.changedOnly && !latestDeadlineChange(card)) return false;
     if (tags.length > 0 && !deliverableTags(card).some((tag) => tags.includes(tag))) return false;
     if (filters.campus && excludesCampus(card, filters.campus)) return false;

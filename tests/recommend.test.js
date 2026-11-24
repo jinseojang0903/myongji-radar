@@ -12,6 +12,23 @@ const SAMPLE = validateCardData(JSON.parse(readFileSync(new URL('../site/data/ca
 const AT_SAMPLE = new Date(SAMPLE.generated_at); // 2026-10-15 06:00 KST (목요일)
 const ids = (items) => items.map((item) => item.card.id);
 
+test('교내·외부 구분은 제목·제출물과 함께 거르고 남은 대회의 판정은 그대로 유지한다', () => {
+  const scopes = { 'evc-13-nature': '교내', 'history-video-5': '외부', 'abix-hackathon-2026': '교내' };
+  const cards = SAMPLE.cards.map((card) => ({ ...card, scope: scopes[card.id] ?? null }));
+  const conditions = { ...emptyConditions(), campus: '자연', deliverables: ['영상'] };
+  const all = recommendCards(cards, conditions, AT_SAMPLE);
+  const external = recommendCards(cards, conditions, AT_SAMPLE, { scope: '외부', titleQuery: '역사영상' });
+  assert.equal(external.total, 1);
+  assert.equal(external.titleFilteredCount, 3);
+  for (const result of RESULT_ORDER) {
+    assert.deepEqual(external.groups[result], all.groups[result].filter(({ card }) => card.id === 'history-video-5'));
+  }
+  const campus = recommendCards(cards, emptyConditions(), AT_SAMPLE, { scope: '교내' });
+  assert.equal(campus.scopeFilteredCount, 2);
+  assert.deepEqual(RESULT_ORDER.flatMap((result) => ids(campus.groups[result])).sort(), ['abix-hackathon-2026', 'evc-13-nature']);
+  assert.equal(recommendCards(cards, emptyConditions(), AT_SAMPLE).total, 4);
+});
+
 test('시연 시나리오: "자연캠 2학년 재학생, 편입생 아니고 혼자" → AI 리터러시 신청 가능, 해커톤 불가', () => {
   const { conditions } = applyParsed(emptyConditions(), parseConditions('자연캠 2학년 재학생이고 편입생은 아니고 혼자 낼 대회'));
   const { groups, total, closedCount } = recommendCards(SAMPLE.cards, conditions, AT_SAMPLE);
