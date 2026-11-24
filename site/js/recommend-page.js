@@ -40,7 +40,7 @@ async function main() {
   let onSubmit = () => {};
   document.getElementById('ask-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    onSubmit();
+    onSubmit(event.submitter?.value === 'replace');
   });
   // 주소로 받은 문장(recommend.html#q=…)은 서버로 가지 않는 # 뒤에 둔다. 읽은 즉시 주소에서 지워
   // 방문 기록·다른 화면 요청에 남지 않게 한다 (#24 보안 리뷰). 예전 형식 ?q=도 같은 방식으로 읽고 지운다
@@ -76,7 +76,7 @@ async function main() {
     render();
   };
 
-  onSubmit = () => interpret(input.value, update);
+  onSubmit = (replace) => interpret(input.value, update, { replace });
   const titleInput = document.getElementById('title-q');
   titleInput.maxLength = MAX_TITLE_QUERY_LENGTH;
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
@@ -134,7 +134,9 @@ async function main() {
 
   if (fromAddress) {
     input.value = fromAddress;
-    interpret(fromAddress, (conditions) => update(conditions, { shouldSave: false }), '주소로 받은 문장이라 아직 저장하지 않았습니다. 칩을 누르거나 다시 바꾸면 저장됩니다.');
+    interpret(fromAddress, (conditions) => update(conditions, { shouldSave: false }), {
+      note: '주소로 받은 문장이라 아직 저장하지 않았습니다. 칩을 누르거나 다시 바꾸면 저장됩니다.',
+    });
   } else {
     render();
   }
@@ -153,7 +155,7 @@ function readSentenceFromAddress() {
   return sentence ? sentence.slice(0, MAX_INPUT_LENGTH) : null;
 }
 
-function interpret(text, update, note = null) {
+function interpret(text, update, { note = null, replace = false } = {}) {
   const status = document.getElementById('parse-status');
   if (text.trim() === '') {
     announce(status, '문장을 입력하거나 아래 조건을 눌러 고르세요.');
@@ -167,7 +169,7 @@ function interpret(text, update, note = null) {
     announce(status, error instanceof RangeError ? `문장은 ${MAX_INPUT_LENGTH}자까지 쓸 수 있습니다.` : '문장을 해석하지 못했습니다. 아래 조건을 눌러 고르세요.');
     return;
   }
-  const { conditions, read, changed, kept, unknownTerms } = applyParsed(state.conditions, parsed);
+  const { conditions, read, changed, kept, unknownTerms } = applyParsed(replace ? emptyConditions() : state.conditions, parsed);
   state.unknownTerms = unknownTerms;
   state.changed = changed;
   state.read = read;
@@ -178,9 +180,10 @@ function interpret(text, update, note = null) {
   else parts.push(`문장에서 ${names(read)} 조건을 읽었습니다. 아래에서 고칠 수 있습니다.`);
   // 지난번에 고른 조건이 조용히 섞이지 않게 무엇을 그대로 두었는지 알린다
   if (kept.length > 0) parts.push(`말하지 않은 ${names(kept)} 조건은 그대로 두었습니다.`);
+  if (replace) parts.push(read.length > 0 ? '이번 문장에서 읽은 조건만 적용했습니다.' : '기존 조건은 유지했습니다.');
   if (note) parts.push(note);
   announce(status, parts.join(' '));
-  update(conditions);
+  update(replace && read.length === 0 ? state.conditions : conditions, { shouldSave: !replace || read.length > 0 });
 }
 
 function bindChips(onChange) {
