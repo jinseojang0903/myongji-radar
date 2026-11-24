@@ -10,6 +10,15 @@ import { readSavedConditions, describeConditions } from './conditions.js';
 
 const BADGE_CLASS = { human: 's-human', need: 's-need', before: 's-before', missing: 's-missing' };
 
+export function bindScopeFilter(onChange) {
+  const buttons = document.querySelectorAll('[data-contest-scope]');
+  buttons.forEach((button) => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-pressed') === 'true') return;
+    buttons.forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+    onChange(button.dataset.contestScope);
+  }));
+}
+
 /**
  * 화면에 필요한 카드 데이터를 준비한다. 실패하면 errorTarget에 사용자용 안내를 그리고 null을 돌려준다.
  * 다른 사이트의 프레임 안에서 열리면(클릭재킹) 그리지 않는다. meta CSP로는 frame-ancestors를 걸 수 없어서다.

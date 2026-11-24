@@ -244,6 +244,15 @@ test.describe('목록 필터와 정렬', () => {
     assert.equal(listCards([unclear], { campus: '자연' }, AT_SAMPLE).items.length, 1);
   });
 
+  test('교내·외부는 기존 캠퍼스 및 제출물 필터와 함께 적용하고 구분 없는 대회는 전체에서만 보인다', () => {
+    const scopes = { 'evc-13-nature': '교내', 'history-video-5': '외부', 'abix-hackathon-2026': '교내' };
+    const cards = SAMPLE.cards.map((card) => ({ ...card, scope: scopes[card.id] ?? null }));
+    const filtered = (filters) => listCards(cards, filters, AT_SAMPLE).items.map(({ card }) => card.id);
+    assert.equal(filtered({ scope: '' }).length, 4);
+    assert.deepEqual(filtered({ scope: '교내', tags: ['영상'] }), ['evc-13-nature']);
+    assert.deepEqual(filtered({ scope: '외부', tags: ['영상'], campus: '자연' }), ['history-video-5']);
+  });
+
   test('마감 지난 대회는 빼고 건수를 센다', () => {
     const result = listCards(SAMPLE.cards, {}, new Date('2026-10-22T09:00:00+09:00'));
     assert.deepEqual(result.items.map((item) => item.card.id), ['history-video-5', 'abix-hackathon-2026']);
