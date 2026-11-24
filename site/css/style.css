@@ -193,6 +193,14 @@ h3 { letter-spacing: -0.02em; }
 .item-wrap :focus-visible { outline-offset: -3px; }
 .item-source { display: flex; align-items: center; min-height: 44px; padding: 0 20px 0 26px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; text-decoration: none; }
 .item-source:hover { text-decoration: underline; background: var(--blue-soft); }
+.item-actions { border-top: 1px solid var(--line); padding-right: 12px; }
+.item-actions .item-source { flex: 1 1 auto; border-top: 0; padding-right: 8px; }
+.item-actions .saved-card-toggle { margin-left: 12px; }
+.saved-card-toggle[aria-pressed="true"]::before { content: "✓ " / ""; }
+.saved-card-toggle[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
+.saved-contest-list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.saved-contest { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.saved-contest > a { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .item .dday.none { background: var(--card); border: 1.5px dashed var(--line-dashed); }
 
 /* ── 대회 카드 목록 ───────────────────────────────────── */

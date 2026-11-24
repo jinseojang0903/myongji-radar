@@ -8,6 +8,7 @@ import { formatShortDate, parseContractDate } from './dates.js';
 import { readSavedConditions, hasJudgedConditions } from './conditions.js';
 import { fieldRows, sourceLinks, spreadText, applicationAction, deadlineHistory, deliverableBadges, inquiryDraft } from './detail.js';
 import { calendarItems, calendarItemText, buildIcs, icsFileName } from './ics.js';
+import { migrateSavedCardIds, readSavedCardIds, savedCardButton, watchSavedCards } from './saved-cards.js';
 
 const BADGE_CLASS = { human: 's-human', auto: 's-auto', before: 's-before', need: 's-need', missing: 's-missing' };
 const RESULT_VIEW = {
@@ -52,6 +53,12 @@ async function main() {
   showConditionSummary(conditions);
 
   const header = renderHeader(card, page.getNow(), conditions);
+  if (!page.isSample) {
+    migrateSavedCardIds(data.cards);
+    header.querySelector('.head-main')?.append(el('div', { class: 'row' },
+      savedCardButton(card, readSavedCardIds().has(card.id)), el('a', { href: 'index.html#saved-contests' }, '관심 대회 보기')));
+    watchSavedCards();
+  }
   const calendar = renderCalendar(card, page.getNow);
   container.replaceChildren(
     header,

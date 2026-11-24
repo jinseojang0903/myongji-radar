@@ -7,6 +7,7 @@ import { formatShortDate, formatKstDateTime, kstDateString } from './dates.js';
 import { sourceLinks } from './detail.js';
 import { renderRadar, WEEK_DAYS, MONTH_DAYS } from './radar.js';
 import { createRadarPopover, popoverContent } from './radar-popover.js';
+import { listSavedCards, migrateSavedCardIds, notifySavedCards, readSavedCardIds, removeUnavailableSavedCards, savedCardButton, watchSavedCards } from './saved-cards.js';
 
 const BASE_FILTERS = { sort: 'deadline', urgentOnly: false, changedOnly: false, tags: [], campus: null };
 const filters = { ...BASE_FILTERS, query: '', scope: '' };
@@ -37,9 +38,11 @@ async function main() {
   const page = await loadPage({ errorTarget: document.getElementById('card-list') });
   if (!page) {
     document.getElementById('summary-line').replaceChildren('대회 정보를 불러오지 못했습니다.');
+    document.getElementById('saved-contest-list').replaceChildren(el('p', { class: 'small' }, '관심 대회 정보를 불러오지 못했습니다.'));
     return;
   }
   const { data, rejected, isSample } = page;
+  if (!isSample) migrateSavedCardIds(data.cards);
   renderTagChips();
   renderBoards(data.boards);
   boardList = data.boards;
@@ -52,7 +55,49 @@ async function main() {
   };
   bindFilters(render);
   render();
-  watchPageTime(page, render);
+  if (isSample) {
+    document.getElementById('saved-contest-list').replaceChildren(el('p', { class: 'small' }, '실제 대회 정보를 불러오면 관심 대회를 볼 수 있습니다.'));
+  } else {
+    renderSavedList(data.cards, readSavedCardIds(), page.getNow());
+    watchSavedCards((ids) => renderSavedList(data.cards, ids, page.getNow()));
+  }
+  watchPageTime(page, (now) => {
+    render(now);
+    if (!isSample) renderSavedList(data.cards, readSavedCardIds(), now);
+  });
+}
+
+function renderSavedList(cards, ids, now) {
+  const list = document.getElementById('saved-contest-list');
+  try {
+    drawSavedList(list, cards, ids, now);
+  } catch {
+    list?.replaceChildren(el('p', { class: 'small' }, '관심 대회를 표시하지 못했습니다.'));
+  }
+}
+
+function drawSavedList(list, cards, ids, now) {
+  const hadFocus = list.contains(document.activeElement);
+  const focusedId = hadFocus ? document.activeElement.dataset.savedCard : null;
+  const items = listSavedCards(cards, ids, now);
+  const rows = items.map(({ card, deadline }) => el('li', { class: 'row saved-contest' },
+    el('a', { href: `card.html?id=${encodeURIComponent(card.id)}` }, card.title),
+    ddayElement(deadline), savedCardButton(card, true)));
+  const missing = ids.size - items.length;
+  const status = el('span', { class: 'small', role: 'status' });
+  const clear = el('button', { type: 'button', class: 'btn' }, '빠진 대회 지우기');
+  clear.addEventListener('click', () => {
+    if (removeUnavailableSavedCards(cards)) notifySavedCards();
+    else status.textContent = '이 브라우저에서 관심 대회를 지울 수 없습니다.';
+  });
+  list.replaceChildren(
+    rows.length ? el('ul', { class: 'saved-contest-list' }, ...rows)
+      : el('p', { class: 'empty' }, '다시 보고 싶은 대회의 관심 대회 버튼을 눌러 저장하세요.'),
+    missing > 0 ? el('div', { class: 'row' }, el('span', { class: 'small' }, `현재 목록에서 빠진 관심 대회 ${missing}건`), clear, status) : null);
+  if (hadFocus) {
+    const next = [...list.querySelectorAll('[data-saved-card]')].find((button) => button.dataset.savedCard === focusedId);
+    (next ?? document.getElementById('h-saved')).focus({ preventScroll: true });
+  }
 }
 
 // 첫 화면 숫자는 필터와 상관없이 전체 기준으로 센다.
@@ -168,12 +213,17 @@ function renderList(data, now, rejectedCount, isSample) {
   }
   let failedCount = 0;
   let index = 0;
+  const savedIds = isSample ? null : readSavedCardIds();
   const lanes = LANES.map((lane) => {
     const laneItems = radarItems.filter((item) => item.lane === lane.id);
     if (laneItems.length === 0) return null;
     const cards = laneItems.flatMap(({ card, deadline, opening }) => {
       try {
         const element = renderItem(card, deadline, data.boards, index, opening);
+        if (savedIds) {
+          const source = element.querySelector('.item-source');
+          element.append(el('div', { class: 'row item-actions' }, source, savedCardButton(card, savedIds.has(card.id))));
+        }
         index += 1;
         return [element];
       } catch (error) {
@@ -225,9 +275,8 @@ function renderItem(card, deadline, boards, index, opening) {
     summary && el('span', { class: 'reason' }, summary),
   );
   // 원문 링크는 카드 링크 안에 넣을 수 없어(링크 안 링크) 카드 아래에 붙인다
-  if (!source) return el('div', { class: 'item-wrap' }, item);
-  const link = externalLink(source.url, `원문 공지 · ${source.boardName} ↗`);
-  link.classList.add('item-source');
+  const link = source ? externalLink(source.url, `원문 공지 · ${source.boardName} ↗`) : null;
+  link?.classList.add('item-source');
   return el('div', { class: 'item-wrap' }, item, link);
 }
 
