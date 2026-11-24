@@ -132,7 +132,7 @@ test('오류 화면에도 제목이 있고, 마감 변경의 옛·새 날짜를 
   assert.match(LOG_PAGE, /replaceChildren\(el\('h1', \{ class: 'sr-only' \}, '제작 기록'\), el\('p', \{ class: 'error' \}/);
   assert.match(CARD_PAGE, /'이전 마감: '\), el\('span', \{ class: 'old' \}/);
   assert.match(CARD_PAGE, /'바뀐 마감: '\), el\('b'/);
-  assert.match(HOME, /el\('a', \{ class: 'item', href: [^\n]*'aria-labelledby': `\$\{titleId\} \$\{ddayId\}` \}/);
+  assert.match(HOME, /el\('a', \{ class: 'item', href: [^\n]*'aria-labelledby': \[titleId, openingId, ddayId\]\.filter\(Boolean\)\.join\(' '\) \}/);
   assert.match(HOME, /const titleId = `card-title-\$\{index\}`/, '카드 id가 겹쳐도 제목 id는 겹치지 않게 순번으로');
   assert.match(HOME, /dday\.id = ddayId/);
   assert.match(HOME, /el\('h3', \{ class: 'title', id: titleId \}, card\.title\)/);

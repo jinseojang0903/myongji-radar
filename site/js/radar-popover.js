@@ -158,7 +158,7 @@ export function createPopoverController(view) {
  * @returns {HTMLElement[]}
  */
 export function popoverContent(item, boards) {
-  const { card, deadline } = item;
+  const { card, deadline, opening } = item;
   const isOpen = deadline.state === 'open';
   const dday = ddayElement(deadline);
   // "마감일 없음"은 상시 모집처럼 읽혀서 홈 목록과 같이 확인이 필요하다고 쓴다
@@ -166,6 +166,7 @@ export function popoverContent(item, boards) {
   const origin = [card.organizer, boardNames(card, boards).join(', ')].filter(Boolean).join(' · ');
   return [
     el('p', { class: 'rd-pop-title' }, card.title),
+    opening ? el('span', { class: 'badge s-before' }, opening) : null,
     el('div', { class: 'row' }, dday,
       el('span', { class: 'small' }, isOpen ? `신청 마감 ${formatDeadline(deadline)}` : '공지에서 마감일을 확인하지 못했습니다')),
     origin && el('p', { class: 'small' }, origin),

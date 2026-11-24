@@ -3,7 +3,7 @@
 // 입력 문장과 "이해하지 못한 표현"은 저장하지도 보내지도 않는다 (이름·학번이 들어 있을 수 있음, 계약 5절).
 import { el } from './html.js';
 import { loadPage, watchPageTime, badgeElements, ddayElement, showConditionSummary, bindScopeFilter } from './page.js';
-import { latestDeadlineChange, deliverableTags, emptyListMessage } from './cards.js';
+import { latestDeadlineChange, deliverableTags, emptyListMessage, upcomingApplication } from './cards.js';
 import { formatShortDate } from './dates.js';
 import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './parser.js';
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
@@ -285,12 +285,13 @@ function renderResults(cards, now, rejectedCount, boards) {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
       el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
-      ...groups[result].map((item) => renderItem(item, boards)));
+      ...groups[result].map((item) => renderItem(item, boards, now)));
   }));
 }
 
-function renderItem({ card, judged, deadline, summary }, boards) {
+function renderItem({ card, judged, deadline, summary }, boards, now) {
   const view = RESULT_VIEW[judged.result];
+  const opening = upcomingApplication(card, deadline, now);
   const change = latestDeadlineChange(card);
   const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions, boards) : null;
   // 복사 안내 영역은 복사 버튼이 있을 때만 (안내 영역이 카드마다 생기지 않게)
@@ -310,6 +311,7 @@ function renderItem({ card, judged, deadline, summary }, boards) {
       el('span', { class: `badge ${view.cls}` }, view.text),
       el('span', { class: 'title' }, card.title),
       ddayElement(deadline, 'spacer')),
+    opening ? el('span', { class: 'badge s-before' }, opening) : null,
     summary ? el('span', { class: 'reason' }, summary) : null,
     change ? el('p', { class: 'notice' }, `⚠ 마감 변경: ${shortDate(change.old)} → ${shortDate(change.new)}`) : null,
     el('div', { class: 'row' },
