@@ -81,6 +81,13 @@ export function calendarItems(card, now) {
   return items;
 }
 
+/** 신청 마감 이후에 챙길 일정 중 가장 먼저 오는 날짜. 시각이 없으면 같은 날의 시각 있는 일정 뒤에 둔다. */
+export function nextContestSchedule(card, now) {
+  const keyOf = (item) => `${item.date} ${item.time ?? '24:00'}`;
+  return calendarItems(card, now).filter((item) => !item.isPast && !/^apply\d*$/.test(item.key))
+    .sort((a, b) => keyOf(a).localeCompare(keyOf(b)))[0] ?? null;
+}
+
 /** 일정 한 줄 설명: "10/23(금) (시각 미기재 → 하루 종일)", "10/21(수) 15:00" */
 export function calendarItemText(item) {
   const date = formatShortDate(item.date);

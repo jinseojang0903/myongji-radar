@@ -145,7 +145,7 @@ test('좁은 화면에서 블록으로 펼치는 카드 항목 표는 역할을 
   cssRule(CSS, /\.fields th, \.fields td\s*{[^}]*display:\s*block/, '이 시험은 좁은 화면에서 표를 블록으로 펼칠 때를 위한 것');
   assert.match(CARD_PAGE, /el\('table', \{ class: 'fields', role: 'table' \}/);
   assert.match(CARD_PAGE, /el\('tbody', \{ role: 'rowgroup' \}/);
-  assert.match(CARD_PAGE, /el\('tr', \{ role: 'row' \}, el\('th', \{ scope: 'row', role: 'rowheader' \}/);
+  assert.match(CARD_PAGE, /el\('tr', \{ role: 'row', id: `field-\$\{row.name\}`, tabindex: '-1' \}, el\('th', \{ scope: 'row', role: 'rowheader' \}/);
   assert.match(CARD_PAGE, /el\('td', \{ role: 'cell' \}/);
   assert.match(CARD_PAGE, /el\('td', \{ class: 'st', role: 'cell' \}/);
 });

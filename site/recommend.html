@@ -32,7 +32,10 @@
     <form class="ask" id="ask-form">
       <label for="q" class="sr-only">조건을 문장으로 입력</label>
       <input id="q" autocomplete="off" placeholder="예: 자연캠 2학년, 혼자 낼 대회">
-      <button type="submit" class="btn primary">조건으로 바꾸기</button>
+      <div class="row">
+        <button type="submit" class="btn primary" value="merge">현재 조건에 반영</button>
+        <button type="submit" class="btn" value="replace">새 조건으로 찾기</button>
+      </div>
     </form>
     <p class="small">문장은 이 기기 안에서 정해진 표현 사전으로 해석합니다. AI나 서버로 보내지 않고, 문장은 저장하지 않습니다.</p>
     <p class="small" id="parse-status" role="status"></p>
@@ -62,6 +65,10 @@
   <section class="panel" aria-labelledby="result-heading">
     <a href="index.html#saved-contests">관심 대회 보기</a>
     <div class="row"><h2 id="result-heading">불러오는 중…</h2><span class="small spacer" id="result-meta"></span></div>
+    <div class="row">
+      <label for="result-filter" class="small filter-label">판정별 보기</label>
+      <select id="result-filter" class="btn" aria-controls="result-list"><option value="">전체 판정</option></select>
+    </div>
     <p class="sr-only" id="result-status" role="status"></p>
     <div class="result-list" id="result-list"></div>
     <p class="small">판정은 AI가 아니라 규칙 코드가 합니다. 공지에 없거나 팀이 원문과 대조하기 전인 조건이 걸리면 "신청 가능" 대신 "확인 필요"로 보여 줍니다.</p>

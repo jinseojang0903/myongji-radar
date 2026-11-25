@@ -9,7 +9,8 @@ import { parseConditions, MAX_INPUT_LENGTH, STUDENT_DELIVERABLE_TAGS } from './p
 import { readSavedConditions, saveConditions, clearSavedConditions, emptyConditions } from './conditions.js';
 import { inquiryDraft } from './detail.js';
 import { migrateSavedCardIds, readSavedCardIds, savedCardButton, watchSavedCards } from './saved-cards.js';
-import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW, resultAnnouncement } from './recommend.js';
+import { applyParsed, recommendCards, limitTerms, hasUnverifiedFail, periodEndDate, clipTitleQuery, MAX_TITLE_QUERY_LENGTH, RESULT_ORDER, RESULT_VIEW, resultAnnouncement, reasonSummaryItems } from './recommend.js';
+import { KEY_FIELDS } from './rules.js';
 
 // 칩 묶음: [조건 이름, 보이는 이름, [값, 칩 글자]]. 한 묶음에서 하나만 고르고, 다시 누르면 고르지 않은 상태(null)
 const CHIP_GROUPS = [
@@ -23,7 +24,7 @@ const CHIP_GROUPS = [
 const FIELD_NAMES = { campus: '캠퍼스', grade: '학년', is_transfer: '편입', enrollment: '학적', participation: '참가', period: '마감', deliverables: '제출물' };
 
 // titleQuery: 제목 검색칸의 말. 조건이 아니라 목록 필터이고, 문장처럼 저장하지 않는다 (계약 5절 "제목 검색")
-const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '', scope: '' };
+const state = { conditions: readSavedConditions() ?? emptyConditions(), unknownTerms: [], changed: [], read: [], titleQuery: '', scope: '', result: '' };
 // "이해하지 못한 표현"의 "제목에서 찾기"가 부른다. 데이터를 받은 뒤 main()이 채운다
 let searchTitle = () => {};
 
@@ -40,7 +41,7 @@ async function main() {
   let onSubmit = () => {};
   document.getElementById('ask-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    onSubmit();
+    onSubmit(event.submitter?.value === 'replace');
   });
   // 주소로 받은 문장(recommend.html#q=…)은 서버로 가지 않는 # 뒤에 둔다. 읽은 즉시 주소에서 지워
   // 방문 기록·다른 화면 요청에 남지 않게 한다 (#24 보안 리뷰). 예전 형식 ?q=도 같은 방식으로 읽고 지운다
@@ -76,7 +77,7 @@ async function main() {
     render();
   };
 
-  onSubmit = () => interpret(input.value, update);
+  onSubmit = (replace) => interpret(input.value, update, { replace });
   const titleInput = document.getElementById('title-q');
   titleInput.maxLength = MAX_TITLE_QUERY_LENGTH;
   // 입력칸에서 읽기만 한다. 칠 때마다 값을 다시 넣으면 한글 조합이 끊긴다 (길이는 maxLength가 막음)
@@ -92,7 +93,11 @@ async function main() {
   titleInput.addEventListener('input', readTitleQuery);
   bindScopeFilter((scope) => {
     state.scope = scope;
-    renderResults(data.cards, page.getNow(), rejectedCardCount, data.boards);
+    drawResults();
+  });
+  document.getElementById('result-filter').addEventListener('change', (event) => {
+    state.result = event.target.value;
+    drawResults();
   });
   // 데이터를 받기 전에 친 검색어도 첫 그리기에 쓴다
   state.titleQuery = clipTitleQuery(titleInput.value);
@@ -130,7 +135,9 @@ async function main() {
 
   if (fromAddress) {
     input.value = fromAddress;
-    interpret(fromAddress, (conditions) => update(conditions, { shouldSave: false }), '주소로 받은 문장이라 아직 저장하지 않았습니다. 칩을 누르거나 다시 바꾸면 저장됩니다.');
+    interpret(fromAddress, (conditions) => update(conditions, { shouldSave: false }), {
+      note: '주소로 받은 문장이라 아직 저장하지 않았습니다. 칩을 누르거나 다시 바꾸면 저장됩니다.',
+    });
   } else {
     render();
   }
@@ -149,7 +156,7 @@ function readSentenceFromAddress() {
   return sentence ? sentence.slice(0, MAX_INPUT_LENGTH) : null;
 }
 
-function interpret(text, update, note = null) {
+function interpret(text, update, { note = null, replace = false } = {}) {
   const status = document.getElementById('parse-status');
   if (text.trim() === '') {
     announce(status, '문장을 입력하거나 아래 조건을 눌러 고르세요.');
@@ -163,7 +170,7 @@ function interpret(text, update, note = null) {
     announce(status, error instanceof RangeError ? `문장은 ${MAX_INPUT_LENGTH}자까지 쓸 수 있습니다.` : '문장을 해석하지 못했습니다. 아래 조건을 눌러 고르세요.');
     return;
   }
-  const { conditions, read, changed, kept, unknownTerms } = applyParsed(state.conditions, parsed);
+  const { conditions, read, changed, kept, unknownTerms } = applyParsed(replace ? emptyConditions() : state.conditions, parsed);
   state.unknownTerms = unknownTerms;
   state.changed = changed;
   state.read = read;
@@ -174,9 +181,10 @@ function interpret(text, update, note = null) {
   else parts.push(`문장에서 ${names(read)} 조건을 읽었습니다. 아래에서 고칠 수 있습니다.`);
   // 지난번에 고른 조건이 조용히 섞이지 않게 무엇을 그대로 두었는지 알린다
   if (kept.length > 0) parts.push(`말하지 않은 ${names(kept)} 조건은 그대로 두었습니다.`);
+  if (replace) parts.push(read.length > 0 ? '이번 문장에서 읽은 조건만 적용했습니다.' : '기존 조건은 유지했습니다.');
   if (note) parts.push(note);
   announce(status, parts.join(' '));
-  update(conditions);
+  update(replace && read.length === 0 ? state.conditions : conditions, { shouldSave: !replace || read.length > 0 });
 }
 
 function bindChips(onChange) {
@@ -266,6 +274,11 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
   const { groups, closedCount, filteredCount, undatedCount, titleFilteredCount, scopeFilteredCount, skippedCount, total } = recommended;
   const periodEnd = periodEndDate(state.conditions.period, now);
   const isSearching = state.titleQuery.trim() !== '';
+  const labelOf = (result) => RESULT_VIEW[result].text.replace(/^\P{L}+/u, '');
+  const resultFilter = document.getElementById('result-filter');
+  resultFilter.replaceChildren(el('option', { value: '' }, `전체 ${total}건`),
+    ...RESULT_ORDER.map((result) => el('option', { value: result }, `${labelOf(result)} ${groups[result].length}건`)));
+  resultFilter.value = state.result;
   document.getElementById('result-heading').textContent = `마감 전 대회 ${total}건`;
   document.getElementById('result-meta').textContent = [
     isSearching ? `제목에 "${state.titleQuery.trim()}"이(가) 없는 ${titleFilteredCount}건 숨김` : null,
@@ -286,9 +299,15 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
     announceResults(resultAnnouncement(recommended, message));
     return;
   }
-  announceResults(resultAnnouncement(recommended, ''));
+  const visibleResults = state.result ? [state.result] : RESULT_ORDER;
+  const visibleCount = state.result ? groups[state.result].length : total;
+  announceResults(state.result ? `${labelOf(state.result)} ${visibleCount}건` : resultAnnouncement(recommended, ''));
+  if (visibleCount === 0) {
+    list.replaceChildren(el('p', { class: 'empty' }, '선택한 판정에 해당하는 대회가 없습니다.'));
+    return;
+  }
   const savedIds = canSave ? readSavedCardIds() : null;
-  list.replaceChildren(...RESULT_ORDER.filter((result) => groups[result].length > 0).map((result) => {
+  list.replaceChildren(...visibleResults.filter((result) => groups[result].length > 0).map((result) => {
     const headingId = `group-${result}`;
     return el('div', { class: 'result-group', role: 'group', 'aria-labelledby': headingId },
       el('h3', { class: 'group-heading', id: headingId }, `${RESULT_VIEW[result].text} ${groups[result].length}건`),
@@ -296,10 +315,12 @@ function renderResults(cards, now, rejectedCount, boards, canSave) {
   }));
 }
 
-function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) {
+function renderItem({ card, judged, deadline }, boards, now, savedIds) {
   const view = RESULT_VIEW[judged.result];
   const opening = upcomingApplication(card, deadline, now);
   const change = latestDeadlineChange(card);
+  const href = `card.html?id=${encodeURIComponent(card.id)}`;
+  const reasons = reasonSummaryItems(judged);
   const draft = judged.result === 'check' ? inquiryDraft(card, state.conditions, boards) : null;
   // 복사 안내 영역은 복사 버튼이 있을 때만 (안내 영역이 카드마다 생기지 않게)
   const status = draft ? el('span', { class: 'small', role: 'status' }) : null;
@@ -319,7 +340,8 @@ function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) 
       el('span', { class: 'title' }, card.title),
       ddayElement(deadline, 'spacer')),
     opening ? el('span', { class: 'badge s-before' }, opening) : null,
-    summary ? el('span', { class: 'reason' }, summary) : null,
+    reasons.length > 0 ? el('div', { class: 'reason' }, ...reasons.map(({ field, text }, index) =>
+      el('span', {}, index > 0 ? ' · ' : null, KEY_FIELDS.includes(field) ? el('a', { href: `${href}#field-${field}` }, text) : text))) : null,
     change ? el('p', { class: 'notice' }, `⚠ 마감 변경: ${shortDate(change.old)} → ${shortDate(change.new)}`) : null,
     el('div', { class: 'row' },
       ...deliverableTags(card).map((tag) => el('span', { class: 'tag' }, tag)),
@@ -327,7 +349,7 @@ function renderItem({ card, judged, deadline, summary }, boards, now, savedIds) 
       hasUnverifiedFail(judged) ? el('span', { class: 'small' }, '팀이 원문과 대조하기 전 정보입니다') : null,
       copyButton, status,
       savedIds ? savedCardButton(card, savedIds.has(card.id)) : null,
-      el('a', { class: copyButton ? 'btn' : 'btn spacer', href: `card.html?id=${encodeURIComponent(card.id)}` }, '카드 보기')));
+      el('a', { class: copyButton ? 'btn' : 'btn spacer', href }, '카드 보기')));
 }
 
 function shortDate(value) {
